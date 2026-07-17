@@ -2,8 +2,6 @@
 
 A hierarchical aggregation library for portfolio risk analysis and scenario simulation in Julia.
 
-## Quick Start
-
 ```julia
 using RiskTree
 
@@ -24,25 +22,9 @@ payload.mean # derived from count + sum
 - **Groupby axes** — independent hierarchies over the same leaf data
 - **LOD queries** — level-of-detail queries at configurable tree depth
 
-## Requirements
+## Quick Links
 
-See `risk-tree-ears-spec.md` for the full EARS specification (REQ-1 through REQ-44).
-
-## Tools
-
-| Tool | Purpose |
-|------|---------|
-| `just` | Task runner |
-| `pretender` | Code quality (complexity, duplication, mutation) |
-| `dont` | Epistemic claim verification |
-| `espectacular` | Specification checking |
-| `testaruda` | Test selection |
-| `bd` | Issue tracking (beads, prefix `TRAYS`) |
-| `openspec` | Spec-driven development |
-
-## Links
-
-- Spec: [risk-tree-ears-spec.md](risk-tree-ears-spec.md) (module: `RiskTree`)
-- Issues: `bd list`
-- OpenSpec: `openspec list`
-- Docs: `just doc` (builds via Documenter.jl)
+- [EARS Specification](specs/risk-tree-ears-spec.md) — full requirements (REQ-1..44)
+- [OpenSpec Changes](specs/index.md) — active change proposals
+- [API Reference](api/public.md) — public API docs
+- [Implementation Status](status.md) — what's built and what's planned

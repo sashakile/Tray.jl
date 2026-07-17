@@ -68,9 +68,9 @@ coverage:
 
 # ── Docs ────────────────────────────────────────────────────────────────────
 
-# Build docs (if Documenter.jl is configured)
+# Build docs (Documenter.jl)
 doc:
-    cd docs && {{ julia }} --project=. make.jl
+    cd docs && {{ julia }} --project=. -e "using Pkg; Pkg.instantiate()" && {{ julia }} --project=docs make.jl
 
 # ── Clean ───────────────────────────────────────────────────────────────────
 
