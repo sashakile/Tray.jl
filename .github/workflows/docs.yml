@@ -21,8 +21,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: docs-${{ github.ref }}
@@ -30,7 +28,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build & Deploy Docs
+    name: Build Docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,8 +47,5 @@ jobs:
           Pkg.instantiate()
           '
 
-      - name: Build and deploy
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          julia --project=docs docs/make.jl
+      - name: Build docs
+        run: julia --project=docs docs/make.jl
