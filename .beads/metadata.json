@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "TRAYS",
+  "project_id": "fa8f8c10-7d94-4c8a-a963-44602e714d4d"
+}
