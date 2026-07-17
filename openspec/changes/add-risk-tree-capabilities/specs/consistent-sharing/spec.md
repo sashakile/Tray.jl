@@ -11,7 +11,7 @@ While root reads occur concurrently with a leaf update, each reader SHALL observ
 While live shared-memory mode is active, multiple Julia processes and every non-Julia reader declared compatible with the active binary-format version SHALL read tree data directly from the mapping without fully deserializing the structure into a private copy. Compatibility SHALL require passing a common conformance fixture.
 
 #### Scenario: Attach a second process
-- **WHEN** either a second Julia process or a supported non-Julia process opens an existing shared tree
+- **WHEN** either a second Julia process or a non-Julia process declared compatible with the active format version opens an existing shared tree
 - **THEN** that process passes the format conformance fixture and queries node data directly from the shared representation without reconstructing the entire tree
 
 ### Requirement: REQ-26 Optional memory-mapped persistence

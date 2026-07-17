@@ -12,7 +12,7 @@ For an ordered sample `x` of length `S` and probability `p` in `[0, 1]`, the lib
 - **THEN** calculation fails with a domain error
 
 ### Requirement: REQ-17 Component and marginal VaR
-For aligned node loss vector `N`, ancestor loss vector `A` with positive standard deviation `σ_A`, and Gaussian quantile `z_c = Φ⁻¹(c)`, the library SHALL compute marginal VaR for unit node scaling as `z_c * cov(N, A) / σ_A` and component VaR at node scale `α` as `α` times marginal VaR, without storing either statistic.
+For aligned node loss vector `N` and ancestor loss vector `A` of length `S`, the library SHALL use population covariance `cov(N, A) = Σ((N_j - mean(N))(A_j - mean(A))) / S` and population standard deviation `σ_A`. For Gaussian quantile `z_c = Φ⁻¹(c)` and positive `σ_A`, it SHALL compute marginal VaR for unit node scaling as `z_c * cov(N, A) / σ_A` and component VaR at node scale `α` as `α` times marginal VaR, without storing either statistic.
 
 #### Scenario: Derive a node contribution
 - **WHEN** aligned node and ancestor scenario vectors, node scale `α`, and confidence `c` in `(0.5, 1)` are supplied and ancestor variance is positive
@@ -30,15 +30,23 @@ When the leaf-level scenario matrix is regenerated, the library SHALL rebuild af
 - **THEN** affected nodes reflect the new scenarios and cached derived statistics from prior scenarios are unavailable
 
 ### Requirement: REQ-21 Optional sketch compression
-While a `ScenarioPayload` tree is configured with sketch compression and positive integer leaf-count threshold `N`, each node summarizing more than `N` leaves SHALL store a mergeable distribution sketch instead of a full scenario vector.
+While a `ScenarioPayload` tree is configured with sketch compression and positive integer leaf-count threshold `N`, each node summarizing more than `N` leaves SHALL store an aligned-sum sketch instead of a full scenario vector. For aligned vectors `a` and `b`, sketch combination MUST approximate `sketch(a + b)` under the configured error contract and MUST NOT perform distribution-union merging that discards scenario pairing.
 
 #### Scenario: Cross the compression threshold
 - **WHEN** a node in a sketch-configured `ScenarioPayload` tree summarizes more than `N` leaves
-- **THEN** the node stores the configured sketch representation and remains mergeable with compatible summaries
+- **THEN** the node stores the configured aligned-sum sketch and remains mergeable with sketches referencing the same immutable scenario-set version and sketch configuration
 
 #### Scenario: Retain exact storage at the threshold
 - **WHEN** a node summarizes at most `N` leaves
 - **THEN** the node retains its full scenario vector
+
+#### Scenario: Preserve dependence during sketch combination
+- **WHEN** two child scenario vectors have correlated values at matching scenario identifiers
+- **THEN** their combined sketch approximates the distribution of elementwise sums and does not approximate the union of child distributions
+
+#### Scenario: Reject a distribution-union sketch
+- **WHEN** a configured sketch merge discards scenario pairing, as ordinary distribution-union merging does
+- **THEN** sketch configuration fails the aligned-sum conformance contract
 
 ### Requirement: REQ-22 Approximation error reporting
 While a node uses sketch compression configured with absolute rank-error bound `ε` in `[0, 1]`, every quantile, VaR, or CVaR result SHALL return its value, `approximate = true`, and `rank_error = ε`. The result SHALL NOT claim a value-error bound unless the sketch provides one separately.
@@ -63,7 +71,7 @@ Where factor-model scenario generation is enabled, the library SHALL compute a n
 - **THEN** scenario generation fails with an informative dimension or alignment error
 
 ### Requirement: REQ-30 Optional moment-based tail estimate
-Where a caller selects moment-based tail estimation instead of full scenario storage, the library SHALL use a `MonoidPayload` containing first through fourth power sums, transform P&L moments to loss moments using `L = -P`, and derive loss mean `μ_L`, positive standard deviation `σ_L`, skewness `γ₁`, and excess kurtosis `γ₂`. For `z = Φ⁻¹(c)`, it SHALL compute `z_cf = z + (z² - 1)γ₁/6 + (z³ - 3z)γ₂/24 - (2z³ - 5z)γ₁²/36` and approximate loss VaR as `μ_L + σ_L * z_cf`, and SHALL return an explicit near-Gaussian-assumption warning.
+Where a caller selects moment-based tail estimation instead of full scenario storage, the library SHALL use a `MonoidPayload` containing first through fourth power sums and transform P&L moments to loss moments using `L = -P`. It SHALL use population central moments `m_r = Σ(L_j - μ_L)^r / count`, with `σ_L = sqrt(m_2)`, skewness `γ₁ = m_3 / σ_L^3`, and excess kurtosis `γ₂ = m_4 / σ_L^4 - 3`. For `z = Φ⁻¹(c)`, it SHALL compute `z_cf = z + (z² - 1)γ₁/6 + (z³ - 3z)γ₂/24 - (2z³ - 5z)γ₁²/36` and approximate loss VaR as `μ_L + σ_L * z_cf`, and SHALL return an explicit near-Gaussian-assumption warning.
 
 #### Scenario: Request Cornish-Fisher VaR
 - **WHEN** a caller without full scenario storage opts into moment-based VaR using only sufficient `MonoidPayload` moments
@@ -74,11 +82,11 @@ Where a caller selects moment-based tail estimation instead of full scenario sto
 - **THEN** moment-based VaR fails with an informative domain error
 
 ### Requirement: REQ-32 Compressed-distribution disclosure
-If a statistic requiring the full scenario distribution is requested from a sketch-compressed node, the library SHALL return the sketch approximation with its error bound and SHALL NOT represent it as exact.
+If a statistic requiring the full scenario distribution is requested from an aligned-sum-sketch-compressed node, the library SHALL return the sketch approximation with its rank-error bound and SHALL NOT represent it as exact.
 
 #### Scenario: Request an exact median from a sketch
 - **WHEN** a caller requests a median from a compressed node
-- **THEN** the response contains an approximate median and error bound with no exactness claim
+- **THEN** the response contains an approximate median and rank-error bound with no exactness claim
 
 ### Requirement: REQ-36 Missing scenario data error
 If VaR or CVaR is requested from a node that contains only `MonoidPayload` data and no scenario or sketch distribution, the library SHALL raise an informative error identifying the required payload capability.
@@ -99,11 +107,11 @@ While historical-simulation VaR is configured, a one-period window-advancement e
 - **THEN** the full scenario tree is recombined bottom-up and no unaffected sibling is assumed to exist
 
 ### Requirement: REQ-38 Fractional-depth scenario quantile
-Where fractional-depth interpolation is enabled for a scenario tree, finite `d` in `[0, h]` and probability `p` in `[0, 1]` SHALL produce an interpolated-depth quantile by applying the `REQ-6` quantile convention at matching `p` to results at `floor(d)` and `ceil(d)`, then linearly interpolating those two quantiles rather than raw scenario values. The result SHALL identify itself as approximate.
+Where fractional-depth interpolation is enabled for a scenario tree, a valid focus leaf `i`, finite `d` in `[0, depth(i)]`, and probability `p` in `[0, 1]` SHALL produce an interpolated-depth quantile by applying the `REQ-6` convention at matching `p` to the two adjacent ancestor payloads, then linearly interpolating those quantiles rather than raw scenario values. The result SHALL identify itself as approximate.
 
 #### Scenario: Interpolate a scenario quantile
-- **WHEN** a caller requests probability `p` at non-integer depth `d`
-- **THEN** the result linearly interpolates the `p` quantiles from adjacent integer depths and reports that interpolation is approximate
+- **WHEN** a caller requests probability `p` for focus leaf `i` at non-integer depth `d`
+- **THEN** the result linearly interpolates the `p` quantiles of `i`'s adjacent ancestor payloads and reports that interpolation is approximate
 
 ### Requirement: REQ-44 Bounded scenario-node storage
 Each scenario node SHALL use storage bounded by fixed scenario count `S` in exact mode or by the configured sketch compression parameter in approximate mode, independent of subtree leaf count.

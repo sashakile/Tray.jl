@@ -114,18 +114,18 @@ When a caller supplies a payload-specific `reweight(::T, weight)::T` operation a
 - **THEN** the request fails before mutation with an informative contract error
 
 ### Requirement: REQ-19 Fractional-depth query
-Except for scenario quantiles governed by `REQ-38`, when a caller requests finite fractional depth `d` in `[0, h]` for a numeric scalar or fixed-length numeric-vector payload with identical schemas at adjacent depths, the library SHALL obtain results for the same range at `floor(d)` and `ceil(d)`, linearly interpolate each field with weight `d - floor(d)`, and derive statistics only after interpolation.
+Except for scenario quantiles governed by `REQ-38`, a fractional-depth query SHALL take a focus leaf `i` and finite depth `d` in `[0, depth(i)]`. For a numeric scalar or fixed-length numeric-vector payload with identical schemas at adjacent depths, the library SHALL select the ancestors of `i` at `floor(d)` and `ceil(d)`, linearly interpolate each field with weight `d - floor(d)`, and derive statistics only after interpolation.
 
 #### Scenario: Interpolate between detail levels
-- **WHEN** a range is valid at both adjacent depths, the payload is interpolatable, and `d` is not an integer
-- **THEN** the statistic is derived from payload fields interpolated according to the fractional part of `d`
+- **WHEN** a valid focus leaf, an interpolatable payload, and non-integer `d` are supplied
+- **THEN** the statistic is derived from the two adjacent ancestor payloads interpolated according to the fractional part of `d`
 
 #### Scenario: Query an integer-valued fractional depth
-- **WHEN** `d` is an integer in `[0, h]`
-- **THEN** the result equals the ordinary target-depth result at `d` without interpolation
+- **WHEN** `d` is an integer in `[0, depth(i)]`
+- **THEN** the result equals the payload of focus leaf `i`'s ancestor at depth `d` without interpolation
 
 #### Scenario: Reject unsupported interpolation
-- **WHEN** `d` is non-finite or outside `[0, h]`, adjacent schemas differ, or a payload field is not numeric
+- **WHEN** focus leaf `i` is out of bounds, `d` is non-finite or outside `[0, depth(i)]`, adjacent schemas differ, or a payload field is not numeric
 - **THEN** the query fails with an informative domain or interpolation error
 
 ### Requirement: REQ-29 Optional lazy range updates

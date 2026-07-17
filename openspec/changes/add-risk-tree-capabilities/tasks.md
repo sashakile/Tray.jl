@@ -12,7 +12,7 @@
 ## 3. Scenario risk
 - [ ] 3.1 Implement the specified empirical quantile, VaR, CVaR/ES, and component/marginal VaR formulas and domain checks.
 - [ ] 3.2 Implement scenario-matrix regeneration and historical-window cache invalidation.
-- [ ] 3.3 Add optional sketch compression, error-bearing approximate results, and moment-based tail estimation.
+- [ ] 3.3 Add optional aligned-sum sketch compression, rank-error-bearing approximate results, and moment-based tail estimation.
 - [ ] 3.4 Implement fractional-depth behavior, including quantile-function interpolation for scenario payloads.
 - [ ] 3.5 Implement optional factor-model scenario generation from aligned exposures and factor scenarios.
 
