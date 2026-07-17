@@ -9,6 +9,8 @@ on:
       - 'Project.toml'
       - 'risk-tree-ears-spec.md'
       - 'openspec/**'
+      - '.github/workflows/docs.yml'
+      - 'justfile'
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +19,8 @@ on:
       - 'Project.toml'
       - 'risk-tree-ears-spec.md'
       - 'openspec/**'
+      - '.github/workflows/docs.yml'
+      - 'justfile'
   workflow_dispatch:
 
 permissions:
