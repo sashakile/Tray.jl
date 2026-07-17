@@ -4,11 +4,8 @@ using Documenter
 using RiskTree
 
 # Copy EARS spec into docs tree
-cp(
-    joinpath(dirname(@__DIR__), "risk-tree-ears-spec.md"),
-    joinpath(@__DIR__, "src", "specs", "risk-tree-ears-spec.md");
-    force = true,
-)
+ears_spec = joinpath(dirname(@__DIR__), ".wai", "projects", "Tray.jl", "research", "2026-07-17-ears-specification-risktree-jl-a-hierarchical.md")
+cp(ears_spec, joinpath(@__DIR__, "src", "specs", "risk-tree-ears-spec.md"); force = true)
 
 # Copy OpenSpec specs into docs tree
 openspec_src = joinpath(dirname(@__DIR__), "openspec", "changes")

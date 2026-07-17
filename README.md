@@ -5,4 +5,8 @@ and scenario simulation in Julia.
 
 Julia module: `RiskTree`
 
-See [spec](risk-tree-ears-spec.md) for requirements.
+::: {.content-hidden}
+
+Spec: [EARS specification](.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md)
+
+:::

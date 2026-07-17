@@ -133,3 +133,4 @@ This document specifies the required behavior of a Julia library, `RiskTree.jl`,
 - Interactive LOD / viz integration → REQ-12, REQ-19, REQ-27, REQ-38.
 - Scenario generation → REQ-20, REQ-28, REQ-37.
 - Concurrency / cross-process shared-memory persistence → REQ-23, REQ-24, REQ-26, REQ-35, REQ-40.
+

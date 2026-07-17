@@ -2,7 +2,7 @@
 
 ## Overview
 A Julia library (module `RiskTree`) for hierarchical portfolio risk aggregation.
-EARS spec at `risk-tree-ears-spec.md` (44 requirements, REQ-1..44).
+EARS spec in [research artifacts](.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md) (44 requirements, REQ-1..44).
 
 ## Key Design Decisions
 1. **Two-tier statistics**: Monoidal (mergeable) vs non-monoidal (derived from scenario vectors)

@@ -91,7 +91,7 @@ status:
     @printf '\033[1m=== %s ===\033[0m\n' "{{ project }}"
     @printf '  Julia:   '; {{ julia }} --version
     @printf '  Tests:   '; ls -d test/
-    @printf '  Spec:    '; ls risk-tree-ears-spec.md 2>/dev/null; ls specs/ 2>/dev/null
+    @printf '  Spec:    '; ls .wai/projects/Tray.jl/research/*ears* 2>/dev/null; ls specs/ 2>/dev/null
     @printf '  Beads:   '; bd list 2>/dev/null | wc -l; printf " issues"
 
 # ── Help ────────────────────────────────────────────────────────────────────

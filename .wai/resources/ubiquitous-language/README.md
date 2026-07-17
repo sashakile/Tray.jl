@@ -33,5 +33,5 @@ consistently.
 
 ## Cross-References
 
-- See [EARS spec](../../../risk-tree-ears-spec.md) for full requirements (REQ-1..44)
+- See [EARS spec](../../../../../.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md) for full requirements (REQ-1..44)
 - See [OpenSpec](../../../openspec/) for change proposals

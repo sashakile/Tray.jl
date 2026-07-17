@@ -7,8 +7,8 @@ on:
       - 'docs/**'
       - 'src/**'
       - 'Project.toml'
-      - 'risk-tree-ears-spec.md'
       - 'openspec/**'
+      - '.wai/projects/Tray.jl/research/*.md'
       - '.github/workflows/docs.yml'
       - 'justfile'
   pull_request:
@@ -17,8 +17,8 @@ on:
       - 'docs/**'
       - 'src/**'
       - 'Project.toml'
-      - 'risk-tree-ears-spec.md'
       - 'openspec/**'
+      - '.wai/projects/Tray.jl/research/*.md'
       - '.github/workflows/docs.yml'
       - 'justfile'
   workflow_dispatch:
