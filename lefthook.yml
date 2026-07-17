@@ -1,0 +1,18 @@
+# lefthook.yml — pre-commit hooks for Tray.jl
+min_version: 1.11.0
+
+pre-commit:
+  parallel: true
+  commands:
+    julia-format:
+      glob: "*.jl"
+      run: julia -e 'using JuliaFormatter; format(".", verbose=true, check=true)'
+
+    typos:
+      glob: "*.{jl,md,toml,yml,yaml,txt}"
+      run: typos {staged_files}
+
+    eof-fixer:
+      glob: "*"
+      run: bash -c 'for f in {staged_files}; do [ -f "$f" ] && tail -c1 "$f" | read -r _ || echo >> "$f"; done'
+
