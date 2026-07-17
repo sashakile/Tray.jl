@@ -70,8 +70,8 @@ While historical-simulation VaR is configured, advancing the historical window b
 - **WHEN** the leaf matrix advances from its prior historical window by exactly one period and only part of the tree is affected
 - **THEN** a work trace shows affected scenario nodes recombined bottom-up, their old quantile caches invalidated, and unaffected sibling nodes neither visited nor version-changed
 
-### Requirement: REQ-38 Fractional-LOD scenario quantile
-Where fractional-depth interpolation is enabled for a scenario tree, an interpolated-LOD quantile SHALL interpolate quantile-function values at matching probabilities between `floor(d)` and `ceil(d)` rather than interpolate raw scenario values, and SHALL identify the result as approximate.
+### Requirement: REQ-38 Fractional-depth scenario quantile
+Where fractional-depth interpolation is enabled for a scenario tree, an interpolated-depth quantile SHALL interpolate quantile-function values at matching probabilities between `floor(d)` and `ceil(d)` rather than interpolate raw scenario values, and SHALL identify the result as approximate.
 
 #### Scenario: Interpolate a scenario quantile
 - **WHEN** a caller requests probability `p` at non-integer depth `d`

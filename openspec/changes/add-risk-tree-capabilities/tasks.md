@@ -13,7 +13,7 @@
 - [ ] 3.1 Implement on-demand quantile, VaR, CVaR/ES, and component/marginal VaR calculations.
 - [ ] 3.2 Implement scenario-matrix regeneration and historical-window cache invalidation.
 - [ ] 3.3 Add optional sketch compression, error-bearing approximate results, and moment-based tail estimation.
-- [ ] 3.4 Implement fractional-LOD behavior, including quantile-function interpolation for scenario payloads.
+- [ ] 3.4 Implement fractional-depth behavior, including quantile-function interpolation for scenario payloads.
 
 ## 4. Multidimensional rollups
 - [ ] 4.1 Implement independently maintained groupby and time-axis registration over shared leaf data.

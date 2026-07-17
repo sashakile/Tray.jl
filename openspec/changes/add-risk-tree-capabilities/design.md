@@ -17,9 +17,9 @@ RiskTree is intended to aggregate portfolio data through independent hierarchies
 The requirements are split by user-visible responsibility rather than by EARS sentence form. Core tree mechanics, payload arithmetic, scenario risk, multidimensional composition, consistency/sharing, and dashboard integration can therefore evolve and be tested independently.
 
 ### Exactness and approximation
-`ScenarioPayload` and `ExposurePayload` combination remains exact elementwise addition in exact mode. Sketch compression, Cornish-Fisher estimation, and fractional-LOD scenario quantiles are explicitly approximate and must identify their approximation or error bound at the result boundary.
+`ScenarioPayload` and `ExposurePayload` combination remains exact elementwise addition in exact mode. Sketch compression, Cornish-Fisher estimation, and fractional-depth scenario quantiles are explicitly approximate and must identify their approximation or error bound at the result boundary.
 
-### Fractional LOD
+### Fractional level of detail
 General fractional-depth queries interpolate payload fields before deriving statistics (`REQ-19`). Scenario quantiles are the explicit exception: when both fractional depth and scenario payloads are in use, matching points of the quantile functions are interpolated instead of raw scenarios (`REQ-38`).
 
 ### Versioned consistency
