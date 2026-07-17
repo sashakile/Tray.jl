@@ -63,14 +63,10 @@ jobs:
         with:
           version: '1.12'
 
+      - uses: julia-actions/julia-buildpkg@v1
+
       - name: Check formatting
-        run: |
-          julia -e '
-          using Pkg
-          Pkg.add("JuliaFormatter")
-          using JuliaFormatter
-          format(".", verbose=true, check=true)
-          '
+        run: julia --project=. -e 'using JuliaFormatter; format(".", verbose=true, check=true)'
 
       - name: Spell check
         uses: crate-ci/typos@master

@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["sasha <sasha@kile.xyz>"]
 
 [deps]
+JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 
 [extras]
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
