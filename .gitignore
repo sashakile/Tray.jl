@@ -32,3 +32,12 @@ JuliaLocalPreferences.toml
 .dolt/
 *.db
 .beads-credential-key
+
+# espectacular local state
+.espectacular/
+
+# testaruda local state
+.testaruda/
+
+# Manifest files
+Manifest.toml

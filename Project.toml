@@ -1,0 +1,12 @@
+name = "RiskTree"
+uuid = "e2e66d41-fabb-4e79-89cb-f055ae8e1889"
+version = "0.1.0"
+authors = ["sasha <sasha@kile.xyz>"]
+
+[deps]
+
+[extras]
+ReTestItems = "817f1d60-944f-11e9-1e3a-ede53cfb147c"
+
+[targets]
+test = ["ReTestItems"]
