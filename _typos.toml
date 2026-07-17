@@ -1,0 +1,2 @@
+[files]
+extend-exclude = [".beads/", ".dont/", ".testaruda/", "deps/", "docs/build/", "docs/site/"]

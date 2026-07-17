@@ -1,0 +1,5 @@
+[coverage]
+minimum = 50
+target = 80
+files = ["src/**/*.jl"]
+exclude = ["test/**", "docs/**", "deps/**"]

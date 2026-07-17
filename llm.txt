@@ -1,0 +1,47 @@
+# Tray.jl
+
+A hierarchical aggregation library for portfolio risk analysis and scenario simulation in Julia.
+
+## Quick Start
+
+```julia
+using RiskTree
+
+# Build a tree from leaf data
+tree = RiskTree.build(leaves, MonoidPayload)
+
+# Query aggregate statistics
+payload = RiskTree.query(tree, 1:100, depth=3)
+payload.sum  # monoidal sum
+payload.mean # derived from count + sum
+```
+
+## Key Concepts
+
+- **MonoidPayload** — mergeable statistics (count, sum, sumsq, min, max)
+- **ScenarioPayload** — full P&L scenario vectors for VaR/CVaR
+- **ExposurePayload** — factor exposure vectors for parametric risk
+- **Groupby axes** — independent hierarchies over the same leaf data
+- **LOD queries** — level-of-detail queries at configurable tree depth
+
+## Requirements
+
+See `risk-tree-ears-spec.md` for the full EARS specification (REQ-1 through REQ-44).
+
+## Tools
+
+| Tool | Purpose |
+|------|---------|
+| `just` | Task runner |
+| `pretender` | Code quality (complexity, duplication, mutation) |
+| `dont` | Epistemic claim verification |
+| `espectacular` | Specification checking |
+| `testaruda` | Test selection |
+| `bd` | Issue tracking (beads, prefix `TRAYS`) |
+| `openspec` | Spec-driven development |
+
+## Links
+
+- Spec: [risk-tree-ears-spec.md](risk-tree-ears-spec.md) (module: `RiskTree`)
+- Issues: `bd list`
+- OpenSpec: `openspec list`

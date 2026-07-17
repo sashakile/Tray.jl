@@ -1,0 +1,19 @@
+{
+    "name": "Tray.jl",
+    "image": "julia:1.12-bookworm",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "julialang.language-julia",
+                "llvm-vs-code-extensions.vscode-clangd"
+            ],
+            "settings": {
+                "julia.enableTelemetry": false,
+                "julia.useRevise": true,
+                "editor.formatOnSave": true
+            }
+        }
+    },
+    "postCreateCommand": "julia -e 'using Pkg; Pkg.add([\"JuliaFormatter\", \"ReTestItems\", \"Coverage\"])'",
+    "remoteUser": "root"
+}

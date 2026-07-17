@@ -9,4 +9,8 @@
 # projections:
 #   - target: claude-code
 
-projections: []
+projections:
+  - target: .agents
+    strategy: symlink
+  - target: claude-code
+    strategy: inline

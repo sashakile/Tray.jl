@@ -1,0 +1,23 @@
+repos:
+  - repo: local
+    hooks:
+      - id: julia-format
+        name: Format Julia code
+        entry: julia -e 'using JuliaFormatter; format(".", verbose=true, check=true)'
+        language: system
+        files: '\.jl$'
+        stages: [pre-commit]
+
+      - id: typos
+        name: Spell check
+        entry: typos
+        language: system
+        files: '.*'
+        types: [text]
+        stages: [pre-commit]
+
+      - id: end-of-file-fixer
+        name: End-of-file fixer
+        entry: bash -c 'for f in "$@"; do [ -f "$f" ] && tail -c1 "$f" | read -r _ || echo >> "$f"; done' --
+        language: system
+        stages: [pre-commit]
