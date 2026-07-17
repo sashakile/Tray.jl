@@ -16,3 +16,16 @@ pre-commit:
       glob: "*"
       run: bash -c 'for f in {staged_files}; do [ -f "$f" ] && tail -c1 "$f" | read -r _ || echo >> "$f"; done'
 
+pre-push:
+  parallel: true
+  commands:
+    ci-test:
+      run: julia -e 'using Pkg; Pkg.test()'
+
+    ci-format:
+      glob: "*.jl"
+      run: julia -e 'using JuliaFormatter; format(".", verbose=true, check=true)'
+
+    ci-spell:
+      glob: "*.{jl,md,toml,yml,yaml,txt}"
+      run: typos .

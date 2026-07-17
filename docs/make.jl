@@ -33,10 +33,6 @@ makedocs(
             "EARS Spec" => "specs/risk-tree-ears-spec.md",
             "OpenSpec Changes" => "specs/index.md",
         ],
-        "API Reference" => [
-            "Public API" => "api/public.md",
-            "Internal API" => "api/internal.md",
-        ],
         "Developer Guide" => [
             "Architecture" => "dev/architecture.md",
             "Testing" => "dev/testing.md",
