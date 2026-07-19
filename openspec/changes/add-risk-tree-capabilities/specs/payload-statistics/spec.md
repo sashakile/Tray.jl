@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: REQ-4 Built-in payload types
-The library SHALL provide `MonoidPayload` containing count, sum, sum of squares, minimum, and maximum; `ScenarioPayload{S}` containing a dense P&L vector of positive length `S`; and `ExposurePayload{K}` containing a factor exposure vector of positive length `K`. When moment-based tail estimation is enabled, `MonoidPayload` SHALL additionally contain mergeable sums of cubes and fourth powers.
+The library SHALL provide `MonoidPayload` containing count, sum, sum of squares, minimum, and maximum; `ScenarioPayload{S}` containing a dense P&L vector of positive length `S`; and `ExposurePayload{K}` containing a factor exposure vector of positive length `K`. All observations and vector elements MUST be finite. `MonoidPayload` construction MUST require integer `count ≥ 0`; count zero MUST be the unique schema identity (`sum=sumsq=0`, optional higher sums zero, `minimum=+Inf`, `maximum=-Inf`), and these two sentinel extrema are the only permitted non-finite stored values. A count greater than zero MUST have finite sums/extrema, `minimum ≤ maximum`, `sumsq ≥ sum²/count` within configured numerical tolerance, and higher sums consistent with enabled schema fields. When moment-based tail estimation is enabled, it SHALL additionally contain mergeable sums of cubes and fourth powers.
 
 #### Scenario: Construct each built-in payload
 - **WHEN** a caller supplies valid values for any built-in payload
@@ -15,6 +15,10 @@ The library SHALL provide `MonoidPayload` containing count, sum, sum of squares,
 - **WHEN** moment-based tail estimation is enabled
 - **THEN** the monoidal payload stores third- and fourth-power sums in addition to all baseline fields
 
+#### Scenario: Reject non-finite or inconsistent observations
+- **WHEN** a constructor receives NaN, infinity outside the canonical empty-identity extrema, negative count, a noncanonical empty payload, reversed extrema, or impossible sums
+- **THEN** construction fails before the payload enters a tree
+
 ### Requirement: REQ-5 Derived monoidal statistics
 The library SHALL derive mean, population variance `sumsq / count - mean^2`, and population standard deviation from `MonoidPayload` fields at read time and SHALL NOT store those derived values as payload fields.
 
@@ -27,7 +31,7 @@ The library SHALL derive mean, population variance `sumsq / count - mean^2`, and
 - **THEN** the query fails with a domain error rather than returning a fabricated numeric value
 
 ### Requirement: REQ-7 Exact vector combination
-`combine` for exact `ScenarioPayload` and `ExposurePayload` values SHALL use exact elementwise vector addition and SHALL introduce no tree-depth-dependent approximation.
+`combine` for exact `ScenarioPayload` and `ExposurePayload` values SHALL use elementwise vector addition in immutable identifier order, using the deterministic reduction and tolerance/rebuild policy of `REQ-3`, and SHALL introduce no additional tree-depth-dependent approximation.
 
 #### Scenario: Combine vector payloads through multiple levels
 - **WHEN** aligned vector payloads are combined in any valid tree grouping

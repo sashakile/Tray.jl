@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: REQ-6 On-demand scenario statistics
-For an ordered sample `x` of length `S` and probability `p` in `[0, 1]`, the library SHALL define empirical quantile `q_p(x)` as sorted element `max(1, ceil(pS))`. For P&L sample `P`, losses SHALL be `L = -P`; at confidence `c` in `(0.5, 1)`, VaR SHALL be `q_c(L)` and CVaR/Expected Shortfall SHALL be the mean of sorted losses at positions `floor(cS) + 1` through `S`. The library SHALL derive these values at read time using sorting or selection and SHALL NOT store them as node fields.
+For a finite sample `x` of length `S` and probability `p` in `[0,1]`, the library SHALL define empirical quantile `q_p(x)` as sorted element `max(1, ceil(pS))`. For P&L `P`, losses SHALL be `L=-P`; at confidence `c` in `(0.5,1)`, VaR SHALL be `q_c(L)` and empirical Expected Shortfall SHALL be the quantile integral `ES_c=(1/(1-c))∫_c^1 q_u(L)du`. For sorted losses `l_(1)≤…≤l_(S)`, with `k=floor(cS)` and `r=cS-k`, this is `((1-r)l_(k+1)+Σ_{j=k+2}^S l_(j))/(S(1-c))`, including fractional boundary mass. The library SHALL derive these values on demand and store no derived statistic.
 
 #### Scenario: Query exact tail risk
 - **WHEN** a caller requests VaR, CVaR, and an arbitrary quantile from a known exact scenario vector
@@ -23,14 +23,14 @@ For aligned node loss vector `N` and ancestor loss vector `A` of length `S`, the
 - **THEN** component or marginal VaR calculation fails with an informative domain or alignment error
 
 ### Requirement: REQ-20 Scenario-matrix regeneration
-When the leaf-level scenario matrix is regenerated, the library SHALL rebuild affected scenario trees bottom-up and SHALL NOT require manual cache invalidation by the caller.
+When the leaf-level scenario matrix is regenerated, the library SHALL create a new immutable source epoch, rebuild affected scenario trees bottom-up, invalidate old-epoch caches, and atomically publish one new scenario epoch. It SHALL NOT require manual cache invalidation by the caller, and old and new epochs SHALL NOT combine in one query.
 
 #### Scenario: Replace scenario inputs
 - **WHEN** a new aligned scenario matrix replaces the current matrix
 - **THEN** affected nodes reflect the new scenarios and cached derived statistics from prior scenarios are unavailable
 
 ### Requirement: REQ-21 Optional sketch compression
-While a `ScenarioPayload` tree is configured with sketch compression and positive integer leaf-count threshold `N`, each node summarizing more than `N` leaves SHALL store an aligned-sum sketch instead of a full scenario vector. For aligned vectors `a` and `b`, sketch combination MUST approximate `sketch(a + b)` under the configured error contract and MUST NOT perform distribution-union merging that discards scenario pairing.
+Scenario nodes SHALL use a sealed representation `Exact(values, scenario_ids, source_epoch)` or `Compressed(sketch, scenario_ids, source_epoch, config_id)`; no third state is valid. With compression threshold `N>0`, nodes with at most `N` leaves SHALL be exact and larger nodes compressed. Exact+exact SHALL add aligned values then retain or compress by threshold; exact+compressed and compressed+exact SHALL promote the exact operand with the same configuration before ordered sketch combination; compressed+compressed SHALL require identical scenario IDs, epoch, and configuration. A sketch merge MUST approximate `sketch(a+b)`, preserve scenario pairing, have an identity sketch, and satisfy associativity under a declared metric `D`: `D((a⊕b)⊕c,a⊕(b⊕c))≤ε_assoc`. Every exact-to-sketch transition MUST be reproducible from retained exact descendants or a reloadable immutable source identified by epoch; sketch-to-exact transition MUST rebuild from that source and fail atomically if unavailable. Configuration provenance (algorithm/version, parameters, rank and associativity bounds, source epoch) MUST accompany every compressed node and result.
 
 #### Scenario: Cross the compression threshold
 - **WHEN** a node in a sketch-configured `ScenarioPayload` tree summarizes more than `N` leaves
@@ -48,8 +48,16 @@ While a `ScenarioPayload` tree is configured with sketch compression and positiv
 - **WHEN** a configured sketch merge discards scenario pairing, as ordinary distribution-union merging does
 - **THEN** sketch configuration fails the aligned-sum conformance contract
 
+#### Scenario: Combine every representation pairing
+- **WHEN** children are exact/exact, exact/compressed, compressed/exact, or compressed/compressed
+- **THEN** the specified promotion path is used, provenance is preserved, and incompatible epoch/configuration combinations are rejected without mutation
+
+#### Scenario: Transition representations
+- **WHEN** threshold or configuration changes require compression or decompression
+- **THEN** the node is rebuilt from retained or reloadable epoch-matched source and the transition publishes atomically, or leaves the old representation intact
+
 ### Requirement: REQ-22 Approximation error reporting
-While a node uses sketch compression configured with absolute rank-error bound `ε` in `[0, 1]`, every quantile, VaR, or CVaR result SHALL return its value, `approximate = true`, and `rank_error = ε`. The result SHALL NOT claim a value-error bound unless the sketch provides one separately.
+While a node uses compression, every quantile, VaR, or ES result SHALL return value, `approximate=true`, configuration provenance, and a cumulative absolute rank-error bound. Along a deterministic reduction path the bound SHALL compose as `min(1, Σ ε_promotions + Σ ε_merges + ε_query)`. ES SHALL additionally report the cumulative rank-uncertainty envelope over `[c,1]`; when finite lower and upper value envelopes are available, it SHALL integrate them into an ES value interval, and otherwise it SHALL explicitly report the value-error bound as unavailable rather than derive one from rank error alone.
 
 #### Scenario: Query compressed tail risk
 - **WHEN** a quantile-based statistic is derived from a sketch-compressed node
@@ -96,7 +104,7 @@ If VaR or CVaR is requested from a node that contains only `MonoidPayload` data 
 - **THEN** the request fails and states that scenario or sketch data is required
 
 ### Requirement: REQ-37 Historical-window advancement
-While historical-simulation VaR is configured, a one-period window-advancement event SHALL identify every leaf series that advanced, shift those rows of the leaf scenario matrix by one period, recombine each changed leaf and ancestor bottom-up, invalidate their cached quantile results, and leave a sibling subtree unchanged exactly when it contains no changed leaf.
+While historical simulation is configured, each immutable scenario source snapshot SHALL have a monotonically increasing `source_epoch` and each derived tree/configuration a `scenario_epoch`. A one-period advancement SHALL create a new source epoch, identify every changed immutable leaf ID, rebuild changed leaves and ancestors bottom-up, invalidate old-epoch caches, and atomically publish one new scenario epoch. Old and new epochs SHALL never combine or answer one query together.
 
 #### Scenario: Advance a partially affected history window
 - **WHEN** independently versioned source series advance by exactly one period for only a subset of leaves
@@ -107,14 +115,14 @@ While historical-simulation VaR is configured, a one-period window-advancement e
 - **THEN** the full scenario tree is recombined bottom-up and no unaffected sibling is assumed to exist
 
 ### Requirement: REQ-38 Fractional-depth scenario quantile
-Where fractional-depth interpolation is enabled for a scenario tree, a valid focus leaf `i`, finite `d` in `[0, depth(i)]`, and probability `p` in `[0, 1]` SHALL produce an interpolated-depth quantile by applying the `REQ-6` convention at matching `p` to the two adjacent ancestor payloads, then linearly interpolating those quantiles rather than raw scenario values. The result SHALL identify itself as approximate.
+Where fractional-depth interpolation is enabled for a scenario tree, a valid focus leaf `i`, finite `d` in `[0, depth(i)]`, and probability `p` in `[0, 1]` SHALL produce an interpolated-depth quantile by applying the `REQ-6` convention at matching `p` to the two adjacent ancestor payloads, then linearly interpolating those quantiles rather than raw scenario values. The result SHALL identify itself as approximate; if either ancestor is compressed, it SHALL also carry both ancestors' provenance and the conservatively composed `REQ-22` uncertainty.
 
 #### Scenario: Interpolate a scenario quantile
 - **WHEN** a caller requests probability `p` for focus leaf `i` at non-integer depth `d`
 - **THEN** the result linearly interpolates the `p` quantiles of `i`'s adjacent ancestor payloads and reports that interpolation is approximate
 
 ### Requirement: REQ-44 Bounded scenario-node storage
-Each scenario node SHALL use storage bounded by fixed scenario count `S` in exact mode or by the configured sketch compression parameter in approximate mode, independent of subtree leaf count.
+Each scenario node SHALL use one of the sealed `REQ-21` representations and storage bounded by fixed scenario count `S` in exact mode or by the configured sketch parameter in compressed mode, independent of subtree leaf count. Retained/reloadable reconstruction source is accounted separately and its location and epoch SHALL be configuration provenance.
 
 #### Scenario: Grow a summarized subtree
 - **WHEN** more leaves are aggregated beneath a scenario node without changing `S` or the sketch parameter

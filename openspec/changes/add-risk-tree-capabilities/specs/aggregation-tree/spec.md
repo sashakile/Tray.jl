@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: REQ-1 Generic n-ary tree
-The library SHALL represent aggregation as a non-empty n-ary tree parameterized by a payload type `T <: AbstractPayload` and integer branching factor `b ≥ 2`.
+The library SHALL represent aggregation as a non-empty balanced n-ary tree parameterized by a payload type `T <: AbstractPayload` and integer branching factor `b ≥ 2`. After construction, insertion, or removal, maximum leaf depth SHALL be `O(log_b n)`. Leaves SHALL have immutable IDs; 1-based indices SHALL mean rank in the current deterministic leaf order. Child order and balancing tie-breaks SHALL be deterministic, and `depth(node)` SHALL always mean edge distance from the depth-zero root.
 
 #### Scenario: Construct a typed tree
 - **WHEN** a caller constructs a tree from payloads of a concrete `AbstractPayload` subtype and a branching factor
@@ -11,19 +11,27 @@ The library SHALL represent aggregation as a non-empty n-ary tree parameterized 
 - **WHEN** a caller supplies no leaves or a branching factor less than two
 - **THEN** construction fails with a domain error before any nodes are built
 
+#### Scenario: Preserve balance and deterministic addressing
+- **WHEN** the same ordered leaf-ID sequence and mutations are applied twice
+- **THEN** both trees have identical topology, ID-to-index mapping, and depths, and maximum leaf depth satisfies the documented logarithmic bound
+
 ### Requirement: REQ-2 Payload algebra contract
-Every payload type used in a tree MUST provide closed operations `combine(::T, ::T)::T` and `identity(::Type{T})::T`. Associativity SHALL be documented as the payload implementer's responsibility and SHALL NOT be checked at runtime.
+Every payload type used in a tree MUST provide closed operations `combine(::T, ::T)::T` and `identity(schema)::T`, where immutable `schema` is bound to the tree and captures dimensions, ordered identifiers, numeric type, and configuration relevant to identity. For every schema-valid `x`, both `combine(identity(schema), x) == x` and `combine(x, identity(schema)) == x` MUST hold. Associativity SHALL be documented as the payload implementer's responsibility and SHALL NOT be checked at runtime. Construction SHALL reject values whose schema differs from the tree schema.
 
 #### Scenario: Build with a conforming custom payload
 - **WHEN** a custom payload provides both required methods returning `T`
 - **THEN** the tree accepts that payload without attempting runtime associativity checks
 
 #### Scenario: Reject a missing identity method
-- **WHEN** a custom payload provides `combine` but not `identity(::Type{T})::T`
+- **WHEN** a custom payload provides `combine` but not schema-aware identity construction
 - **THEN** it cannot be used as a tree payload
 
+#### Scenario: Enforce identity on both sides
+- **WHEN** tree construction validates a custom payload against its schema identity
+- **THEN** both left and right identity checks pass or construction fails with a payload-contract error
+
 ### Requirement: REQ-3 Bottom-up construction
-The library SHALL compute each internal node payload by folding `combine` over its child payloads from the leaves to the root.
+The library SHALL compute each internal node payload by folding `combine` over children in deterministic left-to-right child order from leaves to root. Floating-point trees SHALL use that same order for every incremental recomputation and full rebuild; equality tests SHALL use a configured absolute/relative tolerance, and accumulated divergence beyond it SHALL trigger a deterministic full rebuild (or an explicit error if rebuild source is unavailable).
 
 #### Scenario: Build from leaves
 - **WHEN** a tree is built from a non-empty sequence of leaf payloads
@@ -77,7 +85,7 @@ When a caller requests a statistic not stored natively by a payload, the library
 - **THEN** the statistic is computed from that payload and a complete tree-state comparison shows no mutation
 
 ### Requirement: REQ-14 Leaf insertion
-When a leaf is inserted, the library SHALL extend or rebalance the tree and update every affected ancestor payload.
+When a leaf is inserted, the library SHALL assign a never-reused immutable leaf ID, extend or deterministically rebalance the tree, preserve existing leaf IDs, update affected ancestors, and restore the `REQ-1` height bound.
 
 #### Scenario: Insert a leaf
 - **WHEN** a caller inserts a valid payload at a valid leaf position
@@ -88,7 +96,7 @@ When a leaf is inserted, the library SHALL extend or rebalance the tree and upda
 - **THEN** insertion fails with a bounds error and leaves the tree unchanged
 
 ### Requirement: REQ-15 Leaf removal
-When a leaf is removed, the library SHALL update every affected ancestor to exclude that leaf.
+When a leaf is removed, the library SHALL retire (never reuse) its immutable ID, update every affected ancestor to exclude it, deterministically reindex remaining leaves, and restore the `REQ-1` height bound.
 
 #### Scenario: Remove a leaf
 - **WHEN** a caller removes an existing leaf
@@ -114,7 +122,7 @@ When a caller supplies a payload-specific `reweight(::T, weight)::T` operation a
 - **THEN** the request fails before mutation with an informative contract error
 
 ### Requirement: REQ-19 Fractional-depth query
-Except for scenario quantiles governed by `REQ-38`, a fractional-depth query SHALL take a focus leaf `i` and finite depth `d` in `[0, depth(i)]`. For a numeric scalar or fixed-length numeric-vector payload with identical schemas at adjacent depths, the library SHALL select the ancestors of `i` at `floor(d)` and `ceil(d)`, linearly interpolate each field with weight `d - floor(d)`, and derive statistics only after interpolation.
+Except for scenario quantiles governed by `REQ-38`, a fractional-depth query SHALL take a focus leaf ID or current index `i` and finite depth `d` in `[0, depth(i)]`. A payload SHALL explicitly declare an affine projection `project(::T)::A` and result interpretation for an affine space `A`; the library SHALL select the ancestors at `floor(d)` and `ceil(d)`, interpolate only their schema-equal projections, and derive the declared result after interpolation. It SHALL never interpolate raw payload fields merely because they are numeric.
 
 #### Scenario: Interpolate between detail levels
 - **WHEN** a valid focus leaf, an interpolatable payload, and non-integer `d` are supplied
@@ -125,11 +133,11 @@ Except for scenario quantiles governed by `REQ-38`, a fractional-depth query SHA
 - **THEN** the result equals the payload of focus leaf `i`'s ancestor at depth `d` without interpolation
 
 #### Scenario: Reject unsupported interpolation
-- **WHEN** focus leaf `i` is out of bounds, `d` is non-finite or outside `[0, depth(i)]`, adjacent schemas differ, or a payload field is not numeric
+- **WHEN** focus leaf `i` is unknown/out of bounds, `d` is non-finite or outside `[0, depth(i)]`, adjacent schemas differ, or no affine projection/result contract exists
 - **THEN** the query fails with an informative domain or interpolation error
 
 ### Requirement: REQ-29 Optional lazy range updates
-Where lazy propagation is enabled, the library SHALL permit a range or subtree transformation `f` to be represented at a canonical subtree root only when it is declared distributive over payload combination, `f(combine(a, b)) = combine(f(a), f(b))`. The library SHALL defer descendant recomputation until a descendant is read.
+Where lazy propagation is enabled, transformations SHALL form an ordered action on payloads: `apply(identity_tag, x)=x`, `apply(compose(new, old), x)=apply(new, apply(old, x))`, and `apply(t, combine(a,b))=combine(apply(t,a),apply(t,b))`. Reweighting SHALL use this same action and weight `1` SHALL be identity. The library SHALL defer descendant recomputation until a descendant is read, but MUST flush all pending tags before topology changes, schema/configuration changes, serialization, persistence, or representation transitions.
 
 #### Scenario: Defer a bulk update
 - **WHEN** a bulk update fully covers a canonical subtree
@@ -138,6 +146,10 @@ Where lazy propagation is enabled, the library SHALL permit a range or subtree t
 #### Scenario: Reject a non-distributive lazy update
 - **WHEN** a transformation is not declared distributive over `combine`
 - **THEN** the library rejects lazy application rather than producing an invalid subtree aggregate
+
+#### Scenario: Preserve ordered lazy composition and flush
+- **WHEN** two transformations are deferred and then an insertion or persistence operation begins
+- **THEN** tags are applied in submission order, descendants equal eager application, and no pending tag crosses the operation barrier
 
 ### Requirement: REQ-31 Missing payload operation error
 If a payload type does not provide `combine(::T, ::T)::T`, use as a tree payload SHALL fail at compile time or construction time with an informative contract error and SHALL NOT select a default merge.

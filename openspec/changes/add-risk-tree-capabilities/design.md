@@ -17,13 +17,13 @@ RiskTree is intended to aggregate portfolio data through independent hierarchies
 The requirements are split by user-visible responsibility rather than by EARS sentence form. Core tree mechanics, payload arithmetic, scenario risk, multidimensional composition, consistency/sharing, and dashboard integration can therefore evolve and be tested independently.
 
 ### Exactness and approximation
-`ScenarioPayload` and `ExposurePayload` combination remains exact elementwise addition in exact mode. Sketch compression, Cornish-Fisher estimation, and fractional-depth scenario quantiles are explicitly approximate and must identify their approximation or error bound at the result boundary.
+`ScenarioPayload` and `ExposurePayload` combination uses deterministic identifier-order addition in exact mode, subject to IEEE arithmetic and an explicit tolerance/rebuild policy. Scenario storage is a sealed exact/compressed representation. Mixed combinations promote exact operands; all sketches carry algorithm/configuration/source provenance and cumulative rank uncertainty, and every representation transition rebuilds from retained or immutable reloadable source. Rank uncertainty yields an ES value interval only when finite value envelopes are available; otherwise the value-error bound is explicitly unavailable.
 
 ### Fractional level of detail
-The root has depth zero and child depth increases by one. Integer target-depth range queries return an exact folded aggregate and therefore have the same aggregate at every valid decomposition depth. Fractional depth is instead a focused level-of-detail operation: for a selected leaf, it interpolates between the payloads of the two adjacent ancestors on that leaf's root-to-leaf path. Those nodes summarize different nested ranges, so interpolation is observable. General fractional-depth queries interpolate numeric fields (`REQ-19`); scenario quantiles interpolate matching points of the two quantile functions instead of raw scenarios (`REQ-38`).
+The root has depth zero and child depth increases by one. Integer target-depth range queries return an exact folded aggregate and therefore have the same aggregate at every valid decomposition depth. Fractional depth is instead a focused level-of-detail operation: for a selected leaf, it interpolates between explicitly declared affine projections of the two adjacent ancestors on that leaf's root-to-leaf path, never arbitrary raw payload fields. Scenario quantiles interpolate matching points of the two quantile functions instead of raw scenarios (`REQ-38`).
 
 ### Statistical conventions
-Scenario quantiles use a documented nearest-rank empirical convention. VaR and Expected Shortfall operate on losses, defined as negated P&L, while factor VaR uses a zero-mean Gaussian model. Component and marginal scenario VaR use covariance with the ancestor loss vector. These conventions remove implementation-dependent sign, tail, and distribution choices.
+Scenario quantiles use a documented nearest-rank empirical convention. VaR and Expected Shortfall operate on losses, with ES defined by the empirical quantile integral and fractional boundary mass, while factor VaR uses a zero-mean Gaussian model. Component and marginal scenario VaR use covariance with the ancestor loss vector.
 
 Moment-based Cornish-Fisher estimation requires skewness and excess kurtosis. When that optional mode is enabled, `MonoidPayload` therefore includes mergeable third- and fourth-power sums in addition to its baseline fields. The baseline payload remains unchanged when the mode is disabled.
 
@@ -31,10 +31,10 @@ Moment-based Cornish-Fisher estimation requires skewness and excess kurtosis. Wh
 Sketch compression uses subtree leaf count as its threshold metric. A conforming scenario sketch must preserve scenario-index alignment and satisfy an aligned-sum merge contract: combining sketches of aligned vectors approximates a sketch of their elementwise sum. Ordinary distribution-union merging, including ordinary t-digest merging, is non-conforming because it discards cross-position scenario dependence. A sketch advertises an absolute rank-error bound `ε` in `[0, 1]`; approximate quantile, VaR, and Expected Shortfall results report that rank bound and do not imply a value-error bound. The concrete aligned-sum sketch algorithm remains an implementation choice.
 
 ### Versioned consistency
-Concurrent root reads and range reads are specified separately without mandating locks, copy-on-write, CAS, or epochs. Root reads must not observe partially propagated updates (`REQ-23`), while ranges overlapping subtree reweighting must use a single version across the complete range (`REQ-40`).
+All mutations—including topology, lazy flushes, rebuilds, cache/configuration changes, and persistence publication—stage and atomically publish one immutable snapshot epoch. Every multi-node read pins one epoch. Optimistic retry, locking, or copy-on-write remain implementation choices, but same- or different-leaf writers sharing ancestors cannot lose updates and every failure rolls back all staged state.
 
 ### Independent axes
-Groupby and time hierarchies share leaf-level source data but remain independently maintained. Intersection queries compose axis decompositions and must not require a precomputed cross-product cube.
+Groupby and time hierarchies share immutable leaf IDs and epoch-versioned membership maps but remain independently maintained. Intersection queries reject cross-epoch inputs, intersect exact leaf-ID sets, order/coalesce indices, and deterministically fold canonical decompositions without a cross-product cube.
 
 ### Alignment and historical updates
 Scenario and factor dimensions carry immutable, ordered, unique identifiers. Combination requires exact identifier-sequence equality. A historical-window advancement identifies the leaves whose source series advanced; every changed leaf and ancestor is rebuilt, while a sibling is unaffected exactly when it has no changed descendant. A common-window shift can therefore affect the whole tree without implying that an unaffected sibling must exist.
@@ -42,7 +42,10 @@ Scenario and factor dimensions carry immutable, ordered, unique identifiers. Com
 ### Shared-memory and dashboard contracts
 Shared-memory mode is a live, potentially non-durable mapping that uses the same versioned binary layout as optional persistent mappings. The layout identifies format version, byte order, numeric types, dimensions, offsets, and snapshot epoch. Every language implementation declared compatible with a format version must pass the same conformance fixture.
 
-Dashboard integration uses a serializable model with `get`, `set`, and `on("change:<key>")` behavior for `viewport_range`, `requested_depth`, `aggregate`, and `effective_depth`. This contract is transport-neutral and does not require a particular widget dependency.
+Persistent upgrades use copy-transform-validate-atomic-cutover with rollback to the untouched old mapping. Mapped reads expose deterministic decoding/work counters and prohibit whole-tree private reconstruction. Dashboard integration uses monotonically increasing request revisions, latest-wins completion, and atomic result/error publication.
+
+### Algebra and deferred work
+Payload identity is constructed from the immutable tree schema and must satisfy both identity laws. Lazy/reweight transformations form an ordered monoid action and homomorphism over `combine`; pending tags are flushed before topology, schema/configuration, representation, serialization, or persistence boundaries. Fractional interpolation is allowed only through an explicitly declared affine projection and result interpretation.
 
 ## Risks / Trade-offs
 - Exact scenario vectors consume memory proportional to the configured scenario count at every exact node. Optional sketches bound memory but make quantile results approximate.
