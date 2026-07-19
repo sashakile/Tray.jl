@@ -3,24 +3,45 @@ module RiskTreeDocs
 using Documenter
 using RiskTree
 
-# Copy EARS spec into docs tree
-ears_spec = joinpath(dirname(@__DIR__), ".wai", "projects", "Tray.jl", "research", "2026-07-17-ears-specification-risktree-jl-a-hierarchical.md")
-cp(ears_spec, joinpath(@__DIR__, "src", "specs", "risk-tree-ears-spec.md"); force = true)
+repo_root = dirname(@__DIR__)
+generated_dir = joinpath(@__DIR__, "src", "generated")
+rm(generated_dir; recursive = true, force = true)
+mkpath(generated_dir)
 
-# Copy OpenSpec specs into docs tree
-openspec_src = joinpath(dirname(@__DIR__), "openspec", "changes")
-if isdir(openspec_src)
-    for change in readdir(openspec_src)
-        spec_dir = joinpath(openspec_src, change, "specs")
-        if isdir(spec_dir)
-            for spec_file in readdir(spec_dir)
-                src = joinpath(spec_dir, spec_file)
-                dst = joinpath(@__DIR__, "src", "specs", "$(change)-$(spec_file)")
-                cp(src, dst; force = true)
-            end
+# Mirror the authoritative specifications so Documenter can publish files outside docs/src.
+cp(
+    joinpath(repo_root, "tray-jl-ears-spec.md"),
+    joinpath(generated_dir, "tray-jl-ears-spec.md"),
+)
+openspec_dir = joinpath(generated_dir, "openspec")
+cp(joinpath(repo_root, "openspec"), openspec_dir)
+
+function page_title(path)
+    for line in eachline(path)
+        if startswith(line, "# ")
+            return strip(line[3:end])
         end
     end
+    return titlecase(replace(splitext(basename(path))[1], '-' => ' '))
 end
+
+function markdown_pages(dir, relative_dir)
+    pages = Pair{String,Any}[]
+    for entry in sort(readdir(dir))
+        path = joinpath(dir, entry)
+        relative_path = joinpath(relative_dir, entry)
+        if isdir(path)
+            children = markdown_pages(path, relative_path)
+            isempty(children) ||
+                push!(pages, titlecase(replace(entry, '-' => ' ')) => children)
+        elseif endswith(entry, ".md")
+            push!(pages, page_title(path) => relative_path)
+        end
+    end
+    return pages
+end
+
+openspec_pages = markdown_pages(openspec_dir, joinpath("generated", "openspec"))
 
 makedocs(
     sitename = "Tray.jl",
@@ -29,8 +50,8 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Specifications" => [
-            "EARS Spec" => "specs/risk-tree-ears-spec.md",
-            "OpenSpec Changes" => "specs/index.md",
+            "EARS Spec" => "generated/tray-jl-ears-spec.md",
+            "OpenSpec" => ["Overview" => "specs/index.md", openspec_pages...],
         ],
         "Developer Guide" =>
             ["Architecture" => "dev/architecture.md", "Testing" => "dev/testing.md"],

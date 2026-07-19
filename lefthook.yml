@@ -6,7 +6,10 @@ pre-commit:
   commands:
     julia-format:
       glob: "*.jl"
-      run: julia --project=. -e 'using JuliaFormatter; format(".", verbose=true, check=true)'
+      run: >-
+        bash -c 'for f in {staged_files}; do
+        julia --project=. -e "using JuliaFormatter; exit(format(ARGS[1]; verbose=true, check=true) ? 0 : 1)" "$f" || exit;
+        done'
 
     typos:
       glob: "*.{jl,md,toml,yml,yaml,txt}"
@@ -24,7 +27,10 @@ pre-push:
 
     ci-format:
       glob: "*.jl"
-      run: julia --project=. -e 'using JuliaFormatter; format(".", verbose=true, check=true)'
+      run: >-
+        bash -c 'for f in {push_files}; do
+        julia --project=. -e "using JuliaFormatter; exit(format(ARGS[1]; verbose=true, check=true) ? 0 : 1)" "$f" || exit;
+        done'
 
     ci-spell:
       glob: "*.{jl,md,toml,yml,yaml,txt}"

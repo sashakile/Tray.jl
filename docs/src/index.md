@@ -24,7 +24,6 @@ payload.mean # derived from count + sum
 
 ## Quick Links
 
-- [EARS Specification](specs/risk-tree-ears-spec.md) — full requirements (REQ-1..44)
+- [EARS Specification](generated/tray-jl-ears-spec.md) — full requirements (REQ-1..44)
 - [OpenSpec Changes](specs/index.md) — active change proposals
-- [API Reference](api/public.md) — public API docs
 - [Implementation Status](status.md) — what's built and what's planned

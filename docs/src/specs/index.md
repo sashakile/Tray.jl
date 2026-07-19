@@ -1,16 +1,14 @@
-# OpenSpec Change Proposals
+# OpenSpec Specifications
 
-Active change proposals tracked via OpenSpec.
+The documentation build mirrors the complete repository `openspec/` directory. The
+navigation includes project conventions, active and archived changes, proposals,
+design decisions, implementation tasks, and capability specifications.
 
-```@contents
-Pages = ["./specs/"]
-Depth = 1
-```
+The mirror is regenerated on every documentation build, so new OpenSpec files and
+directories appear automatically without changes to `docs/make.jl`.
 
-## Active Changes
+## Authoritative requirements
 
-| Change | Status | Specs |
-|--------|--------|-------|
-| `add-risk-tree-capabilities` | Proposed | 6 specs |
-
-See the [EARS specification](risk-tree-ears-spec.md) for the full set of requirements.
+See the [EARS specification](../generated/tray-jl-ears-spec.md) for the combined
+requirements source, or use the OpenSpec navigation to inspect individual change
+artifacts and capability deltas.

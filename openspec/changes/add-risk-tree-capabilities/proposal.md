@@ -1,7 +1,7 @@
 # Change: Add RiskTree capability specifications
 
 ## Why
-RiskTree currently has no OpenSpec capabilities describing its intended behavior. The EARS requirements in the [wai research artifact](../../../.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md) need to become traceable, testable specifications before implementation begins.
+RiskTree currently has no OpenSpec capabilities describing its intended behavior. The [EARS requirements](../../../tray-jl-ears-spec.md) need to become traceable, testable specifications before implementation begins.
 
 ## What Changes
 - Specify the generic n-ary aggregation tree, canonical queries, mutations, and complexity bounds.
