@@ -149,11 +149,12 @@ bd close <id>         # Complete work
 ## REPLy / replyc — Inline Julia Evaluation
 
 REPLy.jl provides a persistent Julia server for fast inline evaluation via `replyc`.
+`replyc` is installed globally at `~/.julia/bin/replyc` — not a project dependency.
 
 ### Setup (start of session)
 ```bash
-# Start a REPLy server in the background
-julia --project=. -e '
+# Start a REPLy server in the background (uses global Julia depot)
+julia -e '
 using REPLy
 server = REPLy.serve(; port=5559)
 wait(server.accept_task)
@@ -182,4 +183,4 @@ println(id)
 kill %1  # or pkill -f "port=5559"
 ```
 
-**Note**: The REPLy server uses its own session. Package precompilation happens once at server start. Subsequent evaluations are fast. Use `replyc` instead of `julia -e '...'` for all inline Julia snippets to avoid cold-start overhead.
+**Note**: The REPLy server uses its own session (global depot, not `--project`). Package precompilation happens once at server start. Subsequent evaluations are fast. Use `replyc` instead of `julia -e '...'` for all inline Julia snippets to avoid cold-start overhead.
