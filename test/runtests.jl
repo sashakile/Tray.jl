@@ -319,3 +319,642 @@ end
     @test result == id
     @test result.count == 0
 end
+
+## ---------------------------------------------------------------------------
+## AttributionPayload tests (TRAYS-lep.2: add-attribution-payload)
+## Tasks 1.1–1.3: Payload struct, combine, identity
+## ---------------------------------------------------------------------------
+
+@testitem "AttributionPayload: identity construction" begin
+    using Tray:
+        AttributionPayload, AttributionSchema, AttributionConvention, Direct, identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    id = identity(schema)
+
+    @test length(id.buckets) == 3
+    @test all(b == 0.0 for b in id.buckets)
+    @test id.realized_total == 0.0
+    @test id.schema === schema
+end
+
+@testitem "AttributionPayload: identity laws (left)" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    id = identity(schema)
+    x = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+
+    @test combine(id, x) == x
+end
+
+@testitem "AttributionPayload: identity laws (right)" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    id = identity(schema)
+    x = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+
+    @test combine(x, id) == x
+end
+
+@testitem "AttributionPayload: combine adds elementwise" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+    b = AttributionPayload(
+        schema = schema,
+        buckets = [5.0, 1.0, -0.5],
+        realized_total = 5.5,
+    )
+    c = combine(a, b)
+
+    @test c.buckets == [15.0, -1.0, 0.0]
+    @test c.realized_total == 14.0
+    @test c.schema === schema
+end
+
+@testitem "AttributionPayload: combine with different bucket count raises" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema2 = AttributionSchema(
+        bucket_ids = (:pnl, :costs),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    schema3 = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    x = AttributionPayload(schema = schema2, buckets = [10.0, -2.0], realized_total = 8.0)
+    y = AttributionPayload(
+        schema = schema3,
+        buckets = [5.0, 1.0, -0.5],
+        realized_total = 5.5,
+    )
+
+    @test_throws ArgumentError combine(x, y)
+end
+
+@testitem "AttributionPayload: combine with mismatched bucket IDs raises" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema_a = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    schema_b = AttributionSchema(
+        bucket_ids = (:pnl, :fees, :costs),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    x = AttributionPayload(
+        schema = schema_a,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+    y = AttributionPayload(
+        schema = schema_b,
+        buckets = [5.0, -0.5, 1.0],
+        realized_total = 5.5,
+    )
+
+    @test_throws ArgumentError combine(x, y)
+end
+
+@testitem "AttributionPayload: combine is associative" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+    b = AttributionPayload(
+        schema = schema,
+        buckets = [5.0, 1.0, -0.5],
+        realized_total = 5.5,
+    )
+    c = AttributionPayload(
+        schema = schema,
+        buckets = [-3.0, 0.5, 0.0],
+        realized_total = -2.5,
+    )
+
+    r1 = combine(combine(a, b), c)
+    r2 = combine(a, combine(b, c))
+
+    @test r1 == r2
+    @test r1.buckets == [12.0, -0.5, 0.0]
+    @test r1.realized_total == 11.5
+end
+
+@testitem "AttributionPayload: combine identity self" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    x = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+
+    @test combine(x, combine(x, identity(schema))) ==
+          combine(combine(x, x), identity(schema))
+end
+
+@testitem "AttributionPayload: structural equality" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+    b = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+
+    @test a == b
+    @test hash(a) == hash(b)
+end
+
+@testitem "AttributionPayload: inequality on different values" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+    b = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.6],
+        realized_total = 8.6,
+    )
+
+    @test a != b
+end
+
+## ---------------------------------------------------------------------------
+## AttributionPayload reconciliation (Tasks 2.1–2.2)
+## ---------------------------------------------------------------------------
+
+@testitem "AttributionPayload: reconciling payload accepted" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    # buckets sum to 8.5 == realized_total
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+    @test sum(p.buckets) ≈ 8.5
+    @test p.realized_total == 8.5
+end
+
+@testitem "AttributionPayload: reconciling within tolerance accepted" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-6,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    # buckets sum to 8.5, realized_total = 8.5000005 — gap 5e-7 < 1e-6
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5000005,
+    )
+    @test sum(p.buckets) ≈ 8.5
+    @test p.realized_total == 8.5000005
+end
+
+@testitem "AttributionPayload: rejects unreconciled without residual" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    # buckets sum to 8.5, realized_total = 10.0 — gap 1.5 > tolerance
+    @test_throws ArgumentError AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 10.0,
+    )
+end
+
+@testitem "AttributionPayload: residual bucket absorbs gap" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    # buckets sum to 8.5, realized_total = 10.0 — gap 1.5 assigned to residual
+    # residual bucket index 4 (0-indexed: 3)
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5, 0.0],
+        realized_total = 10.0,
+    )
+    @test p.buckets[4] ≈ 1.5
+    @test sum(p.buckets) ≈ 10.0
+    @test p.realized_total == 10.0
+end
+
+@testitem "AttributionPayload: exact reconcile with residual leaves gap zero" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    # buckets already reconcile
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5, 0.0],
+        realized_total = 8.5,
+    )
+    @test p.buckets[4] ≈ 0.0
+    @test sum(p.buckets) ≈ 8.5
+end
+
+@testitem "AttributionPayload: gap outside tolerance with residual still absorbed" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :fees, :residual),
+        tolerance = 1e-6,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    # buckets sum to 3.0, realized_total = 10.0 — gap 7.0 >> tolerance
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [5.0, -2.0, 0.0],
+        realized_total = 10.0,
+    )
+    @test p.buckets[3] ≈ 7.0
+    @test sum(p.buckets) ≈ 10.0
+    @test p.realized_total == 10.0
+end
+
+@testitem "AttributionPayload: combine preserves reconciliation" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.0],
+        realized_total = 8.0,
+    )
+    b = AttributionPayload(schema = schema, buckets = [5.0, 1.0, 0.0], realized_total = 6.0)
+    c = combine(a, b)
+    @test sum(c.buckets) ≈ c.realized_total
+    @test c.realized_total == 14.0
+    @test c.buckets[3] ≈ 0.0  # residual stays 0 since both reconciles sum exactly
+end
+
+@testitem "AttributionPayload: combined residual absorbs cumulative gap" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+    b = AttributionPayload(
+        schema = schema,
+        buckets = [5.0, 1.0, -0.5],
+        realized_total = 5.5,
+    )
+    c = combine(a, b)
+    @test sum(c.buckets) ≈ c.realized_total
+    @test c.buckets[3] ≈ 0.0
+end
+
+## ---------------------------------------------------------------------------
+## AttributionPayload convention (Task 3)
+## ---------------------------------------------------------------------------
+
+@testitem "AttributionPayload: Direct convention recorded" begin
+    using Tray: AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    @test schema.convention isa Direct
+end
+
+@testitem "AttributionPayload: Allocated convention with sequential method" begin
+    using Tray: AttributionSchema, Allocated
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Allocated(:sequential, [:rate, :volume, :mix]),
+    )
+    @test schema.convention isa Allocated
+    @test schema.convention.method == :sequential
+    @test schema.convention.ordered_factor_ids == [:rate, :volume, :mix]
+end
+
+@testitem "AttributionPayload: Allocated convention with symmetric method" begin
+    using Tray: AttributionSchema, Allocated
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Allocated(:symmetric, [:rate, :volume]),
+    )
+    @test schema.convention.method == :symmetric
+end
+
+@testitem "AttributionPayload: Allocated rejects unknown method" begin
+    using Tray: Allocated
+
+    @test_throws ArgumentError Allocated(:unknown, [:a])
+end
+
+@testitem "AttributionPayload: Allocated rejects empty factor ids" begin
+    using Tray: Allocated
+
+    @test_throws ArgumentError Allocated(:sequential, Symbol[])
+end
+
+@testitem "AttributionPayload: convention equality" begin
+    using Tray: AttributionSchema, Direct, Allocated
+
+    a = AttributionSchema(
+        bucket_ids = (:x, :y),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    b = AttributionSchema(
+        bucket_ids = (:x, :y),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    @test a == b
+    @test hash(a) == hash(b)
+end
+
+@testitem "AttributionPayload: Allocated convention equality" begin
+    using Tray: AttributionSchema, Allocated
+
+    a = AttributionSchema(
+        bucket_ids = (:x, :y),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Allocated(:sequential, [:rate, :volume]),
+    )
+    b = AttributionSchema(
+        bucket_ids = (:x, :y),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Allocated(:sequential, [:rate, :volume]),
+    )
+    @test a == b
+    @test hash(a) == hash(b)
+end
+
+## ---------------------------------------------------------------------------
+## AttributionPayload ratio derivation (Task 4)
+## ---------------------------------------------------------------------------
+
+@testitem "AttributionPayload: derive margin ratio" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, derive_ratio
+
+    schema = AttributionSchema(
+        bucket_ids = (:revenue, :costs, :pnl),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [100.0, -70.0, 30.0],
+        realized_total = 60.0,
+    )
+    # margin = pnl / revenue = 30 / 100 = 0.3
+    margin = derive_ratio(p, :pnl, :revenue)
+    @test margin ≈ 0.3
+end
+
+@testitem "AttributionPayload: derive ratio across combined payloads" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, combine, derive_ratio
+
+    schema = AttributionSchema(
+        bucket_ids = (:revenue, :costs, :pnl),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [100.0, -70.0, 30.0],
+        realized_total = 60.0,
+    )
+    b = AttributionPayload(
+        schema = schema,
+        buckets = [50.0, -20.0, 30.0],
+        realized_total = 60.0,
+    )
+    c = combine(a, b)
+    margin = derive_ratio(c, :pnl, :revenue)
+    @test margin ≈ 60.0 / 150.0  # 0.4
+end
+
+@testitem "AttributionPayload: derive ratio zero denominator error" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, derive_ratio
+
+    schema = AttributionSchema(
+        bucket_ids = (:revenue, :costs, :pnl),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    p = AttributionPayload(schema = schema, buckets = [0.0, 0.0, 0.0], realized_total = 0.0)
+    @test_throws DomainError derive_ratio(p, :pnl, :revenue)
+end
+
+@testitem "AttributionPayload: derive ratio with unknown bucket id" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, derive_ratio
+
+    schema = AttributionSchema(
+        bucket_ids = (:revenue, :costs, :pnl),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [100.0, -70.0, 30.0],
+        realized_total = 60.0,
+    )
+    @test_throws ArgumentError derive_ratio(p, :pnl, :nonexistent)
+end
+
+@testitem "AttributionPayload: property test — elementwise sum through multi-level combine" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b, :c),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    id = identity(schema)
+
+    # Two-level grouping: ((leaf1 + leaf2) + (leaf3 + leaf4))
+    leaf1 =
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0, 3.0], realized_total = 6.0)
+    leaf2 = AttributionPayload(
+        schema = schema,
+        buckets = [4.0, 5.0, 6.0],
+        realized_total = 15.0,
+    )
+    leaf3 = AttributionPayload(
+        schema = schema,
+        buckets = [7.0, 8.0, 9.0],
+        realized_total = 24.0,
+    )
+    leaf4 = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, 11.0, 12.0],
+        realized_total = 33.0,
+    )
+
+    group1 = combine(leaf1, leaf2)
+    group2 = combine(leaf3, leaf4)
+    root = combine(group1, group2)
+
+    @test root.buckets == [22.0, 26.0, 30.0]
+    @test root.realized_total == 78.0
+    @test sum(root.buckets) ≈ root.realized_total
+
+    # Grouping order shouldn't matter
+    alt = combine(combine(leaf1, leaf3), combine(leaf2, leaf4))
+    @test alt == root
+end
+
+@testitem "AttributionPayload: property test — identity left + right idempotent" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:x, :y),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    id = identity(schema)
+
+    payloads = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [0.0, 0.0], realized_total = 0.0),
+        AttributionPayload(schema = schema, buckets = [-5.0, 10.0], realized_total = 5.0),
+    ]
+    for p in payloads
+        @test combine(id, p) == p
+        @test combine(p, id) == p
+        @test combine(p, id) == combine(id, p)
+    end
+end
