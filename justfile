@@ -6,11 +6,11 @@ julia    := "julia"
 
 # Run all tests
 test:
-    {{ julia }} -e 'using Pkg; Pkg.test()'
+    {{ julia }} --project=. -e 'using Pkg; Pkg.test()'
 
 # Run tests with verbose output
 test-verbose:
-    {{ julia }} -e 'using Pkg; Pkg.test(; test_args=["verbose"])'
+    {{ julia }} --project=. -e 'using Pkg; Pkg.test(; test_args=["verbose"])'
 
 # Run a specific test file
 test-file f:
@@ -20,17 +20,11 @@ test-file f:
 
 # Format all Julia files (uses JuliaFormatter)
 fmt:
-    {{ julia }} -e '
-    using JuliaFormatter
-    format(".")
-    '
+    {{ julia }} --project=. -e 'using JuliaFormatter; all(format(path) for path in ("src", "test", "docs/make.jl")) || exit(1)'
 
 # Check formatting without modifying
 fmt-check:
-    {{ julia }} -e '
-    using JuliaFormatter
-    format(".", verbose=true, check=true)
-    '
+    {{ julia }} --project=. -e 'using JuliaFormatter; all(format(path; verbose=true, check=true) for path in ("src", "test", "docs/make.jl")) || exit(1)'
 
 # ── Lint ────────────────────────────────────────────────────────────────────
 
@@ -60,11 +54,7 @@ test-select:
 
 # Run tests with coverage
 coverage:
-    {{ julia }} -e '
-    using Pkg
-    ENV["JULIA_COVERAGE"] = "user"
-    Pkg.test(; coverage=true)
-    '
+    {{ julia }} --project=. -e 'using Pkg; ENV["JULIA_COVERAGE"] = "user"; Pkg.test(; coverage=true)'
 
 # ── Docs ────────────────────────────────────────────────────────────────────
 
@@ -93,7 +83,7 @@ status:
     @printf '\033[1m=== %s ===\033[0m\n' "{{ project }}"
     @printf '  Julia:   '; {{ julia }} --version
     @printf '  Tests:   '; ls -d test/
-    @printf '  Spec:    '; ls .wai/projects/Tray.jl/research/*ears* 2>/dev/null; ls specs/ 2>/dev/null
+    @printf '  Spec:    '; printf 'tray-jl-ears-spec.md, openspec/changes/\n'
     @printf '  Beads:   '; bd list 2>/dev/null | wc -l; printf " issues"
 
 # ── Help ────────────────────────────────────────────────────────────────────

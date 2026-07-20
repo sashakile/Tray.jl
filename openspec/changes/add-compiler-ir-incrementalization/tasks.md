@@ -9,7 +9,7 @@
 
 ## 3. REQ-A6: exact rules and baselines
 - [ ] 3.1 Implement exact addition, multiplication including the cross term, recompute-difference `sin`, and old/new-result `min`/`max` rules with ties and non-finite tests.
-- [ ] 3.2 Validate MonoidPayload, ScenarioPayload, and ExposurePayload against canonical `combine` and full recomputation.
+- [ ] 3.2 Validate domain-neutral scalar-summary, aligned-array, sample, and user-defined fixtures against canonical `combine` and full recomputation; keep optional adapters out of compiler conformance.
 
 ## 4. REQ-A7–A10: strategy and boundaries
 - [ ] 4.1 Implement one update-strategy adapter retaining canonical `combine`, immutable old child/sibling/parent snapshots, and a full-recompute oracle.

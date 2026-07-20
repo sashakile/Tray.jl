@@ -43,15 +43,15 @@ The registry key SHALL be `(typeof(f), Tuple{argtypes...})`. Lookup SHALL follow
 - **WHEN** a reachable callee contains a boundary despite all local operations being covered
 - **THEN** analysis joins to at least `Boundary` and returns `Rejected` with no callable artifact
 
-### Requirement: REQ-A6 Exact built-ins and core baselines
-Built-in rules SHALL obey REQ-A1. `min` and `max` SHALL compute old and changed results using Julia operation semantics and encode the change from `old_result` to `new_result`, including deterministic argument-order ties, signed zero, NaN, infinities, and other non-finite values. Validation SHALL cover MonoidPayload, ScenarioPayload, and ExposurePayload against lawful canonical `combine` and full bottom-up recomputation.
+### Requirement: REQ-A6 Exact built-ins and domain-neutral baselines
+Built-in rules SHALL obey REQ-A1. `min` and `max` SHALL compute old and changed results using Julia operation semantics and encode the change from `old_result` to `new_result`, including deterministic argument-order ties, signed zero, NaN, infinities, and other non-finite values. Validation SHALL cover scalar-summary, aligned-array, sample, and user-defined payload fixtures against lawful canonical `combine` and full bottom-up recomputation. Optional adapters MAY add integration fixtures but SHALL NOT define compiler conformance.
 
 #### Scenario: Min and max crossing, ties, and non-finite values
 - **WHEN** valid changes alter ordering or inputs include ties, signed zero, NaN, or infinities
 - **THEN** applying the rule's result to `old_result` equals direct Julia `min` or `max` on changed inputs, or the type is explicitly rejected when exact change/equality semantics are unavailable
 
-#### Scenario: All core payload baselines
-- **WHEN** generated updates are exercised for MonoidPayload, ScenarioPayload, and ExposurePayload
+#### Scenario: All domain-neutral payload baselines
+- **WHEN** generated updates are exercised for scalar-summary, aligned-array, sample, and user-defined payloads
 - **THEN** each result equals its canonical `combine` full-recompute oracle under the payload's documented equality semantics
 
 ### Requirement: REQ-A7 Canonical combine and common strategy adapter

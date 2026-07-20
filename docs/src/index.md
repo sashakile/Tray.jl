@@ -1,26 +1,15 @@
 # Tray.jl
 
-A hierarchical aggregation library for portfolio risk analysis and scenario simulation in Julia.
+Tray is an ordered leaf array with a balanced aggregation index in Julia.
 
-```julia
-using RiskTree
-
-# Build a tree from leaf data
-tree = RiskTree.build(leaves, MonoidPayload)
-
-# Query aggregate statistics
-payload = RiskTree.query(tree, 1:100, depth=3)
-payload.sum  # monoidal sum
-payload.mean # derived from count + sum
-```
+The current `Tray` implementation is a scaffold only. The behavior described in
+the specifications is proposed and has not yet been implemented.
 
 ## Key Concepts
 
-- **MonoidPayload** — mergeable statistics (count, sum, sumsq, min, max)
-- **ScenarioPayload** — full P&L scenario vectors for VaR/CVaR
-- **ExposurePayload** — factor exposure vectors for parametric risk
-- **Groupby axes** — independent hierarchies over the same leaf data
-- **LOD queries** — level-of-detail queries at configurable tree depth
+- **Ordered leaves** — values retain a stable array order
+- **Balanced aggregation index** — proposed internal nodes summarize leaf ranges
+- **Domain-neutral core** — aggregation is independent of application domain
 
 ## Quick Links
 

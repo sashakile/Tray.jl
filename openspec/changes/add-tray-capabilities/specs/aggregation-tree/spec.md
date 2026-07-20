@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
-### Requirement: REQ-1 Generic n-ary tree
-The library SHALL represent aggregation as a non-empty balanced n-ary tree parameterized by a payload type `T <: AbstractPayload` and integer branching factor `b ≥ 2`. After construction, insertion, or removal, maximum leaf depth SHALL be `O(log_b n)`. Leaves SHALL have immutable IDs; 1-based indices SHALL mean rank in the current deterministic leaf order. Child order and balancing tie-breaks SHALL be deterministic, and `depth(node)` SHALL always mean edge distance from the depth-zero root.
+### Requirement: REQ-1 Ordered array and balanced aggregation index
+The library SHALL pair an authoritative non-empty ordered leaf array with a balanced n-ary aggregation index parameterized by arbitrary payload type `T` and integer branching factor `b ≥ 2`. Index leaves SHALL reference array slots and internal nodes SHALL cache summaries. Construction, insertion, removal, update, rebalance, array growth, and compaction SHALL atomically preserve one schema, dataset revision, and snapshot; maximum leaf depth `O(log_b n)`; immutable leaf IDs; deterministic order and tie-breaks; and correct slot references. A 1-based index SHALL mean current array rank, and `depth(node)` SHALL mean edge distance from the depth-zero root.
 
-#### Scenario: Construct a typed tree
-- **WHEN** a caller constructs a tree from payloads of a concrete `AbstractPayload` subtype and a branching factor
-- **THEN** every node uses that payload type and each internal node can have up to the configured number of children
+#### Scenario: Construct an array and index
+- **WHEN** a caller constructs Tray from values of a concrete payload type and a branching factor
+- **THEN** the array is authoritative for leaves, index leaves reference its slots, and every internal node caches the fold of at most the configured number of children
 
 #### Scenario: Reject an invalid tree domain
 - **WHEN** a caller supplies no leaves or a branching factor less than two
@@ -51,8 +51,8 @@ The library SHALL decompose an in-bounds, non-empty, closed 1-based leaf-index r
 - **WHEN** a caller queries a range that does not coincide with one subtree
 - **THEN** the returned decomposition exactly covers the range without overlap and contains no complete set of a parent's children replaceable by that parent
 
-### Requirement: REQ-11 Ancestor recomputation after update
-When a leaf payload is updated, the library SHALL recompute every ancestor payload through the root.
+### Requirement: REQ-11 Atomic leaf and ancestor update
+When a leaf value is updated, the library SHALL stage the authoritative array record and every cached ancestor summary through the root and publish them atomically.
 
 #### Scenario: Changed leaf affects root
 - **WHEN** a caller updates a leaf payload
@@ -85,18 +85,18 @@ When a caller requests a statistic not stored natively by a payload, the library
 - **THEN** the statistic is computed from that payload and a complete tree-state comparison shows no mutation
 
 ### Requirement: REQ-14 Leaf insertion
-When a leaf is inserted, the library SHALL assign a never-reused immutable leaf ID, extend or deterministically rebalance the tree, preserve existing leaf IDs, update affected ancestors, and restore the `REQ-1` height bound.
+When a leaf is inserted at an array boundary, the library SHALL assign a never-reused immutable leaf ID, shift later ranks, update slot references and affected summaries, and deterministically grow or rebalance the index in one transaction while restoring every `REQ-1` invariant.
 
 #### Scenario: Insert a leaf
 - **WHEN** a caller inserts a valid payload at a valid leaf position
-- **THEN** the leaf count and ordering include it, the structure is extended or rebalanced as needed, and every affected internal node equals the fold of its current children
+- **THEN** the leaf count and ordering include it, later ranks shift by one, all index references resolve to the intended IDs, and every affected internal node equals the fold of its current children
 
 #### Scenario: Reject an invalid insertion position
 - **WHEN** an insertion position is outside `1:(n + 1)`
 - **THEN** insertion fails with a bounds error and leaves the tree unchanged
 
 ### Requirement: REQ-15 Leaf removal
-When a leaf is removed, the library SHALL retire (never reuse) its immutable ID, update every affected ancestor to exclude it, deterministically reindex remaining leaves, and restore the `REQ-1` height bound.
+When a leaf is removed, the library SHALL retire its immutable ID, close the array gap without reordering remaining IDs, update slot references and affected summaries, and deterministically compact or rebalance the index in one transaction while restoring every `REQ-1` invariant.
 
 #### Scenario: Remove a leaf
 - **WHEN** a caller removes an existing leaf
@@ -122,7 +122,7 @@ When a caller supplies a payload-specific `reweight(::T, weight)::T` operation a
 - **THEN** the request fails before mutation with an informative contract error
 
 ### Requirement: REQ-19 Fractional-depth query
-Except for scenario quantiles governed by `REQ-38`, a fractional-depth query SHALL take a focus leaf ID or current index `i` and finite depth `d` in `[0, depth(i)]`. A payload SHALL explicitly declare an affine projection `project(::T)::A` and result interpretation for an affine space `A`; the library SHALL select the ancestors at `floor(d)` and `ceil(d)`, interpolate only their schema-equal projections, and derive the declared result after interpolation. It SHALL never interpolate raw payload fields merely because they are numeric.
+Except for sample quantiles governed by `REQ-38`, a fractional-depth query SHALL take a focus leaf ID or current index `i` and finite depth `d` in `[0, depth(i)]`. A payload SHALL explicitly declare an affine projection `project(::T)::A` and result interpretation for an affine space `A`; the library SHALL select the ancestors at `floor(d)` and `ceil(d)`, interpolate only their schema-equal projections, and derive the declared result after interpolation. It SHALL never interpolate raw payload fields merely because they are numeric.
 
 #### Scenario: Interpolate between detail levels
 - **WHEN** a valid focus leaf, an interpolatable payload, and non-integer `d` are supplied

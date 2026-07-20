@@ -1,7 +1,7 @@
-module RiskTreeDocs
+module TrayDocs
 
 using Documenter
-using RiskTree
+using Tray
 
 repo_root = dirname(@__DIR__)
 generated_dir = joinpath(@__DIR__, "src", "generated")
@@ -34,7 +34,7 @@ function markdown_pages(dir, relative_dir)
             children = markdown_pages(path, relative_path)
             isempty(children) ||
                 push!(pages, titlecase(replace(entry, '-' => ' ')) => children)
-        elseif endswith(entry, ".md")
+        elseif endswith(entry, ".md") && entry != "AGENTS.md"
             push!(pages, page_title(path) => relative_path)
         end
     end
@@ -46,7 +46,7 @@ openspec_pages = markdown_pages(openspec_dir, joinpath("generated", "openspec"))
 makedocs(
     sitename = "Tray.jl",
     authors = "sasha",
-    modules = [RiskTree],
+    modules = [Tray],
     pages = [
         "Home" => "index.md",
         "Specifications" => [
@@ -57,7 +57,6 @@ makedocs(
             ["Architecture" => "dev/architecture.md", "Testing" => "dev/testing.md"],
         "Status" => "status.md",
     ],
-    warnonly = true,
 )
 
 end

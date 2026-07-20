@@ -1,32 +1,23 @@
 # Tray.jl
 
-A hierarchical aggregation library for portfolio risk analysis and scenario simulation in Julia.
+Tray is an ordered leaf array with a balanced aggregation index in Julia.
 
-## Quick Start
+## Current Status
 
-```julia
-using RiskTree
-
-# Build a tree from leaf data
-tree = RiskTree.build(leaves, MonoidPayload)
-
-# Query aggregate statistics
-payload = RiskTree.query(tree, 1:100, depth=3)
-payload.sum  # monoidal sum
-payload.mean # derived from count + sum
-```
+The `Tray` module is scaffold-only. Its only current behavior is `Tray.greet()`,
+which prints `Hello World!`. Aggregation behavior and APIs are proposals in
+OpenSpec and are not implemented.
 
 ## Key Concepts
 
-- **MonoidPayload** — mergeable statistics (count, sum, sumsq, min, max)
-- **ScenarioPayload** — full P&L scenario vectors for VaR/CVaR
-- **ExposurePayload** — factor exposure vectors for parametric risk
-- **Groupby axes** — independent hierarchies over the same leaf data
-- **LOD queries** — level-of-detail queries at configurable tree depth
+- **Ordered leaves** — source values retain a stable array order
+- **Balanced aggregation index** — proposed internal nodes summarize leaf ranges
+- **Domain-neutral core** — payload and aggregation semantics are not tied to finance
 
 ## Requirements
 
-See the [EARS specification](.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md) for the full EARS specification (REQ-1 through REQ-44).
+See [OpenSpec](openspec/) for proposed behavior and the root
+[`tray-jl-ears-spec.md`](tray-jl-ears-spec.md) for the combined requirements source.
 
 ## Tools
 
@@ -42,7 +33,7 @@ See the [EARS specification](.wai/projects/Tray.jl/research/2026-07-17-ears-spec
 
 ## Links
 
-- Spec: [EARS specification](.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md)
+- Spec: [`tray-jl-ears-spec.md`](tray-jl-ears-spec.md)
 - Issues: `bd list`
 - OpenSpec: `openspec list`
 - Docs: `just doc` (builds via Documenter.jl)

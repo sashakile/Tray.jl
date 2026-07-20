@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: REQ-23 Atomic read visibility
+### Requirement: REQ-23 Atomic array-index visibility
 Every point/range/subtree mutation, insertion/removal/rebalance, lazy flush, regeneration, rebuild, cache update, configuration or representation transition, and persistent publication SHALL execute in one transaction that atomically publishes a complete immutable snapshot epoch. Every root, range, multidimensional, and other multi-node read SHALL pin one epoch for its duration. Different-leaf writers sharing ancestors SHALL serialize or retry against the published epoch so neither update is lost. Any validation, allocation, I/O, or computation failure SHALL discard staged nodes, topology, caches, and metadata and preserve the prior snapshot.
 
 #### Scenario: Read during ancestor propagation

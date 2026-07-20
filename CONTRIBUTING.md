@@ -36,7 +36,7 @@ just test         # ReTestItems — run test suite
 
 ## Project Conventions
 
-- **Julia module**: `RiskTree`
+- **Julia module**: `Tray`
 - **Julia version**: 1.12+
 - **Testing framework**: ReTestItems
 - **Code style**: 4-space indent, JuliaFormatter defaults

@@ -2,36 +2,37 @@
 
 ## Overview
 
-This directory defines the shared domain vocabulary for Tray.jl, a hierarchical
-aggregation library for portfolio risk analysis. Every term here has a single,
-unambiguous meaning. All code, docs, and conversations should use these terms
-consistently.
+This directory defines shared vocabulary for Tray.jl, an ordered leaf array with
+a balanced aggregation index. Core terminology is domain-neutral. Application
+contexts such as financial risk are optional interpretations.
 
 ## Bounded Contexts
 
 | Context | File | Description |
 |---------|------|-------------|
-| Aggregation | `contexts/aggregation.md` | Tree structure, nodes, merge operations |
+| Aggregation | `contexts/aggregation.md` | Array/index structure, nodes, merge operations |
 | Statistics | `contexts/statistics.md` | Payload types, derived statistics |
-| Risk | `contexts/risk.md` | VaR, CVaR, parametric risk, scenario simulation |
 | Query | `contexts/query.md` | LOD queries, range decomposition, interpolation |
+| Financial risk (optional) | `contexts/risk.md` | Finance-specific interpretation of core samples |
 
 ## Core Terms
 
 | Term | Definition |
 |------|------------|
-| **Node** | A vertex in the aggregation tree holding a payload and children pointers |
-| **Leaf** | A node with no children, representing a single position/time bucket |
-| **Payload** | Data stored per node — monoidal stats, scenario vectors, or exposure vectors |
+| **Leaf array** | Authoritative ordered storage for atomic source values and stable IDs |
+| **Aggregation index** | Balanced tree whose leaves reference array slots and whose internal nodes cache summaries |
+| **Node** | A vertex in the aggregation index holding a cached summary and child references |
+| **Leaf ID** | Immutable identity distinct from mutable current array rank |
+| **Payload** | Arbitrary value type with lawful `combine` and schema-bound identity |
 | **Merge function** | Associative, closed binary operation `combine(a, b) :: T` |
 | **LOD** | Level of detail — tree depth at which a query is answered |
-| **Groupby axis** | An independent hierarchy over the same leaf data |
-| **Scenario set** | A fixed, ordered set of market scenarios shared across all nodes |
-| **MonoidPayload** | Mergeable statistics: count, sum, sumsq, min, max |
-| **ScenarioPayload** | Dense P&L scenario vector of fixed length S |
-| **ExposurePayload** | Factor exposure vector of fixed length K |
+| **Axis** | An independent hierarchy over the same immutable leaf IDs |
+| **Dataset revision** | Immutable version shared by source values, axes, caches, and representations |
+| **ScalarSummary** | Convenience summary containing count, sum, sumsq, minimum, and maximum |
+| **SamplePayload** | Dense aligned sample vector of fixed positive length |
+| **AlignedArrayPayload** | Dense vector carrying ordered immutable dimension IDs |
 
 ## Cross-References
 
-- See [EARS spec](../../../../../.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md) for full requirements (REQ-1..44)
-- See [OpenSpec](../../../openspec/) for change proposals
+- See the root [`tray-jl-ears-spec.md`](../../../../../tray-jl-ears-spec.md) for authoritative requirements
+- See [`openspec/`](../../../../../openspec/) for change proposals

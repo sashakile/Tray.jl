@@ -51,7 +51,7 @@ jobs:
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
   lint:
     name: Lint / Format
@@ -66,7 +66,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
 
       - name: Check formatting
-        run: julia --project=. -e 'using JuliaFormatter; format(".", verbose=true, check=true)'
+        run: julia --project=. -e 'using JuliaFormatter; all(format(path; verbose=true, check=true) for path in ("src", "test", "docs/make.jl")) || exit(1)'
 
       - name: Spell check
         uses: crate-ci/typos@master

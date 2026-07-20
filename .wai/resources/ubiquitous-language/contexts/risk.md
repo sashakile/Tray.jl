@@ -1,4 +1,7 @@
-# Risk Context
+# Optional Financial-Risk Context
+
+These terms interpret domain-neutral core arrays and samples. They are not core
+Tray payloads, revisions, or query semantics.
 
 | Term | Definition |
 |------|------------|

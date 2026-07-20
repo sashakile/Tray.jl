@@ -1,5 +1,13 @@
-[coverage]
-minimum = 50
-target = 80
-files = ["src/**/*.jl"]
-exclude = ["test/**", "docs/**", "deps/**"]
+coverage:
+  status:
+    project:
+      default:
+        target: 50%
+    patch:
+      default:
+        target: 80%
+
+ignore:
+  - "test/**"
+  - "docs/**"
+  - "deps/**"

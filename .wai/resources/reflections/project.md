@@ -1,15 +1,18 @@
 # Tray.jl — Project Reflection
 
 ## Overview
-A Julia library (module `RiskTree`) for hierarchical portfolio risk aggregation.
-EARS spec in [research artifacts](.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md) (44 requirements, REQ-1..44).
+A scaffold Julia library (module `Tray`) proposed as an authoritative ordered
+leaf array with a balanced aggregation index. The root
+[`tray-jl-ears-spec.md`](../../../tray-jl-ears-spec.md) is authoritative.
 
 ## Key Design Decisions
-1. **Two-tier statistics**: Monoidal (mergeable) vs non-monoidal (derived from scenario vectors)
-2. **Independent groupby axes**: Separate trees per hierarchy, no materialized cross-product
-3. **Payload polymorphism**: AbstractPayload with combine/identity interface
-4. **O(log_b n) updates**: Path-to-root recomputation on leaf changes
-5. **Sketch compression**: Optional t-digest for large nodes (approximate VaR)
+1. **Tree + array**: Authoritative ordered leaf storage plus a derived balanced index
+2. **Two-tier summaries**: Mergeable payloads and statistics derived from aligned samples
+3. **Independent axes**: Separate indices per hierarchy, no materialized cross-product
+4. **Payload polymorphism**: Operation-based `combine` and schema identity over arbitrary types
+5. **O(log_b n) updates**: Path-to-root recomputation on leaf changes
+6. **Sketch compression**: Optional aligned-sum sketches with explicit uncertainty
+7. **Optional adapters**: Domain interpretations such as financial risk do not define the core
 
 ## Tooling Stack
 - **Build/test**: Julia 1.12, ReTestItems, JuliaFormatter
@@ -35,6 +38,6 @@ EARS spec in [research artifacts](.wai/projects/Tray.jl/research/2026-07-17-ears
 - `bd new "description"` — create issue
 - `openspec change create <id>` — start a change proposal
 
-## Sesitive Commands That Need Care
+## Sensitive Commands That Need Care
 - `openspec archive <id> --yes` — permanently archives a change
 - `pretender check .` — code quality check (advisory unless gating)

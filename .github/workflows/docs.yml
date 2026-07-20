@@ -8,7 +8,7 @@ on:
       - 'src/**'
       - 'Project.toml'
       - 'openspec/**'
-      - '.wai/projects/Tray.jl/research/*.md'
+      - 'tray-jl-ears-spec.md'
       - '.github/workflows/docs.yml'
       - 'justfile'
   pull_request:
@@ -18,7 +18,7 @@ on:
       - 'src/**'
       - 'Project.toml'
       - 'openspec/**'
-      - '.wai/projects/Tray.jl/research/*.md'
+      - 'tray-jl-ears-spec.md'
       - '.github/workflows/docs.yml'
       - 'justfile'
   workflow_dispatch:

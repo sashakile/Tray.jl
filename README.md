@@ -1,12 +1,8 @@
 # Tray.jl
 
-A hierarchical aggregation library for portfolio risk analysis
-and scenario simulation in Julia.
+Tray is an ordered leaf array with a balanced aggregation index in Julia.
 
-Julia module: `RiskTree`
+The current implementation is a scaffold only. Proposed behavior and APIs are
+documented in [OpenSpec](openspec/); they are not implemented yet.
 
-::: {.content-hidden}
-
-Spec: [EARS specification](.wai/projects/Tray.jl/research/2026-07-17-ears-specification-risktree-jl-a-hierarchical.md)
-
-:::
+Julia module: `Tray`
