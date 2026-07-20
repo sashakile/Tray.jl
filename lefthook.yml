@@ -40,3 +40,6 @@ pre-push:
     ci-spell:
       glob: "*.{jl,md,toml,yml,yaml,txt}"
       run: typos .
+
+    testaruda-shadow:
+      run: testaruda select --shadow
