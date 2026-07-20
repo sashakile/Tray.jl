@@ -145,3 +145,41 @@ bd close <id>         # Complete work
 
 - **Never use `git add -A`** — always stage specific files with explicit paths
 - **Per-ticket pipeline**: always follow `TDD → ro5u → fix → commit → next ticket`
+
+## REPLy / replyc — Inline Julia Evaluation
+
+REPLy.jl provides a persistent Julia server for fast inline evaluation via `replyc`.
+
+### Setup (start of session)
+```bash
+# Start a REPLy server in the background
+julia --project=. -e '
+using REPLy
+server = REPLy.serve(; port=5559)
+wait(server.accept_task)
+' &
+
+# Verify it's running
+replyc eval --port 5559 '1+1'
+```
+
+### Usage
+```bash
+# Evaluate a single expression
+replyc eval --port 5559 'using Tray; TrayBase.combine(a, b)'
+
+# Multi-line (quote the whole block)
+replyc eval --port 5559 '
+using Tray
+schema = ScalarSchema{Float64}(false)
+id = TrayBase.identity(schema)
+println(id)
+'
+```
+
+### Cleanup (end of session)
+```bash
+kill %1  # or pkill -f "port=5559"
+```
+
+**Note**: The REPLy server uses its own session. Package precompilation happens once at server start. Subsequent evaluations are fast. Use `replyc` instead of `julia -e '...'` for all inline Julia snippets to avoid cold-start overhead.
