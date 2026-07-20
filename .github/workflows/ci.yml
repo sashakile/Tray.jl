@@ -45,10 +45,13 @@ jobs:
 
       - uses: julia-actions/julia-runtest@v1
 
-      - name: Testaruda shadow select (safe)
+      - name: Testaruda shadow select
         run: |
           if command -v testaruda &>/dev/null && command -v testaruda-adapter-julia &>/dev/null; then
             testaruda select --shadow
+            rc=$?
+            # shadow mode exits 10 intentionally ("all tests should run")
+            [ $rc -eq 10 ] && exit 0 || exit $rc
           else
             echo "testaruda or adapter not available — skipping"
           fi
