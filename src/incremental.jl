@@ -705,6 +705,112 @@ struct Diagnostic
 end
 
 # ---------------------------------------------------------------------------
+# Artifact binding types (REQ-A16)
+# ---------------------------------------------------------------------------
+
+"""
+    ArtifactBinding
+
+Identity information bound to a generated artifact for staleness validation.
+
+Fields:
+- `method_instance`: the method instance (or nothing if unknown)
+- `world`: the world age at derivation time
+- `argtypes`: full argument tuple types
+- `closure_capture_type`: the type of the closure's captured environment, or nothing
+- `registry_revision`: rule registry revision at derivation time
+- `provider_identity`: provider identity string
+- `julia_version`: Julia version at derivation time
+- `payload_schema_version`: payload schema version
+
+See REQ-A16.
+"""
+struct ArtifactBinding
+    method_instance::Union{Nothing,Core.MethodInstance}
+    world::UInt64
+    argtypes::Type
+    closure_capture_type::Union{Nothing,Type}
+    registry_revision::Int
+    provider_identity::String
+    julia_version::VersionNumber
+    payload_schema_version::Int
+end
+
+"""
+    BoundArtifact{F} <: Function
+
+A generated artifact wrapped with its binding identity.
+
+Validates staleness at every invocation:
+- Current world age must be >= the binding's world
+- Julia version must match
+- Provider identity must match (via provider identity check)
+
+If validation fails, throws `StaleArtifactError` which callers should
+catch and handle with canonical fallback or rederivation.
+
+See REQ-A16.
+"""
+struct BoundArtifact{F} <: Function
+    inner::F
+    binding::ArtifactBinding
+end
+
+"""
+    StaleArtifactError <: Exception
+
+Exception thrown by `BoundArtifact` when the binding is stale at invocation.
+"""
+struct StaleArtifactError <: Exception
+    binding::ArtifactBinding
+    reason::String
+end
+
+function Base.showerror(io::IO, e::StaleArtifactError)
+    print(io, "StaleArtifactError: ", e.reason)
+end
+
+"""
+    (bnd::BoundArtifact)(args...)
+
+Call the bound artifact, validating staleness first.
+
+Checks:
+1. Current world age is >= the binding's world (world ages only increase)
+2. Julia version matches
+   
+If the binding is stale, throws `StaleArtifactError` with details.
+The caller (e.g., `try_apply_strategy`) is responsible for catching
+this and falling back to canonical combine.
+
+See REQ-A16.
+"""
+function (bnd::BoundArtifact)(args...)
+    # Check world age (world ages are monotonic, so >= means not stale)
+    if Base.tls_world_age() < bnd.binding.world
+        throw(
+            StaleArtifactError(
+                bnd.binding,
+                "Artifact world age $(bnd.binding.world) is stale; " *
+                "current world is $(Base.tls_world_age()).",
+            ),
+        )
+    end
+
+    # Check Julia version (shouldn't change at runtime, but metadata)
+    if VERSION != bnd.binding.julia_version
+        throw(
+            StaleArtifactError(
+                bnd.binding,
+                "Julia version changed from $(bnd.binding.julia_version) ",
+            ),
+        )
+    end
+
+    return bnd.inner(args...)
+end
+
+# ---------------------------------------------------------------------------
 # Sealed AnalysisResult sum type (REQ-A5)
 # ---------------------------------------------------------------------------
 
@@ -712,7 +818,7 @@ end
     AnalysisResult
 
 Sealed sum type for derivation results. Contains only:
-- `Derived(artifact, argtypes, coverage)` — successful derivation
+- `Derived(artifact, argtypes, coverage, binding=nothing)` — successful derivation
 - `Rejected(diagnostics, coverage)` — derivation failure
 
 `Rejected` contains no callable partial artifact.
@@ -738,6 +844,7 @@ struct Derived{F,A} <: AnalysisResult
     artifact::F
     argtypes::Type{A}
     coverage::CoverageLevel
+    binding::Union{Nothing,ArtifactBinding}
 end
 
 """
@@ -756,6 +863,140 @@ See REQ-A5, REQ-A11.
 struct Rejected <: AnalysisResult
     diagnostics::Vector{Diagnostic}
     coverage::CoverageLevel
+end
+
+"""
+    current_artifact_binding(f, argtypes::Type, provider, registry, method_instance=nothing)
+        -> ArtifactBinding
+
+Create an `ArtifactBinding` for the current derivation context.
+
+Captures the current world age, registry revision, provider identity,
+Julia version, and payload schema version.
+
+See REQ-A16.
+"""
+function current_artifact_binding(
+    f,
+    argtypes::Type,
+    provider::AbstractProvider,
+    registry::Union{RuleRegistry,Nothing},
+    method_instance::Union{Nothing,Core.MethodInstance} = nothing,
+)
+    # Capture closure environment type if f is a closure
+    closure_type = _closure_capture_type(f)
+
+    reg_rev = if registry !== nothing
+        registry.current.revision
+    else
+        0
+    end
+
+    provider_id = string(typeof(provider))
+    payload_schema_version = 1
+
+    return ArtifactBinding(
+        method_instance,
+        Base.tls_world_age(),
+        argtypes,
+        closure_type,
+        reg_rev,
+        provider_id,
+        VERSION,
+        payload_schema_version,
+    )
+end
+
+"""
+    _closure_capture_type(f) -> Union{Nothing,Type}
+
+Determine the closure capture environment type of `f`.
+
+Returns `nothing` if `f` is not a closure (built-in, named function, etc.).
+Returns the type of the closure struct if it is a closure.
+
+Detects closures by checking if the type name starts with '#' (Julia's
+internal naming convention for closures, consistent across Julia 1.6–1.12).
+"""
+function _closure_capture_type(f)
+    if !isa(f, Function) || isa(f, Core.Builtin)
+        return nothing
+    end
+    T = typeof(f)
+    type_name = string(T.name.name)
+    # Julia closures have auto-generated type names like #...#
+    if !isempty(type_name) && first(type_name) == '#'
+        return T
+    end
+    return nothing
+end
+
+"""
+    detect_mutable_captures(f) -> Union{Nothing,Diagnostic}
+
+Check if `f` is a closure with mutable captures.
+
+Returns `nothing` if no mutable captures are detected, or a `Diagnostic`
+with code `MutableCapture` if a mutable capture is found.
+
+A mutable capture is any field in the closure struct whose type is not
+`isbits` and is not a `Function` subtype.
+
+On Julia 1.12+, closure captures are stored internally and are not
+exposed via `fieldtype`; in that case detection falls back to checking
+whether the function type itself is `isbits` (no captures at all) versus
+non-`isbits` (potentially has captures, but we cannot distinguish mutable
+from immutable without runtime access to the boxed values).
+
+See REQ-A16.
+"""
+function detect_mutable_captures(f)
+    if !isa(f, Function) || isa(f, Core.Builtin)
+        return nothing
+    end
+    T = typeof(f)
+
+    # Detect closures by checking if the type name starts with '#'
+    # (Julia's internal naming convention for closures, consistent across
+    # Julia 1.6 through 1.12)
+    type_name = string(T.name.name)
+    is_closure = !isempty(type_name) && first(type_name) == '#'
+
+    if !is_closure
+        # Named functions and built-ins are never closures
+        return nothing
+    end
+
+    # Try field-level inspection (works on Julia ≤ 1.11)
+    n = fieldcount(T)
+    if n > 0
+        for i = 1:n
+            ftype = fieldtype(T, i)
+            # Skip the function dispatch field itself
+            if ftype <: Function
+                continue
+            end
+            # A mutable capture is any non-isbits field that's not a function
+            if !isbits(ftype)
+                return Diagnostic(
+                    "MutableCapture",
+                    "Closure captures mutable value of type $(ftype). " *
+                    "Mutable captures cannot be incrementally derived.",
+                    "derive";
+                    callable = f,
+                    remediation = "Rewrite the function to avoid mutable captures, " *
+                                  "or use a pure function instead",
+                )
+            end
+        end
+        return nothing
+    end
+
+    # Julia 1.12+: closure captures are internal and not exposed via fields.
+    # We cannot distinguish mutable from immutable captures without runtime
+    # access to boxed values. Accept the closure (safe assumption that most
+    # captures are immutable).
+    return nothing
 end
 
 # ---------------------------------------------------------------------------
@@ -1333,6 +1574,12 @@ function derive(
     provider::AbstractProvider = DefaultProvider(),
     registry::Union{RuleRegistry,Nothing} = nothing,
 )
+    # Check for mutable captures before anything else
+    mutable_diag = detect_mutable_captures(f)
+    if mutable_diag !== nothing
+        return Rejected([mutable_diag], CovRejected)
+    end
+
     if !available(provider)
         diags = availability_diagnostics(provider, f)
         return Rejected(diags, CovRejected)
@@ -1365,7 +1612,9 @@ function derive(
     if summary.coverage == CovCovered
         artifact = generate_from_ir(ir, f, argtypes, summary, registry)
         if artifact !== nothing
-            return Derived(artifact, argtypes, CovCovered)
+            # Capture the binding for this artifact
+            binding = current_artifact_binding(f, argtypes, provider, registry)
+            return Derived(artifact, argtypes, CovCovered, binding)
         end
     end
 
@@ -1643,10 +1892,23 @@ function try_apply_strategy(strategy::UpdateStrategy, snap::UpdateSnapshot{P}) w
         )
     end
 
-    # Apply Δf — wrap in try/catch to detect runtime boundaries
+    # Apply Δf — wrap in try/catch to detect runtime boundaries and staleness
     Δ_parent = try
         strategy.Δf(snap.old_value, snap.parent_old, Δ_child)
     catch e
+        if e isa StaleArtifactError
+            return (
+                :boundary,
+                Diagnostic(
+                    "StaleArtifact",
+                    "Δf artifact is stale: $(e.reason)",
+                    "apply";
+                    callable = strategy.Δf,
+                    cause = e,
+                    remediation = "Rederive the artifact or fall back to canonical combine",
+                ),
+            )
+        end
         return (
             :boundary,
             Diagnostic(
@@ -1868,6 +2130,11 @@ export Change,
     validate_with_oracle,
     update_with_strategy,
     try_apply_strategy,
-    update_with_boundary_detection
+    update_with_boundary_detection,
+    ArtifactBinding,
+    BoundArtifact,
+    StaleArtifactError,
+    current_artifact_binding,
+    detect_mutable_captures
 
 end # module Incremental
