@@ -45,10 +45,8 @@ pre-push:
       run: testaruda select --shadow; [ $? -eq 10 ] && exit 0 || exit $?
 
     doc-check:
-      skip: true
       run: >-
         bash -c '
         julia --project=docs -e "using Pkg; Pkg.develop(Pkg.PackageSpec(path=pwd())); Pkg.instantiate()"
         julia --project=docs docs/make.jl
         '
-      tags: [slow]

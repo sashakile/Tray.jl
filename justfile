@@ -64,6 +64,11 @@ doc:
     {{ julia }} --project=docs docs/make.jl
     @echo "Docs built to docs/build/"
 
+# Check docs build succeeds (no output)
+doc-check:
+    {{ julia }} --project=docs -e 'using Pkg; Pkg.develop(Pkg.PackageSpec(path=pwd())); Pkg.instantiate()'
+    {{ julia }} --project=docs docs/make.jl
+
 # ── Clean ───────────────────────────────────────────────────────────────────
 
 # Clean generated files
@@ -74,7 +79,7 @@ clean:
 # ── CI-like full check ──────────────────────────────────────────────────────
 
 # Run the full CI pipeline locally
-ci: fmt-check test spell-check
+ci: fmt-check test spell-check doc-check
 
 # ── Project Status ──────────────────────────────────────────────────────────
 
