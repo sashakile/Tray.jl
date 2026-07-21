@@ -49,6 +49,7 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "API Reference" => "api.md",
+        "Examples" => "examples.md",
         "Specifications" => [
             "EARS Spec" => "generated/tray-jl-ears-spec.md",
             "OpenSpec" => ["Overview" => "specs/index.md", openspec_pages...],
