@@ -73,6 +73,127 @@ function Tree(leaves::Vector{P}; b::Int = 2, schema) where {P}
 end
 
 """
+    canonical_nodes(tree::Tree, lo::Int, hi::Int) -> Vector{Tuple{Int, Int}}
+
+Return the minimal canonical set of (level, index) pairs that exactly cover the
+leaf-index range [lo, hi] (1-based, inclusive).
+
+Level 1 = leaves. Higher levels = internal nodes. The result is ordered from
+left to right, with node levels non-decreasing.
+
+Uses recursive top-down decomposition: fully-covered nodes are emitted directly,
+partial overlap recurses into children.
+
+See REQ-10.
+"""
+function canonical_nodes(tree::Tree, lo::Int, hi::Int)
+    n = leaf_count(tree)
+    1 <= lo <= hi <= n ||
+        throw(BoundsError("canonical_nodes: [$lo, $hi] out of bounds [1, $n]"))
+
+    nodes = Tuple{Int,Int}[]
+    _canonical_visit(tree, depth(tree) + 1, 1, 1, n, lo, hi, nodes)
+    return nodes
+end
+
+# Recursive helper: visit a node at (level, idx) covering [node_lo, node_hi].
+# Collects canonical nodes into `nodes`.
+function _canonical_visit(tree, level, idx, node_lo, node_hi, lo, hi, nodes)
+    if lo <= node_lo && node_hi <= hi
+        # Fully covered by query range: emit this node
+        push!(nodes, (level, idx))
+        return
+    end
+    if hi < node_lo || lo > node_hi
+        # No overlap
+        return
+    end
+    # Partial overlap: recurse into children
+    child_level = level - 1
+    if child_level >= 1
+        n = leaf_count(tree)
+        chunk_size = tree.b^(child_level - 1)
+        child_start = (idx - 1) * tree.b + 1
+        child_end = min(idx * tree.b, length(tree.levels[child_level]))
+        for child_idx = child_start:child_end
+            c_lo = (child_idx - 1) * chunk_size + 1
+            c_hi = min(child_idx * chunk_size, n)
+            _canonical_visit(tree, child_level, child_idx, c_lo, c_hi, lo, hi, nodes)
+        end
+    end
+    return
+end
+
+"""
+    range_query(tree::Tree{P}, lo::Int, hi::Int; target_depth=nothing) -> P
+
+Fold of leaves in index range [lo, hi] (1-based, inclusive).
+When `target_depth` is provided (integer 0..max_depth), uses only canonical
+nodes at that depth or above (closer to root). Raises ArgumentError if the
+range cannot be exactly represented at the given depth.
+
+See REQ-10, REQ-12, REQ-34.
+"""
+function range_query(tree::Tree{P}, lo::Int, hi::Int; target_depth = nothing) where {P}
+    n = leaf_count(tree)
+    1 <= lo <= hi <= n ||
+        throw(BoundsError("range_query: [$lo, $hi] out of bounds [1, $n]"))
+
+    max_depth = depth(tree)
+
+    if target_depth !== nothing
+        target_depth < 0 &&
+            throw(ArgumentError("range_query: target_depth must be ≥ 0, got $target_depth"))
+        target_depth > max_depth && throw(
+            ArgumentError(
+                "range_query: target_depth $target_depth exceeds max depth $max_depth",
+            ),
+        )
+
+        # Target-depth: depth 0 = root (level max_depth+1), depth d = level (max_depth - d + 1)
+        min_level = max_depth - target_depth + 1
+        nodes = canonical_nodes(tree, lo, hi)
+
+        # Verify all nodes are at or above the target level
+        for (lvl, _) in nodes
+            lvl >= min_level || throw(
+                ArgumentError(
+                    "range_query: range [$lo, $hi] cannot be represented at " *
+                    "target_depth $target_depth; node at level $lvl is below target level $min_level",
+                ),
+            )
+        end
+
+        result = TrayBase.identity(tree.schema)
+        for (lvl, idx) in nodes
+            result = TrayBase.combine(result, tree.levels[lvl][idx])
+        end
+        return result
+    end
+
+    # Standard range query: fold canonical decomposition
+    nodes = canonical_nodes(tree, lo, hi)
+    result = TrayBase.identity(tree.schema)
+    for (lvl, idx) in nodes
+        result = TrayBase.combine(result, tree.levels[lvl][idx])
+    end
+    return result
+end
+
+"""
+    derived_mean(summary::ScalarSummary) -> Float64
+
+Derive the mean (sum / count) from a ScalarSummary.
+Throws DomainError when count is zero.
+
+See REQ-13.
+"""
+function derived_mean(summary::ScalarSummary{T}) where {T}
+    summary.count > 0 || throw(DomainError(summary.count, "derived_mean: count is zero"))
+    return summary.sum / summary.count
+end
+
+"""
     root(tray::Tree) -> P
 
 The root aggregate (fold of all leaves).
@@ -90,26 +211,6 @@ leaf_count(tray::Tree) = length(tray.levels[1])
 Edge distance from root (depth 0) to leaves.
 """
 depth(tray::Tree) = length(tray.levels) - 1
-
-"""
-    range_query(tray::Tree{P}, lo::Int, hi::Int) -> P
-
-Fold of leaves in index range `[lo, hi]` (1-based, inclusive).
-"""
-function range_query(tray::Tree{P}, lo::Int, hi::Int) where {P}
-    n = leaf_count(tray)
-    1 <= lo <= hi <= n ||
-        throw(BoundsError("range_query: [$lo, $hi] out of bounds [1, $n]"))
-
-    # Simple canonical decomposition: walk levels top-down
-    # For the tracer bullet, start with a direct fold of leaves
-    # (optimization: use canonical decomposition for larger trees)
-    result = TrayBase.identity(tray.schema)
-    for i = lo:hi
-        result = TrayBase.combine(result, tray.levels[1][i])
-    end
-    return result
-end
 
 """
     update!(tray::Tree{P}, index::Int, value::P) -> P

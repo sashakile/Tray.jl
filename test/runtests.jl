@@ -1013,6 +1013,301 @@ end
     # This happens if leaf schema attributes differ from tree schema identity
     @test true  # schema validation is done via identity law check
 end
+
+## ---------------------------------------------------------------------------
+## Canonical range and depth queries (TRAYS-a0n: REQ-10, REQ-12, REQ-13, REQ-34)
+## ---------------------------------------------------------------------------
+
+@testitem "Tree: canonical decomposition of full range" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, canonical_nodes, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    # Full range [1, 8] should decompose to just the root (level 4, index 1)
+    nodes = canonical_nodes(t, 1, 8)
+    @test length(nodes) == 1
+    @test nodes[1] == (4, 1)
+end
+
+@testitem "Tree: canonical decomposition of single leaf" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, canonical_nodes
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    nodes = canonical_nodes(t, 3, 3)
+    @test length(nodes) == 1
+    @test nodes[1] == (1, 3)
+end
+
+@testitem "Tree: canonical decomposition of partial range [2, 7]" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, canonical_nodes
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    # [2, 7] = leaf [2,2] + internal [3,4] + internal [5,6] + leaf [7,7]
+    nodes = canonical_nodes(t, 2, 7)
+    @test length(nodes) == 4
+    @test nodes[1] == (1, 2)
+    @test nodes[2] == (2, 2)
+    @test nodes[3] == (2, 3)
+    @test nodes[4] == (1, 7)
+end
+
+@testitem "Tree: canonical decomposition of [3, 6]" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, canonical_nodes
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    # [3, 6] = internal [3,4] + internal [5,6]
+    nodes = canonical_nodes(t, 3, 6)
+    @test length(nodes) == 2
+    @test nodes[1] == (2, 2)
+    @test nodes[2] == (2, 3)
+end
+
+@testitem "Tree: range_query uses canonical decomposition" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, range_query, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    for (lo, hi) in [(1, 8), (2, 7), (3, 6), (1, 4), (5, 8), (2, 3), (1, 1)]
+        r = range_query(t, lo, hi)
+        expected = reduce(combine, leaves[lo:hi])
+        @test r == expected
+    end
+end
+
+@testitem "Tree: range_query with b=3" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, range_query, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:9
+    ]
+    t = Tree(leaves; b = 3, schema)
+
+    for (lo, hi) in [(1, 9), (2, 8), (4, 6), (1, 3), (7, 9), (1, 1)]
+        r = range_query(t, lo, hi)
+        expected = reduce(combine, leaves[lo:hi])
+        @test r == expected
+    end
+end
+
+@testitem "Tree: target-depth range query at depth 0 (root)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, range_query, root, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test range_query(t, 1, 8; target_depth = 0) == root(t)
+end
+
+@testitem "Tree: target-depth range query at depth 1" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, range_query, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test range_query(t, 1, 4; target_depth = 1) == t.levels[3][1]
+    @test range_query(t, 5, 8; target_depth = 1) == t.levels[3][2]
+end
+
+@testitem "Tree: target-depth range query at depth 2" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, range_query, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test range_query(t, 1, 2; target_depth = 2) == t.levels[2][1]
+    @test range_query(t, 3, 4; target_depth = 2) == t.levels[2][2]
+end
+
+@testitem "Tree: target-depth query rejects depth-incompatible range" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, range_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test_throws ArgumentError range_query(t, 2, 3; target_depth = 1)
+end
+
+@testitem "Tree: target-depth query rejects invalid depth" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, range_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+    )
+    t = Tree([leaf, leaf]; b = 2, schema)
+
+    @test_throws ArgumentError range_query(t, 1, 2; target_depth = -1)
+    @test_throws ArgumentError range_query(t, 1, 2; target_depth = 5)
+end
+
+@testitem "Tree: derived query on ScalarSummary (REQ-13)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, root, derived_mean
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 3,
+            sum = 6.0,
+            sumsq = 14.0,
+            minimum = 1.0,
+            maximum = 3.0,
+        ),
+        ScalarSummary(
+            schema = schema,
+            count = 2,
+            sum = 5.0,
+            sumsq = 13.0,
+            minimum = 2.0,
+            maximum = 3.0,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test derived_mean(root(t)) ≈ 2.2
+end
+
+@testitem "Tree: derived query on ScalarSummary zero count error" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, root, derived_mean, identity
+
+    schema = ScalarSchema{Float64}(false)
+    id = identity(schema)
+    t = Tree([id, id]; b = 2, schema)
+
+    @test_throws DomainError derived_mean(root(t))
+end
+
+@testitem "Tree: range_query bounds error (REQ-34)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, range_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+    )
+    t = Tree([leaf, leaf]; b = 2, schema)
+
+    @test_throws BoundsError range_query(t, 0, 1)
+    @test_throws BoundsError range_query(t, 1, 3)
+    @test_throws BoundsError range_query(t, 2, 1)
+end
+
+## ---------------------------------------------------------------------------
 ## AttributionPayload reconciliation (Tasks 2.1–2.2)
 ## ---------------------------------------------------------------------------
 
