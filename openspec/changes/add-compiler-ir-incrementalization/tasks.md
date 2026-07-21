@@ -1,14 +1,14 @@
 ## 1. REQ-A1–A3: algebra, provider, and generation
-- [ ] 1.1 Implement and law-test per-type `Change`, zero, validity, apply, composition, and exact `Δf` contract.
-- [ ] 1.2 Implement the internal IR-provider interface and IRTools default using `IR`, `code_ir`, and `@code_ir`.
+- [x] 1.1 Implement and law-test per-type `Change`, zero, validity, apply, composition, and exact `Δf` contract.
+- [x] 1.2 Implement the internal IR-provider interface and IRTools default using `IR`, `code_ir`, and `@code_ir`.
 - [x] 1.3 Generate only from transitively covered, pure straight-line or branch-stable IR.
 
 ## 2. REQ-A4–A5: registry and analysis
-- [ ] 2.1 Implement full callable-type/argument-tuple keys, Julia-like specificity and ambiguity, immutable revisions, duplicate rejection, explicit replacement, and exact-key removal.
-- [ ] 2.2 Implement sealed `AnalysisResult = Derived | Rejected` and transitive `Covered < Boundary < Rejected` joins; ensure rejection exposes no callable artifact.
+- [x] 2.1 Implement full callable-type/argument-tuple keys, Julia-like specificity and ambiguity, immutable revisions, duplicate rejection, explicit replacement, and exact-key removal.
+- [x] 2.2 Implement sealed `AnalysisResult = Derived | Rejected` and transitive `Covered < Boundary < Rejected` joins; ensure rejection exposes no callable artifact.
 
 ## 3. REQ-A6: exact rules and baselines
-- [ ] 3.1 Implement exact addition, multiplication including the cross term, recompute-difference `sin`, and old/new-result `min`/`max` rules with ties and non-finite tests.
+- [x] 3.1 Implement exact addition, multiplication including the cross term, recompute-difference `sin`, and old/new-result `min`/`max` rules with ties and non-finite tests.
 - [ ] 3.2 Validate domain-neutral scalar-summary, aligned-array, sample, and user-defined fixtures against canonical `combine` and full recomputation; keep optional adapters out of compiler conformance.
 
 ## 4. REQ-A7–A10: strategy and boundaries
