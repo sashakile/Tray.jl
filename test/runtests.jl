@@ -4100,3 +4100,452 @@ end
     )
     @test root(updated_tree_validate) == canonical_root
 end
+
+# ---------------------------------------------------------------------------
+# REQ-A8  V1 program boundary / REQ-A9  Atomic ancestor-path updates
+#         (TRAYS-ecx Tasks 4.2, 4.3)
+# ---------------------------------------------------------------------------
+
+@testitem "try_apply_strategy: returns :success for valid Δf" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine
+    using Tray.Incremental:
+        UpdateSnapshot,
+        UpdateStrategy,
+        try_apply_strategy,
+        ScalarSummaryChange,
+        apply_change
+
+    schema = ScalarSchema{Float64}(false)
+    old = ScalarSummary(
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    new = ScalarSummary(
+        count = 4,
+        sum = 10.0,
+        sumsq = 30.0,
+        minimum = 1.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+    sibling = ScalarSummary(
+        count = 2,
+        sum = 5.0,
+        sumsq = 13.0,
+        minimum = 2.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+
+    # Simple Δf that correctly computes the parent change
+    function my_df(::ScalarSummary{Float64}, ::Any, Δ_child)
+        return Δ_child
+    end
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new,
+        parent_old = combine(old, sibling),
+        siblings = [sibling],
+    )
+    strategy = UpdateStrategy(; Δf = my_df)
+
+    status, result = try_apply_strategy(strategy, snap)
+    @test status == :success
+    @test result == combine(new, sibling)
+end
+
+@testitem "try_apply_strategy: returns :boundary for invalid change" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, try_apply_strategy, ScalarSummaryChange, Diagnostic
+
+    schema = ScalarSchema{Float64}(false)
+    old = ScalarSummary(
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    new = ScalarSummary(
+        count = 4,
+        sum = 10.0,
+        sumsq = 30.0,
+        minimum = 1.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+
+    # Δf that produces an invalid change
+    function bad_df(::Any, ::Any, ::Any)
+        return ScalarSummaryChange{Float64}(
+            count = -999,
+            sum = 0.0,
+            sumsq = 0.0,
+            minimum = Inf,
+            maximum = -Inf,
+        )
+    end
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new,
+        parent_old = combine(old, new),
+        siblings = [new],
+    )
+    strategy = UpdateStrategy(; Δf = bad_df)
+
+    status, result = try_apply_strategy(strategy, snap)
+    @test status == :boundary
+    @test result isa Diagnostic
+    @test result.code == "InvalidChange"
+end
+
+@testitem "try_apply_strategy: catches Δf exception as ControlFlowChanged" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine
+    using Tray.Incremental: UpdateSnapshot, UpdateStrategy, try_apply_strategy, Diagnostic
+
+    schema = ScalarSchema{Float64}(false)
+    old = ScalarSummary(
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    new = ScalarSummary(
+        count = 4,
+        sum = 10.0,
+        sumsq = 30.0,
+        minimum = 1.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+    sibling = ScalarSummary(
+        count = 2,
+        sum = 5.0,
+        sumsq = 13.0,
+        minimum = 2.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+
+    # Δf that throws an exception (simulating a runtime boundary)
+    function throwing_df(::Any, ::Any, ::Any)
+        error("Control flow boundary detected: branch changed between old and new inputs")
+    end
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new,
+        parent_old = combine(old, sibling),
+        siblings = [sibling],
+    )
+    strategy = UpdateStrategy(; Δf = throwing_df)
+
+    status, result = try_apply_strategy(strategy, snap)
+    @test status == :boundary
+    @test result isa Diagnostic
+    @test result.code == "ControlFlowChanged"
+end
+
+@testitem "try_apply_strategy: returns :boundary for oracle mismatch when validate=true" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, try_apply_strategy, ScalarSummaryChange, Diagnostic
+
+    schema = ScalarSchema{Float64}(false)
+    old = ScalarSummary(
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    new = ScalarSummary(
+        count = 4,
+        sum = 10.0,
+        sumsq = 30.0,
+        minimum = 1.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+    sibling = ScalarSummary(
+        count = 2,
+        sum = 5.0,
+        sumsq = 13.0,
+        minimum = 2.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+
+    # Wrong Δf that produces a different result
+    function wrong_df(::Any, ::Any, ::Any)
+        return ScalarSummaryChange{Float64}(
+            count = 999,
+            sum = 999.0,
+            sumsq = 999.0,
+            minimum = 0.0,
+            maximum = 999.0,
+        )
+    end
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new,
+        parent_old = combine(old, sibling),
+        siblings = [sibling],
+    )
+    strategy = UpdateStrategy(; Δf = wrong_df, validate = true)
+
+    status, result = try_apply_strategy(strategy, snap)
+    @test status == :boundary
+    @test result isa Diagnostic
+    @test result.code == "OracleMismatch"
+end
+
+@testitem "update_with_boundary_detection: replicates canonical result" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine, Tree, update, root
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, update_with_boundary_detection
+
+    schema = ScalarSchema{Float64}(false)
+    id = identity(schema)
+
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 7.0,
+            sumsq = 49.0,
+            minimum = 7.0,
+            maximum = 7.0,
+            schema = schema,
+        ),
+    ]
+
+    tree = Tree(leaves; b = 2, schema = schema)
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 9.0,
+        sumsq = 81.0,
+        minimum = 9.0,
+        maximum = 9.0,
+        schema = schema,
+    )
+
+    canonical_tree = update(tree, 2, new_leaf)
+    canonical_root = root(canonical_tree)
+
+    # Atomic update with boundary detection (no Δf = canonical combine)
+    result_tree =
+        update_with_boundary_detection(tree, 2, new_leaf, UpdateStrategy(; Δf = nothing))
+    @test root(result_tree) == canonical_root
+    @test result_tree.levels[1] == canonical_tree.levels[1]
+end
+
+@testitem "update_with_boundary_detection: with correct Δf preserves canonical result" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine, Tree, update, root
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, update_with_boundary_detection
+
+    schema = ScalarSchema{Float64}(false)
+
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 7.0,
+            sumsq = 49.0,
+            minimum = 7.0,
+            maximum = 7.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+    ]
+
+    tree = Tree(leaves; b = 2, schema = schema)
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 10.0,
+        sumsq = 100.0,
+        minimum = 10.0,
+        maximum = 10.0,
+        schema = schema,
+    )
+
+    canonical_tree = update(tree, 3, new_leaf)
+    canonical_root = root(canonical_tree)
+
+    # Correct Δf
+    function correct_df(::Any, ::Any, Δ_child)
+        return Δ_child
+    end
+
+    result_tree =
+        update_with_boundary_detection(tree, 3, new_leaf, UpdateStrategy(; Δf = correct_df))
+    @test root(result_tree) == canonical_root
+end
+
+@testitem "update_with_boundary_detection: wrong Δf with validate=true falls back to combine" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine, Tree, update, root
+    using Tray.Incremental:
+        UpdateSnapshot,
+        UpdateStrategy,
+        apply_strategy,
+        update_with_boundary_detection,
+        ScalarSummaryChange
+
+    schema = ScalarSchema{Float64}(false)
+
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+    ]
+
+    tree = Tree(leaves; b = 2, schema = schema)
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 9.0,
+        sumsq = 81.0,
+        minimum = 9.0,
+        maximum = 9.0,
+        schema = schema,
+    )
+
+    canonical_tree = update(tree, 1, new_leaf)
+    canonical_root = root(canonical_tree)
+
+    # Wrong Δf
+    function wrong_df(::Any, ::Any, ::Any)
+        return ScalarSummaryChange{Float64}(
+            count = 999,
+            sum = 999.0,
+            sumsq = 999.0,
+            minimum = 0.0,
+            maximum = 999.0,
+        )
+    end
+
+    # With validate=true, wrong Δf triggers boundary detection and falls back to combine
+    result_tree = update_with_boundary_detection(
+        tree,
+        1,
+        new_leaf,
+        UpdateStrategy(; Δf = wrong_df, validate = true),
+    )
+    @test root(result_tree) == canonical_root
+end
+
+@testitem "update_with_boundary_detection: throwing Δf falls back to combine" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine, Tree, update, root
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, update_with_boundary_detection
+
+    schema = ScalarSchema{Float64}(false)
+
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+    ]
+
+    tree = Tree(leaves; b = 2, schema = schema)
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 9.0,
+        sumsq = 81.0,
+        minimum = 9.0,
+        maximum = 9.0,
+        schema = schema,
+    )
+
+    canonical_tree = update(tree, 1, new_leaf)
+    canonical_root = root(canonical_tree)
+
+    # Δf that throws an exception (runtime boundary)
+    function throwing_df(::Any, ::Any, ::Any)
+        error("Runtime boundary: control flow changed")
+    end
+
+    # Throwing Δf should be caught and fall back to combine
+    result_tree = update_with_boundary_detection(
+        tree,
+        1,
+        new_leaf,
+        UpdateStrategy(; Δf = throwing_df),
+    )
+    @test root(result_tree) == canonical_root
+end

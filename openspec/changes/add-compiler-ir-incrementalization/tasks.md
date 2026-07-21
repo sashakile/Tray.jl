@@ -13,8 +13,8 @@
 
 ## 4. REQ-A7–A10: strategy and boundaries
 - [x] 4.1 Implement one update-strategy adapter retaining canonical `combine`, immutable old child/sibling/parent snapshots, and a full-recompute oracle.
-- [ ] 4.2 Detect changed branches and every specified effect/control boundary; classify and fall back without publishing partial state.
-- [ ] 4.3 Compute ancestor paths privately and atomically publish only complete validated results; otherwise use canonical `combine`.
+- [x] 4.2 Detect changed branches and every specified effect/control boundary; classify and fall back without publishing partial state.
+- [x] 4.3 Compute ancestor paths privately and atomically publish only complete validated results; otherwise use canonical `combine`.
 
 ## 5. REQ-A11–A17: compatibility and lifecycle
 - [ ] 5.1 Bind artifacts to method instance/world, argument types, immutable closure snapshot, registry revision, provider, backend/toolchain, and payload schema; reject mutable captures and fail closed when stale.

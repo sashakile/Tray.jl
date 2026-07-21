@@ -40,7 +40,9 @@ import .Incremental:
     UpdateStrategy,
     apply_strategy,
     validate_with_oracle,
-    update_with_strategy
+    update_with_strategy,
+    try_apply_strategy,
+    update_with_boundary_detection
 export Change,
     ScalarSummaryChange,
     zero_change,
@@ -65,7 +67,9 @@ export Change,
     UpdateStrategy,
     apply_strategy,
     validate_with_oracle,
-    update_with_strategy
+    update_with_strategy,
+    try_apply_strategy,
+    update_with_boundary_detection
 
 # Re-export generic interface from TrayBase
 import .TrayBase: combine, identity

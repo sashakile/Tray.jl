@@ -1581,6 +1581,229 @@ function update_with_strategy(
 end
 
 # ---------------------------------------------------------------------------
+# Runtime boundary detection (REQ-A8) and atomic updates (REQ-A9)
+# ---------------------------------------------------------------------------
+
+"""
+    try_apply_strategy(strategy::UpdateStrategy, snap::UpdateSnapshot{P})
+        -> Tuple{Symbol, Union{P, Diagnostic}}
+
+Apply an update strategy to a snapshot and return a classified result.
+
+Returns:
+- `(:success, new_parent)` — Δf applied successfully and passed oracle validation
+- `(:boundary, diagnostic)` — boundary detected (invalid change, oracle mismatch,
+   or Δf encountered an unsupported operation at runtime)
+
+The result is always equivalent to canonical `combine` — if the Δf path fails,
+the canonical parent is computed and returned under the `:success` tag.
+
+See REQ-A8.
+"""
+function try_apply_strategy(strategy::UpdateStrategy, snap::UpdateSnapshot{P}) where {P}
+    # Canonical combine fallback: new_parent = combine(new_value, siblings...)
+    all_children = [snap.new_value; snap.siblings]
+    canonical_parent = if isempty(snap.siblings)
+        snap.new_value
+    else
+        reduce(TrayBase.combine, all_children)
+    end
+
+    # If no Δf, use canonical combine directly
+    if strategy.Δf === nothing
+        return (:success, canonical_parent)
+    end
+
+    # Try Δf path
+    Δ_child = change_between(snap.old_value, snap.new_value)
+
+    if !valid_change(snap.old_value, Δ_child)
+        return (
+            :boundary,
+            Diagnostic(
+                "InvalidChange",
+                "Change from $(snap.old_value) to $(snap.new_value) is invalid. " *
+                "Cannot apply Δf to this snapshot.",
+                "apply";
+                remediation = "Use canonical combine or ensure the change is valid",
+            ),
+        )
+    end
+
+    if snap.parent_old === nothing
+        # Root-level snapshot can't use Δf
+        return (
+            :boundary,
+            Diagnostic(
+                "UnsupportedEffect",
+                "Cannot apply Δf at root level — no parent to apply change to.",
+                "apply";
+                remediation = "Use canonical combine for root-level updates",
+            ),
+        )
+    end
+
+    # Apply Δf — wrap in try/catch to detect runtime boundaries
+    Δ_parent = try
+        strategy.Δf(snap.old_value, snap.parent_old, Δ_child)
+    catch e
+        return (
+            :boundary,
+            Diagnostic(
+                "ControlFlowChanged",
+                "Δf raised an exception at runtime: $(e). This indicates a " *
+                "control flow or effect boundary was hit.",
+                "apply";
+                callable = strategy.Δf,
+                cause = e,
+                remediation = "Use canonical combine or register a more robust rule",
+            ),
+        )
+    end
+
+    if !valid_change(snap.parent_old, Δ_parent)
+        return (
+            :boundary,
+            Diagnostic(
+                "InvalidChange",
+                "Δf produced an invalid change $(Δ_parent) from parent " *
+                "$(snap.parent_old). The change cannot be applied.",
+                "apply";
+                callable = strategy.Δf,
+                remediation = "Check the Δf implementation or fall back to combine",
+            ),
+        )
+    end
+
+    Δf_parent = apply_change(snap.parent_old, Δ_parent)
+
+    # Validate against oracle if configured
+    if strategy.validate && Δf_parent != canonical_parent
+        return (
+            :boundary,
+            Diagnostic(
+                "OracleMismatch",
+                "Δf result $(Δf_parent) does not match canonical combine " *
+                "result $(canonical_parent).",
+                "apply";
+                callable = strategy.Δf,
+                remediation = "Use canonical combine or fix the Δf implementation",
+            ),
+        )
+    end
+
+    return (:success, Δf_parent)
+end
+
+"""
+    update_with_boundary_detection(tree::Tree{P}, index::Int, value::P,
+                                    strategy::UpdateStrategy) -> Tree{P}
+
+Update a tree leaf with atomic ancestor-path updates and runtime boundary
+detection (REQ-A8, REQ-A9).
+
+Computes all ancestor levels in private state first, then publishes the
+complete validated tree atomically. If any level encounters a boundary
+or fails validation, all private results are discarded and canonical
+`combine` is used for the full update.
+
+See REQ-A8, REQ-A9.
+"""
+function update_with_boundary_detection(
+    tree::Tree{P},
+    index::Int,
+    value::P,
+    strategy::UpdateStrategy,
+) where {P}
+    n = leaf_count(tree)
+    1 <= index <= n || throw(
+        BoundsError("update_with_boundary_detection: index $index out of bounds [1, $n]"),
+    )
+
+    # Phase 1: Compute new levels in private state
+    # Use canonical combine for the leaf level (always required)
+    private_levels = [copy(tree.levels[1])]
+    private_levels[1][index] = value
+
+    current_level_idx = index
+    current = private_levels[1]
+    boundaries = Diagnostic[]
+
+    for level_idx = 2:length(tree.levels)
+        # Compute this level in a temporary array (not yet attached to tree)
+        private_next = similar(tree.levels[level_idx])
+
+        parent_pos = div(current_level_idx - 1, tree.b) + 1
+        child_start = 1
+        any_boundary = false
+
+        for i in eachindex(private_next)
+            children = current[child_start:min(child_start+tree.b-1, end)]
+
+            if i == parent_pos
+                child_offset = current_level_idx - child_start
+                sibling_vec = P[]
+                for (j, child) in enumerate(children)
+                    if j - 1 != child_offset
+                        push!(sibling_vec, child)
+                    end
+                end
+
+                changed_child = current[current_level_idx]
+                old_child = tree.levels[level_idx-1][current_level_idx]
+                old_parent = tree.levels[level_idx][parent_pos]
+
+                snap = UpdateSnapshot{P}(
+                    old_value = old_child,
+                    new_value = changed_child,
+                    parent_old = old_parent,
+                    siblings = sibling_vec,
+                )
+
+                status, result = try_apply_strategy(strategy, snap)
+                if status == :success
+                    private_next[i] = result
+                else
+                    # Boundary detected — record and fall back to combine
+                    push!(boundaries, result)
+                    any_boundary = true
+                    private_next[i] = reduce(TrayBase.combine, children)
+                end
+            else
+                private_next[i] = reduce(TrayBase.combine, children)
+            end
+
+            child_start += tree.b
+        end
+
+        push!(private_levels, private_next)
+        current = private_next
+        current_level_idx = parent_pos
+
+        # If any boundary was detected at this level, fall back to canonical
+        # combine for all remaining levels
+        if any_boundary
+            # Recompute remaining levels canonically
+            for remaining_idx = (level_idx+1):length(tree.levels)
+                next_canonical = similar(tree.levels[remaining_idx])
+                c_start = 1
+                for j in eachindex(next_canonical)
+                    ch = current[c_start:min(c_start+tree.b-1, end)]
+                    next_canonical[j] = reduce(TrayBase.combine, ch)
+                    c_start += tree.b
+                end
+                push!(private_levels, next_canonical)
+                current = next_canonical
+            end
+            break
+        end
+    end
+
+    # Phase 2: Atomically publish by constructing the final Tree object
+    return Tree{P,typeof(tree.schema)}(tree.b, private_levels, tree.schema)
+end
+
+# ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
 
@@ -1643,6 +1866,8 @@ export Change,
     UpdateStrategy,
     apply_strategy,
     validate_with_oracle,
-    update_with_strategy
+    update_with_strategy,
+    try_apply_strategy,
+    update_with_boundary_detection
 
 end # module Incremental
