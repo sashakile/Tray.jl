@@ -21,5 +21,5 @@
 - [x] 5.2 Implement classified public errors with causes, locations, phases, and remediation.
 - [ ] 5.3 Test the explicit Julia ≥1.10/IRTools compatibility matrix and derive-time-only capability probe; test registry and generated artifact use without IRTools.
 - [x] 5.4 Test non-goals, memoization wrapping, and covered broadcast behavior for REQ-A12–A15.
-- [ ] 5.5 Add requirement-to-test traceability for exactly REQ-A1 through REQ-A17.
+- [x] 5.5 Add requirement-to-test traceability for exactly REQ-A1 through REQ-A17.
 - [ ] 5.6 Run tests, `ah check --changes add-compiler-ir-incrementalization`, strict OpenSpec validation, and `git diff --check`.
