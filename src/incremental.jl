@@ -279,6 +279,178 @@ function Δf_for_minmax(
 end
 
 # ---------------------------------------------------------------------------
+# Rule registry (REQ-A4)
+# ---------------------------------------------------------------------------
+
+"""
+    RuleKey{F, A}
+
+Registry key parameterized by callable type `F` and argument tuple type `A`.
+"""
+struct RuleKey{F,A}
+    # Tag type — no runtime data
+end
+
+"""
+    Rule{F, A, AppF}
+
+A registered finite-change rule, keyed by `RuleKey{F, A}`.
+`f` is the original callable, `argtypes` is the tuple type of the arguments,
+and `apply` is the callable that computes the finite change.
+"""
+struct Rule{F,A,AppF}
+    f::F
+    argtypes::Type{A}
+    apply::AppF
+end
+
+"""
+    RegistrySnapshot
+
+Immutable snapshot of the rule registry at a given revision.
+"""
+struct RegistrySnapshot
+    revision::Int
+    rules::Dict{Any,Any}
+end
+
+"""
+    RuleRegistry
+
+Mutable handle to a revisioned rule registry.
+Each write operation (register, replace, remove) creates a new immutable snapshot
+with a monotonically increasing revision number.
+"""
+mutable struct RuleRegistry
+    current::RegistrySnapshot
+    revision_counter::Int
+
+    RuleRegistry() = new(RegistrySnapshot(0, Dict{Any,Any}()), 0)
+end
+
+function register!(reg::RuleRegistry, rule::Rule{F,A}) where {F,A}
+    key = RuleKey{F,A}
+    if haskey(reg.current.rules, (F, A))
+        throw(
+            ArgumentError("Rule for ($F, $A) already registered; use replace! to override"),
+        )
+    end
+    reg.revision_counter += 1
+    new_rules = copy(reg.current.rules)
+    new_rules[(F, A)] = rule
+    reg.current = RegistrySnapshot(reg.revision_counter, new_rules)
+    return reg.revision_counter
+end
+
+function replace!(reg::RuleRegistry, rule::Rule{F,A}) where {F,A}
+    reg.revision_counter += 1
+    new_rules = copy(reg.current.rules)
+    new_rules[(F, A)] = rule
+    reg.current = RegistrySnapshot(reg.revision_counter, new_rules)
+    return reg.revision_counter
+end
+
+function remove!(reg::RuleRegistry, ::Type{F}, ::Type{A}) where {F,A}
+    reg.revision_counter += 1
+    new_rules = copy(reg.current.rules)
+    delete!(new_rules, (F, A))
+    reg.current = RegistrySnapshot(reg.revision_counter, new_rules)
+    return reg.revision_counter
+end
+
+function lookup(reg::RuleRegistry, f, argtypes::Tuple)
+    ftype = typeof(f)
+
+    applicable = Tuple{Type,Type,Any,Int}[]
+    for ((rf, ra), rule) in reg.current.rules
+        if isapplicable(rf, ra, ftype, argtypes)
+            push!(applicable, (rf, ra, rule, length(applicable)))
+        end
+    end
+
+    isempty(applicable) && return nothing
+    length(applicable) == 1 && return applicable[1][3]
+
+    candidate = applicable[1]
+    for i = 2:length(applicable)
+        cmp = compare_specificity(
+            candidate[1],
+            candidate[2],
+            applicable[i][1],
+            applicable[i][2],
+        )
+        if cmp == :incomparable
+            return nothing
+        elseif cmp == :second_more_specific
+            candidate = applicable[i]
+        end
+    end
+
+    return candidate[3]
+end
+
+function isapplicable(rf::Type, ra::Type, ftype::Type, argtypes::Tuple)
+    ftype <: rf || return false
+    return type_tuple_issubset(argtypes, ra)
+end
+
+function type_tuple_issubset(t1::Tuple, t2::Type)
+    t2_params = t2.parameters
+    length(t1) == length(t2_params) || return false
+    for (a, b) in zip(t1, t2_params)
+        a <: b || return false
+    end
+    return true
+end
+
+function compare_specificity(rf1::Type, ra1::Type, rf2::Type, ra2::Type)
+    first_specific = is_more_specific(rf1, ra1, rf2, ra2)
+    second_specific = is_more_specific(rf2, ra2, rf1, ra1)
+
+    if first_specific && !second_specific
+        return :first_more_specific
+    elseif second_specific && !first_specific
+        return :second_more_specific
+    else
+        return :incomparable
+    end
+end
+
+function is_more_specific(rf_a::Type, ra_a::Type, rf_b::Type, ra_b::Type)
+    rf_more = (rf_a <: rf_b) && (rf_a != rf_b)
+    rf_equal = (rf_a == rf_b)
+    ra_more = type_tuple_more_specific(ra_a, ra_b)
+    ra_equal = (ra_a == ra_b)
+
+    if rf_more && (ra_equal || ra_more)
+        return true
+    end
+    if ra_more && (rf_equal || rf_more)
+        return true
+    end
+    return false
+end
+
+function type_tuple_more_specific(ta::Type, tb::Type)
+    ta == tb && return false
+
+    params_a = ta.parameters
+    params_b = tb.parameters
+    length(params_a) == length(params_b) || return false
+
+    any_more_specific = false
+    for (a, b) in zip(params_a, params_b)
+        a == b && continue
+        a <: b || return false
+        any_more_specific = true
+    end
+
+    return any_more_specific
+end
+
+snapshot(reg::RuleRegistry) = reg.current
+
+# ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
 
@@ -291,6 +463,15 @@ export Change,
     Δf_for_add,
     Δf_for_mul,
     Δf_for_sin,
-    Δf_for_minmax
+    Δf_for_minmax,
+    RuleKey,
+    Rule,
+    RegistrySnapshot,
+    RuleRegistry,
+    register!,
+    replace!,
+    remove!,
+    lookup,
+    snapshot
 
 end # module Incremental

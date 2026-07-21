@@ -2759,3 +2759,217 @@ end
     composed_with_zero2 = inc.compose_change(old, inc.zero_change(old), Δ)
     @test inc.apply_change(old, composed_with_zero2) == inc.apply_change(old, Δ)
 end
+
+
+## ---------------------------------------------------------------------------
+## Rule registry (TRAYS-ecx: Task 2.1 — REQ-A4)
+## ---------------------------------------------------------------------------
+
+@testitem "RuleRegistry: register and lookup exact key" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+    f = (x, y) -> x * y
+    key = Incremental.RuleKey{typeof(f),Tuple{Float64,Float64}}
+
+    rule = Incremental.Rule(
+        f,
+        Tuple{Float64,Float64},
+        (new_x, new_y, old_result, Δx, Δy) ->
+            Incremental.Δf_for_mul(new_x, new_y, old_result, Δx, Δy),
+    )
+
+    Incremental.register!(reg, rule)
+
+    result = Incremental.lookup(reg, f, (Float64, Float64))
+    @test result === rule
+end
+
+@testitem "RuleRegistry: lookup returns nothing for missing key" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+    f = (x, y) -> x * y
+
+    result = Incremental.lookup(reg, f, (Float64, Float64))
+    @test result === nothing
+end
+
+@testitem "RuleRegistry: duplicate registration rejects" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+    f = (x, y) -> x * y
+
+    rule = Incremental.Rule(
+        f,
+        Tuple{Float64,Float64},
+        (new_x, new_y, old_result, Δx, Δy) ->
+            Incremental.Δf_for_mul(new_x, new_y, old_result, Δx, Δy),
+    )
+
+    Incremental.register!(reg, rule)
+    @test_throws ArgumentError Incremental.register!(reg, rule)
+end
+
+@testitem "RuleRegistry: explicit replacement creates new revision" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+    f = (x, y) -> x * y
+
+    rule1 = Incremental.Rule(
+        f,
+        Tuple{Float64,Float64},
+        (new_x, new_y, old_result, Δx, Δy) ->
+            Incremental.Δf_for_mul(new_x, new_y, old_result, Δx, Δy),
+    )
+    rule2 = Incremental.Rule(
+        f,
+        Tuple{Float64,Float64},
+        (new_x, new_y, old_result, Δx, Δy) ->
+            Incremental.Δf_for_mul(new_x, new_y, old_result, Δx, Δy),
+    )
+
+    rev1 = Incremental.register!(reg, rule1)
+    rev2 = Incremental.replace!(reg, rule2)
+
+    @test rev2 > rev1
+    @test Incremental.lookup(reg, f, (Float64, Float64)) === rule2
+end
+
+@testitem "RuleRegistry: removal creates new revision" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+    f = (x, y) -> x * y
+
+    rule = Incremental.Rule(
+        f,
+        Tuple{Float64,Float64},
+        (new_x, new_y, old_result, Δx, Δy) ->
+            Incremental.Δf_for_mul(new_x, new_y, old_result, Δx, Δy),
+    )
+
+    rev1 = Incremental.register!(reg, rule)
+    rev2 = Incremental.remove!(reg, typeof(f), Tuple{Float64,Float64})
+
+    @test rev2 > rev1
+    @test Incremental.lookup(reg, f, (Float64, Float64)) === nothing
+end
+
+@testitem "RuleRegistry: snapshot is immutable" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+    f = (x, y) -> x * y
+
+    rule = Incremental.Rule(
+        f,
+        Tuple{Float64,Float64},
+        (new_x, new_y, old_result, Δx, Δy) ->
+            Incremental.Δf_for_mul(new_x, new_y, old_result, Δx, Δy),
+    )
+
+    Incremental.register!(reg, rule)
+    snap = Incremental.snapshot(reg)
+    rev1 = snap.revision
+
+    f2 = (x,) -> sin(x)
+    rule2 = Incremental.Rule(
+        f2,
+        Tuple{Float64},
+        (old_x, old_result, Δx) -> Incremental.Δf_for_sin(old_x, old_result, Δx),
+    )
+    Incremental.register!(reg, rule2)
+
+    @test snap.revision == rev1
+    @test Incremental.snapshot(reg).revision > rev1
+end
+
+@testitem "RuleRegistry: monotonic revision numbers" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+    f = (x, y) -> x * y
+
+    rule = Incremental.Rule(
+        f,
+        Tuple{Float64,Float64},
+        (new_x, new_y, old_result, Δx, Δy) ->
+            Incremental.Δf_for_mul(new_x, new_y, old_result, Δx, Δy),
+    )
+
+    revs = Int[]
+    push!(revs, Incremental.register!(reg, rule))
+    push!(revs, Incremental.remove!(reg, typeof(f), Tuple{Float64,Float64}))
+    push!(revs, Incremental.register!(reg, rule))
+
+    @test revs == sort(revs)
+    @test length(unique(revs)) == 3
+end
+
+@testitem "RuleRegistry: specificity — more specific key wins" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+
+    abstract type MyNum end
+    struct MyInt <: MyNum end
+    struct MyFloat <: MyNum end
+
+    f = (x) -> x
+
+    rule_num = Incremental.Rule(f, Tuple{MyNum}, (x,) -> x)
+    rule_int = Incremental.Rule(f, Tuple{MyInt}, (x,) -> x)
+
+    Incremental.register!(reg, rule_num)
+    Incremental.register!(reg, rule_int)
+
+    result = Incremental.lookup(reg, f, (MyInt,))
+    @test result === rule_int
+
+    result2 = Incremental.lookup(reg, f, (MyFloat,))
+    @test result2 === rule_num
+end
+
+@testitem "RuleRegistry: ambiguity detection" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+
+    abstract type A end
+    abstract type B <: A end
+    abstract type C <: A end
+    struct X <: B end
+    struct Y <: C end
+
+    f = (x, y) -> x
+
+    # Rule applicable to (B, A): X <: B ✓, Y <: A ✓
+    rule_b_a = Incremental.Rule(f, Tuple{B,A}, (x, y) -> x)
+    # Rule applicable to (A, C): X <: A ✓, Y <: C ✓
+    rule_ac = Incremental.Rule(f, Tuple{A,C}, (x, y) -> x)
+
+    Incremental.register!(reg, rule_b_a)
+    Incremental.register!(reg, rule_ac)
+
+    # (X, Y): both rules applicable, neither more specific → ambiguous
+    result = Incremental.lookup(reg, f, (X, Y))
+    @test result === nothing
+end
+
+@testitem "RuleRegistry: no applicable key returns nothing" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+
+    abstract type X end
+    abstract type Y end
+
+    f = (x) -> x
+    rule = Incremental.Rule(f, Tuple{X}, (x,) -> x)
+    Incremental.register!(reg, rule)
+
+    @test Incremental.lookup(reg, f, (Y,)) === nothing
+end

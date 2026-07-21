@@ -15,3 +15,5 @@
 {"id":"int-bae35249","kind":"field_change","created_at":"2026-07-21T14:02:37.370754771Z","actor":"sashakile","issue_id":"TRAYS-xbu","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-8536780d","kind":"field_change","created_at":"2026-07-21T14:24:30.77083695Z","actor":"sashakile","issue_id":"TRAYS-lw6","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-75d1141e","kind":"field_change","created_at":"2026-07-21T15:32:08.775135682Z","actor":"sashakile","issue_id":"TRAYS-00e","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-73070393","kind":"field_change","created_at":"2026-07-21T16:25:37.177560485Z","actor":"sashakile","issue_id":"TRAYS-ecx","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-751d935b","kind":"field_change","created_at":"2026-07-21T16:26:11.199332734Z","actor":"sashakile","issue_id":"TRAYS-ecx","extra":{"field":"status","new_value":"open","old_value":"closed"}}
