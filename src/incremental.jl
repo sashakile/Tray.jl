@@ -528,39 +528,156 @@ function retrieve_ir(::DefaultProvider, f, ::Type{ArgTypes}) where {ArgTypes}
 end
 
 # ---------------------------------------------------------------------------
-# Derivation entry point (REQ-A2, REQ-A3)
+# Coverage lattice (REQ-A5)
 # ---------------------------------------------------------------------------
 
 """
-    DerivedIR{F, A}
+    CoverageLevel
 
-Temporary result type for a successful IR derivation.
-Will be replaced by the sealed `AnalysisResult` sum type in Task 2.2.
+Transitive coverage lattice for derivation analysis.
+
+Values in increasing order:
+- `CovCovered < CovBoundary < CovRejected`
+
+An alias `Cov` prefix avoids collision with the `Rejected` result type.
+
+Joins take the worse value (higher ordinal).
 
 See REQ-A5.
 """
-struct DerivedIR{F,A}
-    f::F
-    argtypes::Type{A}
-    ir::Any
+@enum CoverageLevel begin
+    CovCovered = 0
+    CovBoundary = 1
+    CovRejected = 2
 end
 
 """
-    DerivationError
+    coverage_join(a::CoverageLevel, b::CoverageLevel)::CoverageLevel
 
-Temporary error type for a failed derivation.
-Will be replaced by the sealed `AnalysisResult` sum type in Task 2.2.
+Join two coverage levels, returning the worse (higher ordinal) value.
 
-Fields mirror the classified errors from REQ-A11:
-- `code`: error class (e.g. "IRProviderUnavailable", "IRProviderIncompatible")
-- `message`: human-readable description
-- `phase`: phase of occurrence (e.g. "derive", "apply")
+Satisfies:
+- Idempotent: `join(a, a) == a`
+- Commutative: `join(a, b) == join(b, a)`
+- Associative: `join(join(a, b), c) == join(a, join(b, c))`
+
+See REQ-A5.
 """
-struct DerivationError
+coverage_join(a::CoverageLevel, b::CoverageLevel) = max(a, b)
+
+# ---------------------------------------------------------------------------
+# Classified diagnostics (REQ-A11)
+# ---------------------------------------------------------------------------
+
+"""
+    Diagnostic
+
+A typed diagnostic for a classified derivation failure.
+
+Fields:
+- `code`: error class from REQ-A11 (e.g. "IRProviderUnavailable", "RuleMissing")
+- `message`: human-readable description of the failure
+- `phase`: phase of occurrence (e.g. "derive", "analysis", "apply")
+- `callable`: the callable or method identity when known
+- `location`: source location when known
+- `remediation`: suggestion for fixing the issue
+- `cause`: preserved raw exception or nothing
+
+See REQ-A11.
+"""
+struct Diagnostic
     code::String
     message::String
     phase::String
+    callable::Union{Nothing,Any}
+    location::Union{Nothing,String}
+    remediation::Union{Nothing,String}
+    cause::Union{Nothing,Exception}
+
+    # Keyword constructor (convenience — short form with code, message, phase)
+    function Diagnostic(
+        code::String,
+        message::String,
+        phase::String;
+        callable::Union{Nothing,Any} = nothing,
+        location::Union{Nothing,String} = nothing,
+        remediation::Union{Nothing,String} = nothing,
+        cause::Union{Nothing,Exception} = nothing,
+    )
+        return new(code, message, phase, callable, location, remediation, cause)
+    end
+
+    # Positional constructor (full form with all fields)
+    function Diagnostic(
+        code::String,
+        message::String,
+        phase::String,
+        callable::Union{Nothing,Any},
+        location::Union{Nothing,String},
+        remediation::Union{Nothing,String},
+        cause::Union{Nothing,Exception},
+    )
+        return new(code, message, phase, callable, location, remediation, cause)
+    end
 end
+
+# ---------------------------------------------------------------------------
+# Sealed AnalysisResult sum type (REQ-A5)
+# ---------------------------------------------------------------------------
+
+"""
+    AnalysisResult
+
+Sealed sum type for derivation results. Contains only:
+- `Derived(artifact, argtypes, coverage)` — successful derivation
+- `Rejected(diagnostics, coverage)` — derivation failure
+
+`Rejected` contains no callable partial artifact.
+
+See REQ-A5.
+"""
+abstract type AnalysisResult end
+
+"""
+    Derived{F, A} <: AnalysisResult
+
+Successful derivation result.
+
+- `artifact`: the generated callable artifact
+- `argtypes`: the argument tuple type for which the artifact was derived
+- `coverage`: the transitive coverage level of the derivation
+
+An artifact is callable only after all transitive sites are `Covered`.
+
+See REQ-A5, REQ-A3.
+"""
+struct Derived{F,A} <: AnalysisResult
+    artifact::F
+    argtypes::Type{A}
+    coverage::CoverageLevel
+end
+
+"""
+    Rejected <: AnalysisResult
+
+Failed derivation result.
+
+- `diagnostics`: list of typed `Diagnostic`s describing the failure
+- `coverage`: the transitive coverage level (always `CovBoundary` or `CovRejected`)
+
+Contains no callable partial artifact. Every derivation-time failure is
+represented as a typed diagnostic inside `Rejected`.
+
+See REQ-A5, REQ-A11.
+"""
+struct Rejected <: AnalysisResult
+    diagnostics::Vector{Diagnostic}
+    coverage::CoverageLevel
+end
+
+# ---------------------------------------------------------------------------
+# Derivation entry point (REQ-A2, REQ-A3)
+# ---------------------------------------------------------------------------
 
 """
     derive(f, args::Type...; provider::AbstractProvider = DefaultProvider())
@@ -569,22 +686,27 @@ Derive a finite-change rule for callable `f` with the given argument types.
 
 Probes the provider lazily at call time — IRTools is never loaded at module init.
 
-Returns a `DerivedIR` on success, or a `DerivationError` with a classified
-error code when:
-- The provider is unavailable (IRTools absent)
-- The provider is incompatible (Julia version, IRTools version)
-- IR retrieval fails for the given method
+Returns an `AnalysisResult`:
+- `Derived` on success, containing the generated artifact
+- `Rejected` on failure, containing typed diagnostics with classified error codes
 
-See REQ-A2, REQ-A3, REQ-A11, REQ-A17.
+See REQ-A2, REQ-A3, REQ-A5, REQ-A11, REQ-A17.
 """
 function derive(f, args::Type...; provider::AbstractProvider = DefaultProvider())
     if !available(provider)
-        return DerivationError(
-            "IRProviderUnavailable",
-            "The default IR provider (IRTools) is not available in this " *
-            "environment. Install IRTools 0.4.x with Pkg.add(\"IRTools\") " *
-            "or use a different provider. Julia ≥ 1.10 is required.",
-            "derive",
+        return Rejected(
+            [
+                Diagnostic(
+                    "IRProviderUnavailable",
+                    "The default IR provider (IRTools) is not available in this " *
+                    "environment. Install IRTools 0.4.x with Pkg.add(\"IRTools\") " *
+                    "or use a different provider. Julia ≥ 1.10 is required.",
+                    "derive";
+                    callable = f,
+                    remediation = "Install IRTools 0.4.x with Pkg.add(\"IRTools\")",
+                ),
+            ],
+            CovRejected,
         )
     end
 
@@ -592,17 +714,24 @@ function derive(f, args::Type...; provider::AbstractProvider = DefaultProvider()
     ir = retrieve_ir(provider, f, argtypes)
 
     if ir === nothing
-        return DerivationError(
-            "IRProviderIncompatible",
-            "Failed to retrieve IR for ($(f), $argtypes). " *
-            "The method may not be uniquely selected or the provider version " *
-            "may be incompatible.",
-            "derive",
+        return Rejected(
+            [
+                Diagnostic(
+                    "IRProviderIncompatible",
+                    "Failed to retrieve IR for ($(f), $argtypes). " *
+                    "The method may not be uniquely selected or the provider version " *
+                    "may be incompatible.",
+                    "derive";
+                    callable = f,
+                    remediation = "Check Julia/IRTools compatibility (Julia ≥ 1.10, IRTools 0.4.x)",
+                ),
+            ],
+            CovRejected,
         )
     end
 
     # TODO: Full IR analysis, transitive coverage, and generation (Task 1.3)
-    return DerivedIR(f, argtypes, ir)
+    return Derived(f, argtypes, CovCovered)
 end
 
 # ---------------------------------------------------------------------------
@@ -632,8 +761,15 @@ export Change,
     DefaultProvider,
     available,
     retrieve_ir,
-    DerivedIR,
-    DerivationError,
+    CoverageLevel,
+    CovCovered,
+    CovBoundary,
+    CovRejected,
+    coverage_join,
+    Diagnostic,
+    AnalysisResult,
+    Derived,
+    Rejected,
     derive
 
 end # module Incremental

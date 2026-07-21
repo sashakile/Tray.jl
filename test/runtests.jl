@@ -2995,36 +2995,45 @@ end
     @test Incremental.retrieve_ir(provider, +, Tuple{Float64,Float64}) === nothing
 end
 
-@testitem "IRProvider: derive returns DerivationError without IRTools" begin
+@testitem "IRProvider: derive returns Rejected without IRTools" begin
     using Tray: Incremental
 
-    # Without IRTools, derive should return a DerivationError with the
-    # IRProviderUnavailable code, not throw an exception
+    # Without IRTools, derive should return a Rejected (AnalysisResult) with
+    # IRProviderUnavailable diagnostic, not throw an exception
     result = Incremental.derive(+, Float64, Float64)
-    @test result isa Incremental.DerivationError
-    @test result.code == "IRProviderUnavailable"
-    @test result.phase == "derive"
+    @test result isa Incremental.Rejected
+    @test result isa Incremental.AnalysisResult
+    @test length(result.diagnostics) >= 1
+    @test result.diagnostics[1].code == "IRProviderUnavailable"
+    @test result.diagnostics[1].phase == "derive"
 end
 
-@testitem "IRProvider: DerivationError holds expected fields" begin
+@testitem "IRProvider: Diagnostic holds expected fields" begin
     using Tray: Incremental
 
-    err =
-        Incremental.DerivationError("IRProviderIncompatible", "Version mismatch", "derive")
-    @test err.code == "IRProviderIncompatible"
-    @test err.message == "Version mismatch"
-    @test err.phase == "derive"
+    diag = Incremental.Diagnostic(
+        "IRProviderIncompatible",
+        "Version mismatch",
+        "derive",
+        nothing,
+        nothing,
+        "Update IRTools",
+        nothing,
+    )
+    @test diag.code == "IRProviderIncompatible"
+    @test diag.message == "Version mismatch"
+    @test diag.phase == "derive"
+    @test diag.remediation == "Update IRTools"
 end
 
-@testitem "IRProvider: DerivedIR holds expected fields" begin
+@testitem "IRProvider: Derived holds expected fields" begin
     using Tray: Incremental
 
     f(x) = x + 1
-    ir_mock = "mocked IR"
-    result = Incremental.DerivedIR(f, Tuple{Int}, ir_mock)
-    @test result.f === f
+    result = Incremental.Derived(f, Tuple{Int}, Incremental.CovCovered)
+    @test result.artifact === f
     @test result.argtypes == Tuple{Int}
-    @test result.ir == ir_mock
+    @test result.coverage == Incremental.CovCovered
 end
 
 @testitem "IRProvider: derive with explicit provider argument" begin
@@ -3033,6 +3042,225 @@ end
     # Passing an explicit provider should work the same as default
     result =
         Incremental.derive(+, Float64, Float64; provider = Incremental.DefaultProvider())
-    @test result isa Incremental.DerivationError
-    @test result.code == "IRProviderUnavailable"
+    @test result isa Incremental.Rejected
+    @test length(result.diagnostics) >= 1
+    @test result.diagnostics[1].code == "IRProviderUnavailable"
+end
+
+## ---------------------------------------------------------------------------
+## Sealed AnalysisResult sum type (TRAYS-ecx Task 2.2: REQ-A5, REQ-A11)
+## ---------------------------------------------------------------------------
+
+@testitem "AnalysisResult: CoverageLevel ordering (CovCovered < CovBoundary < CovRejected)" begin
+    using Tray: Incremental
+
+    @test Incremental.CovCovered < Incremental.CovBoundary
+    @test Incremental.CovBoundary < Incremental.CovRejected
+    @test Incremental.CovCovered < Incremental.CovRejected
+    @test Incremental.CovCovered == Incremental.CovCovered
+    @test Incremental.CovBoundary == Incremental.CovBoundary
+    @test Incremental.CovRejected == Incremental.CovRejected
+end
+
+@testitem "AnalysisResult: CoverageLevel join returns worse value" begin
+    using Tray: Incremental
+
+    @test Incremental.coverage_join(Incremental.CovCovered, Incremental.CovCovered) ==
+          Incremental.CovCovered
+    @test Incremental.coverage_join(Incremental.CovCovered, Incremental.CovBoundary) ==
+          Incremental.CovBoundary
+    @test Incremental.coverage_join(Incremental.CovBoundary, Incremental.CovCovered) ==
+          Incremental.CovBoundary
+    @test Incremental.coverage_join(Incremental.CovCovered, Incremental.CovRejected) ==
+          Incremental.CovRejected
+    @test Incremental.coverage_join(Incremental.CovBoundary, Incremental.CovRejected) ==
+          Incremental.CovRejected
+    @test Incremental.coverage_join(Incremental.CovRejected, Incremental.CovRejected) ==
+          Incremental.CovRejected
+end
+
+@testitem "AnalysisResult: Derived holds artifact, argtypes, coverage" begin
+    using Tray: Incremental
+
+    f(x) = x + 1
+    result = Incremental.Derived(f, Tuple{Int}, Incremental.CovCovered)
+
+    @test result isa Incremental.Derived
+    @test result isa Incremental.AnalysisResult
+    @test result.artifact === f
+    @test result.argtypes == Tuple{Int}
+    @test result.coverage == Incremental.CovCovered
+end
+
+@testitem "AnalysisResult: Derived can be created with any coverage level" begin
+    using Tray: Incremental
+
+    f(x) = x
+
+    for coverage in
+        [Incremental.CovCovered, Incremental.CovBoundary, Incremental.CovRejected]
+        result = Incremental.Derived(f, Tuple{Int}, coverage)
+        @test result isa Incremental.Derived
+        @test result.coverage == coverage
+    end
+end
+
+@testitem "AnalysisResult: Rejected holds diagnostics and coverage" begin
+    using Tray: Incremental
+
+    diag = Incremental.Diagnostic(
+        "IRProviderUnavailable",
+        "IRTools not available",
+        "derive",
+        nothing,
+        nothing,
+        "Install IRTools",
+        nothing,
+    )
+    result = Incremental.Rejected([diag], Incremental.CovRejected)
+
+    @test result isa Incremental.Rejected
+    @test result isa Incremental.AnalysisResult
+    @test length(result.diagnostics) == 1
+    @test result.diagnostics[1].code == "IRProviderUnavailable"
+    @test result.coverage == Incremental.CovRejected
+end
+
+@testitem "AnalysisResult: Rejected contains no callable artifact" begin
+    using Tray: Incremental
+
+    diag = Incremental.Diagnostic(
+        "RuleMissing",
+        "No rule for sin(Int)",
+        "derive",
+        sin,
+        nothing,
+        "Register a rule for sin(Int)",
+        nothing,
+    )
+    result = Incremental.Rejected([diag], Incremental.CovBoundary)
+
+    # Rejected has no .artifact field — no callable partial artifact
+    @test !hasfield(Incremental.Rejected, :artifact)
+    @test result.coverage == Incremental.CovBoundary
+end
+
+@testitem "AnalysisResult: Diagnostic holds all fields" begin
+    using Tray: Incremental
+
+    cause = ErrorException("test cause")
+    diag = Incremental.Diagnostic(
+        "UnsupportedEffect",
+        "I/O operation in pure context",
+        "analysis",
+        println,
+        "src/core.jl:42",
+        "Remove I/O from the incrementalized function",
+        cause,
+    )
+
+    @test diag.code == "UnsupportedEffect"
+    @test diag.message == "I/O operation in pure context"
+    @test diag.phase == "analysis"
+    @test diag.callable === println
+    @test diag.location == "src/core.jl:42"
+    @test diag.remediation == "Remove I/O from the incrementalized function"
+    @test diag.cause isa ErrorException
+    @test diag.cause.msg == "test cause"
+end
+
+@testitem "AnalysisResult: Diagnostic convenience constructor" begin
+    using Tray: Incremental
+
+    # Short form with just code, message, phase
+    diag = Incremental.Diagnostic("MethodMissing", "f not found", "derive")
+    @test diag.code == "MethodMissing"
+    @test diag.message == "f not found"
+    @test diag.phase == "derive"
+    @test diag.callable === nothing
+    @test diag.location === nothing
+    @test diag.remediation === nothing
+    @test diag.cause === nothing
+end
+
+@testitem "AnalysisResult: all 14 classified error codes defined" begin
+    using Tray: Incremental
+
+    codes = [
+        "UnsupportedEnvironment",
+        "IRProviderUnavailable",
+        "IRProviderIncompatible",
+        "MethodMissing",
+        "MethodAmbiguous",
+        "RuleMissing",
+        "RuleAmbiguous",
+        "UnsupportedEffect",
+        "ControlFlowChanged",
+        "MutableCapture",
+        "StaleArtifact",
+        "InvalidChange",
+        "OracleMismatch",
+        "GenerationFailure",
+    ]
+
+    for code in codes
+        diag = Incremental.Diagnostic(code, "test", "derive")
+        @test diag.code == code
+    end
+end
+
+@testitem "AnalysisResult: AnalysisResult is sealed (only Derived and Rejected subtypes)" begin
+    using Tray: Incremental
+
+    # Verify no other subtypes of AnalysisResult exist
+    subtypes = Incremental.Rejected <: Incremental.AnalysisResult
+    derived_subtypes = Incremental.Derived <: Incremental.AnalysisResult
+    @test subtypes
+    @test derived_subtypes
+end
+
+@testitem "AnalysisResult: derive returns AnalysisResult (Rejected)" begin
+    using Tray: Incremental
+
+    # Without IRTools, derive should return a Rejected (AnalysisResult)
+    result = Incremental.derive(+, Float64, Float64)
+    @test result isa Incremental.AnalysisResult
+    @test result isa Incremental.Rejected
+    @test length(result.diagnostics) >= 1
+    @test result.diagnostics[1].code == "IRProviderUnavailable"
+end
+
+@testitem "AnalysisResult: coverage_join is transitive" begin
+    using Tray: Incremental
+
+    r1 = Incremental.coverage_join(
+        Incremental.coverage_join(Incremental.CovCovered, Incremental.CovBoundary),
+        Incremental.CovRejected,
+    )
+    r2 = Incremental.coverage_join(
+        Incremental.CovCovered,
+        Incremental.coverage_join(Incremental.CovBoundary, Incremental.CovRejected),
+    )
+    @test r1 == r2 == Incremental.CovRejected
+
+    levels = [
+        Incremental.CovCovered,
+        Incremental.CovCovered,
+        Incremental.CovBoundary,
+        Incremental.CovCovered,
+    ]
+    result = reduce(Incremental.coverage_join, levels)
+    @test result == Incremental.CovBoundary
+end
+
+@testitem "AnalysisResult: coverage_join is commutative" begin
+    using Tray: Incremental
+
+    for (a, b) in [
+        (Incremental.CovCovered, Incremental.CovBoundary),
+        (Incremental.CovBoundary, Incremental.CovRejected),
+        (Incremental.CovCovered, Incremental.CovRejected),
+    ]
+        @test Incremental.coverage_join(a, b) == Incremental.coverage_join(b, a)
+    end
 end
