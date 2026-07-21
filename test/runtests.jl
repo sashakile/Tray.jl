@@ -3597,3 +3597,65 @@ end
     @test length(summary.diagnostics) >= 1
     @test summary.diagnostics[1].code == "RuleMissing"
 end
+
+## ---------------------------------------------------------------------------
+## Requirement-to-test traceability (TRAYS-ecx Task 5.5: REQ-A1–A17)
+## ---------------------------------------------------------------------------
+#
+# REQ-A1  Exact finite-change algebra
+#   → Finite-change algebra section (line 2417)
+#   → Exactness law tests (line 2529)
+#
+# REQ-A2  Internal IR-provider interface
+#   → IR provider interface section (line 2978)
+#
+# REQ-A3  Exact generated update function
+#   → IR analysis framework (src/incremental.jl)
+#   → Derivation entry point derive() tests (line 3039, 3222)
+#
+# REQ-A4  Revisioned rule registry
+#   → Rule registry section (line 2765)
+#
+# REQ-A5  Sealed transitive analysis result
+#   → Sealed AnalysisResult sum type section (line 3051)
+#
+# REQ-A6  Exact built-ins and domain-neutral baselines
+#   → Domain-neutral baseline validation section (line 3269)
+#   → Exactness law tests (line 2529)
+#
+# REQ-A7  Canonical combine and strategy adapter
+#   → Not yet tested (Task 4.1)
+#
+# REQ-A8  V1 program boundary
+#   → classify_operation coverage (src/incremental.jl)
+#   → Boundary tests in IR provider section
+#
+# REQ-A9  Atomic ancestor-path updates
+#   → Not yet tested (Task 4.3)
+#
+# REQ-A10 No silent approximation
+#   → Covered by RuleMissing/Rejected diagnostics
+#
+# REQ-A11 Classified call-time failures
+#   → IR provider interface section (line 2978)
+#   → Sealed AnalysisResult section (line 3051)
+#   → Classified error codes test (line 3186)
+#
+# REQ-A12 No LLVM-level incrementalization
+#   → Non-goal tests section (line 3512)
+#
+# REQ-A13 No differential-dataflow binding
+#   → Non-goal tests section (line 3524)
+#
+# REQ-A14 Memoization interoperability
+#   → Non-goal tests section (line 3533, 3575)
+#
+# REQ-A15 Covered broadcast lowering
+#   → Non-goal tests section (line 3588)
+#
+# REQ-A16 Reproducible artifact identity
+#   → Not yet tested (Task 5.1)
+#
+# REQ-A17 Graceful operation without IRTools
+#   → IR provider interface section (line 2978, 2998)
+#   → derive returns Rejected tests (line 3039, 3222)
