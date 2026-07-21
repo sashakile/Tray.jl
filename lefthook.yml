@@ -2,13 +2,12 @@
 min_version: 1.11.0
 
 pre-commit:
-# ah:managed:start
-  ah-check:
-    run: ah check
-# ah:managed:end
-
   parallel: true
   commands:
+# ah:managed:start
+    ah-check:
+      run: ah check
+# ah:managed:end
     julia-format:
       glob: "*.jl"
       run: >-
