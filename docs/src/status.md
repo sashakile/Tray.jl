@@ -4,7 +4,7 @@
 
 ## Public Behavior
 
-| Capability | Status |
+| Behavior | Status |
 |------------|--------|
 | Load the `Tray` module | ✅ Implemented and tested |
 | `ScalarSummary` payload (count, sum, sumsq, min, max, + m3/m4) | ✅ Implemented and tested |
@@ -27,7 +27,7 @@
 
 ## Coverage by Requirement Area
 
-| Requirement Area | Status | Requirement IDs |
+| Area | Status | Requirement IDs |
 |------------------|--------|-----------------|
 | Aggregation tree & queries | ✅ Implemented | REQ-1–REQ-3, REQ-9–REQ-15, REQ-18–REQ-19, REQ-29, REQ-31, REQ-34, REQ-41–REQ-42 |
 | Payload statistics (ScalarSummary) | ✅ Implemented | REQ-4–REQ-5, REQ-7, REQ-16, REQ-33, REQ-43 |

@@ -18,7 +18,7 @@ The current Tray implementation provides:
 - **Ratio-safe derived metrics** — read-time derivation via `derive_mean` and
   `derive_ratio`; never stored or combined
 - **Custom payload support** — provide `combine` and `identity` for any type
-- **Property-tested** — 98 test items covering algebra, tree invariants, edge
+- **Property-tested** — over 90 test items covering algebra, tree invariants, edge
   cases, and end-to-end workflows
 
 ## Key Concepts
@@ -56,33 +56,8 @@ tray2 = update(tray, 2, new_leaf)
 
 ## Attribution (Waterfall / Contribution Analysis)
 
-```julia
-using Tray
-
-schema = AttributionSchema(
-    bucket_ids = (:pnl, :costs, :fees),
-    tolerance = 1e-10,
-    residual_bucket_id = nothing,
-    convention = Direct(),
-)
-
-leaves = [
-    AttributionPayload(; schema, buckets=[100.0, -70.0, 30.0], realized_total=60.0),
-    AttributionPayload(; schema, buckets=[50.0, -20.0, 30.0], realized_total=60.0),
-]
-tray = Tree(leaves; b=2, schema)
-
-# Derive margin at root (read-time, never stored)
-margin = derive_ratio(root(tray), :pnl, :costs)
-
-# With a residual bucket to absorb rounding gaps
-schema2 = AttributionSchema(
-    bucket_ids = (:pnl, :costs, :fees, :residual),
-    tolerance = 1e-6,
-    residual_bucket_id = :residual,
-    convention = Allocated(:sequential, [:rate, :volume, :mix]),
-)
-```
+See the [Examples page](examples.md#2-attributionpayload--waterfall--contribution-analysis)
+for a full walkthrough with reconciliation, residual buckets, and allocation conventions.
 
 ## Quick Links
 

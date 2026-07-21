@@ -124,6 +124,8 @@ schema_a.convention  # Allocated(:sequential, [:price, :quantity, :product_mix])
 The `update` function returns a new tree, leaving the original unchanged:
 
 ```julia
+using Tray
+
 schema = ScalarSchema{Float64}(false)
 leaves = [ScalarSummary(; schema, count=1, sum=float(i), sumsq=float(i^2), minimum=float(i), maximum=float(i)) for i in 1:4]
 t = Tree(leaves; b=2, schema)
@@ -171,9 +173,71 @@ root(t)  # MySum(16.0)
 For any payload type, the root always equals the direct leaf fold:
 
 ```julia
+using Tray
+using Tray: combine
+
+schema = ScalarSchema{Float64}(false)
+leaves = [ScalarSummary(; schema, count=1, sum=float(i), sumsq=float(i^2), minimum=float(i), maximum=float(i)) for i in 1:5]
+t = Tree(leaves; b=2, schema)
+
 # Verify: root == reduce(combine, leaves)
 @assert root(t) == reduce(combine, leaves)
 ```
 
 This holds for every tree structure regardless of branching factor `b` or
 number of leaves, because `combine` is associative.
+
+## 6. Depth-Targeted Range Query
+
+Query at a specific aggregation depth instead of the full tree:
+
+```julia
+using Tray
+
+schema = ScalarSchema{Float64}(false)
+leaves = [ScalarSummary(; schema, count=1, sum=float(i), sumsq=float(i^2), minimum=float(i), maximum=float(i)) for i in 1:8]
+t = Tree(leaves; b=2, schema)
+
+# Depth 0 = root (full tree)
+range_query(t, 1, 8; target_depth=0) == root(t)  # true
+
+# Depth 1 = second level from root (nodes covering [1,4] and [5,8])
+range_query(t, 1, 4; target_depth=1) == t.levels[3][1]  # true
+
+# Depth 2 = third level from root (nodes covering [1,2], [3,4], etc.)
+range_query(t, 1, 2; target_depth=2) == t.levels[2][1]  # true
+```
+
+A range that cannot be exactly represented at the given depth raises
+`ArgumentError`.
+
+## 7. Error Handling
+
+Tray raises typed exceptions for invalid operations:
+
+```julia
+using Tray
+
+schema = ScalarSchema{Float64}(false)
+id = TrayBase.identity(schema)
+
+# Empty leaf array
+Tree(ScalarSummary[]; b=2, schema)           # ArgumentError
+
+# Index out of bounds
+Tree([id, id]; b=2, schema) |> t -> range_query(t, 0, 1)  # BoundsError
+
+# Non-reconciling attribution (no residual bucket)
+attr_schema = AttributionSchema(
+    bucket_ids = (:a, :b),
+    tolerance = 1e-10,
+    residual_bucket_id = nothing,
+    convention = Direct(),
+)
+AttributionPayload(; schema=attr_schema, buckets=[1.0, 2.0], realized_total=10.0)
+# ArgumentError: bucket_sum does not reconcile
+
+# Zero-denominator ratio
+p = AttributionPayload(; schema=attr_schema, buckets=[0.0, 0.0], realized_total=0.0)
+derive_ratio(p, :a, :b)   # DomainError: denominator is zero
+```
