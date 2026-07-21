@@ -1527,6 +1527,156 @@ end
 end
 
 ## ---------------------------------------------------------------------------
+## Tree invariant and complexity property tests (TRAYS-lep.2: REQ-3, REQ-31, REQ-42)
+## ---------------------------------------------------------------------------
+
+@testitem "Tree: property — root fold oracle for 100 random trees" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, root, identity, combine
+    using Random
+
+    rng = MersenneTwister(42)
+    schema = ScalarSchema{Float64}(false)
+
+    for trial = 1:100
+        n = rand(rng, 1:50)
+        b = rand(rng, 2:10)
+        leaves = [
+            ScalarSummary(
+                schema = schema,
+                count = 1,
+                sum = float(i),
+                sumsq = float(i^2),
+                minimum = float(i),
+                maximum = float(i),
+            ) for i = 1:n
+        ]
+        t = Tree(leaves; b = b, schema = schema)
+        @test root(t) == reduce(combine, leaves)
+    end
+end
+
+@testitem "Tree: property — depth satisfies O(log_b n)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, depth
+    using Random
+
+    rng = MersenneTwister(99)
+    schema = ScalarSchema{Float64}(false)
+
+    for trial = 1:50
+        n = rand(rng, 1:100)
+        b = rand(rng, 2:8)
+        leaves = [
+            ScalarSummary(
+                schema = schema,
+                count = 1,
+                sum = float(i),
+                sumsq = float(i^2),
+                minimum = float(i),
+                maximum = float(i),
+            ) for i = 1:n
+        ]
+        t = Tree(leaves; b = b, schema = schema)
+
+        # Depth = ceil(log_b(n)) for complete trees, at most ceil(log_b(n)) + 1
+        # The depth is: number of levels - 1 = ceil(log_b(n))? For a balanced tree,
+        # the depth is the number of parent levels from root to leaves.
+        # With n leaves, the minimum depth is ceil(log_b(n)) but the last level
+        # may be incomplete, adding at most 1.
+        max_theoretical = n == 1 ? 0 : Int(ceil(log(n) / log(b)))
+        @test depth(t) <= max_theoretical + 1
+        @test depth(t) >= max_theoretical - 1
+    end
+end
+
+@testitem "Tree: property — deterministic construction (100 random seeds)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, depth
+    using Random
+
+    schema = ScalarSchema{Float64}(false)
+
+    for seed = 1:100
+        rng = MersenneTwister(seed)
+        n = rand(rng, 1:30)
+        b = rand(rng, 2:6)
+
+        # Generate same leaf sequence from seed
+        rng1 = MersenneTwister(seed)
+        rng2 = MersenneTwister(seed)
+
+        leaves1 = [
+            ScalarSummary(
+                schema = schema,
+                count = 1,
+                sum = float(rand(rng1, 1:100)),
+                sumsq = 0.0,
+                minimum = 0.0,
+                maximum = 0.0,
+            ) for _ = 1:n
+        ]
+        leaves2 = [
+            ScalarSummary(
+                schema = schema,
+                count = 1,
+                sum = float(rand(rng2, 1:100)),
+                sumsq = 0.0,
+                minimum = 0.0,
+                maximum = 0.0,
+            ) for _ = 1:n
+        ]
+
+        t1 = Tree(leaves1; b = b, schema = schema)
+        t2 = Tree(leaves2; b = b, schema = schema)
+
+        @test depth(t1) == depth(t2)
+        for (l1, l2) in zip(t1.levels, t2.levels)
+            @test l1 == l2
+        end
+    end
+end
+
+@testitem "Tree: property — update preserves root fold oracle (50 random)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, root, update, identity, combine
+    using Random
+
+    rng = MersenneTwister(77)
+    schema = ScalarSchema{Float64}(false)
+
+    for trial = 1:50
+        n = rand(rng, 2:30)
+        b = rand(rng, 2:6)
+        leaves = [
+            ScalarSummary(
+                schema = schema,
+                count = 1,
+                sum = float(rand(rng, 1:100)),
+                sumsq = 0.0,
+                minimum = 0.0,
+                maximum = 0.0,
+            ) for _ = 1:n
+        ]
+        t = Tree(leaves; b = b, schema = schema)
+
+        # Apply random updates
+        for _ = 1:rand(rng, 1:10)
+            idx = rand(rng, 1:n)
+            new_val = float(rand(rng, 1:1000))
+            new_leaf = ScalarSummary(
+                schema = schema,
+                count = 1,
+                sum = new_val,
+                sumsq = new_val^2,
+                minimum = new_val,
+                maximum = new_val,
+            )
+            t = update(t, idx, new_leaf)
+
+            # Root fold equals direct leaf fold
+            @test root(t) == reduce(combine, t.levels[1])
+        end
+    end
+end
+
+## ---------------------------------------------------------------------------
 ## AttributionPayload reconciliation (Tasks 2.1–2.2)
 ## ---------------------------------------------------------------------------
 
