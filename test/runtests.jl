@@ -3659,3 +3659,444 @@ end
 # REQ-A17 Graceful operation without IRTools
 #   → IR provider interface section (line 2978, 2998)
 #   → derive returns Rejected tests (line 3039, 3222)
+
+# ---------------------------------------------------------------------------
+# REQ-A7  Canonical combine and strategy adapter (TRAYS-ecx Task 4.1)
+# ---------------------------------------------------------------------------
+
+@testitem "UpdateStrategy: canonical combine fallback when Δf is nothing" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine
+    using Tray.Incremental: UpdateSnapshot, UpdateStrategy, apply_strategy
+
+    schema = ScalarSchema{Float64}(false)
+    old = ScalarSummary(
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    new = ScalarSummary(
+        count = 4,
+        sum = 10.0,
+        sumsq = 30.0,
+        minimum = 1.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new,
+        parent_old = nothing,
+        siblings = ScalarSummary[],
+    )
+    strategy = UpdateStrategy(; Δf = nothing)
+
+    # With no Δf, apply_strategy should fall back to canonical combine
+    # For a single child with no siblings, combine(old, id) = old, combine(new, id) = new
+    result = apply_strategy(strategy, snap)
+    @test result == new
+end
+
+@testitem "UpdateStrategy: Δf path produces same result as canonical combine" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, apply_change, change_between
+
+    schema = ScalarSchema{Float64}(false)
+    id = identity(schema)
+    old = ScalarSummary(
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    new = ScalarSummary(
+        count = 4,
+        sum = 10.0,
+        sumsq = 30.0,
+        minimum = 1.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+    sibling = ScalarSummary(
+        count = 2,
+        sum = 5.0,
+        sumsq = 13.0,
+        minimum = 2.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+
+    expected = combine(new, sibling)
+
+    # Δf that always returns the correct change
+    function my_df(old_value, old_parent, Δ_child)
+        new_parent = combine(apply_change(old_value, Δ_child), sibling)
+        return change_between(old_parent, new_parent)
+    end
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new,
+        parent_old = combine(old, sibling),
+        siblings = [sibling],
+    )
+    strategy = UpdateStrategy(; Δf = my_df)
+
+    result = apply_strategy(strategy, snap)
+    @test result == expected
+end
+
+@testitem "UpdateStrategy: Δf fallback to combine when change is invalid" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, ScalarSummaryChange
+
+    schema = ScalarSchema{Float64}(false)
+    id = identity(schema)
+    old = ScalarSummary(
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    new = ScalarSummary(
+        count = 4,
+        sum = 10.0,
+        sumsq = 30.0,
+        minimum = 1.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+    sibling = ScalarSummary(
+        count = 2,
+        sum = 5.0,
+        sumsq = 13.0,
+        minimum = 2.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    expected = combine(new, sibling)
+
+    # Δf that produces an invalid change (negative count)
+    function bad_df(::Any, ::Any, ::Any)
+        return ScalarSummaryChange{Float64}(
+            count = -999,
+            sum = 0.0,
+            sumsq = 0.0,
+            minimum = Inf,
+            maximum = -Inf,
+        )
+    end
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new,
+        parent_old = combine(old, sibling),
+        siblings = [sibling],
+    )
+    strategy = UpdateStrategy(; Δf = bad_df)
+
+    result = apply_strategy(strategy, snap)
+    @test result == expected
+end
+
+@testitem "UpdateStrategy: numeric Δf with siblings" begin
+    using Tray.Incremental:
+        UpdateSnapshot,
+        UpdateStrategy,
+        apply_strategy,
+        change_between,
+        apply_change,
+        valid_change,
+        Change
+    using Tray: TrayBase
+    using Tray: TrayBase
+
+    # Define combine for numeric types (addition) for this test
+    TrayBase.combine(a::T, b::T) where {T<:Number} = a + b
+
+    old, new_val = 10.0, 15.0
+    siblings = [20.0, 30.0]
+    old_parent = old + sum(siblings)  # combine = +
+    expected = new_val + sum(siblings)
+
+    # Simple Δf for addition: Δ_parent = Δ_child
+    function add_df(::Float64, ::Float64, Δ::Change{Float64})
+        return Δ
+    end
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new_val,
+        parent_old = old_parent,
+        siblings = siblings,
+    )
+    strategy = UpdateStrategy(; Δf = add_df)
+
+    result = apply_strategy(strategy, snap)
+    @test result ≈ expected
+end
+
+@testitem "UpdateStrategy: validate_with_oracle returns expected for correct Δf" begin
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, validate_with_oracle, Change
+    using Tray: TrayBase
+    using Tray: TrayBase
+
+    # Define combine for numeric types (addition) for this test
+    TrayBase.combine(a::T, b::T) where {T<:Number} = a + b
+
+    old, new_val = 5.0, 8.0
+    siblings = [10.0]
+    old_parent = old + sum(siblings)
+    expected = new_val + sum(siblings)
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new_val,
+        parent_old = old_parent,
+        siblings = siblings,
+    )
+
+    # Correct Δf
+    function add_df(::Float64, ::Float64, Δ::Change{Float64})
+        return Δ
+    end
+
+    # Oracle matches Δf result
+    @test validate_with_oracle(add_df, snap)
+end
+
+@testitem "UpdateStrategy: validate_with_oracle returns false for incorrect Δf" begin
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, validate_with_oracle, Change
+    using Tray: TrayBase
+    using Tray: TrayBase
+
+    # Define combine for numeric types (addition) for this test
+    TrayBase.combine(a::T, b::T) where {T<:Number} = a + b
+
+    old, new_val = 5.0, 8.0
+    siblings = [10.0]
+    old_parent = old + sum(siblings)
+
+    snap = UpdateSnapshot(;
+        old_value = old,
+        new_value = new_val,
+        parent_old = old_parent,
+        siblings = siblings,
+    )
+
+    # Wrong Δf that returns Δ_child * 2
+    function wrong_df(::Float64, ::Float64, Δ::Change{Float64})
+        return Change{Float64}(Δ.delta * 2)
+    end
+
+    @test !validate_with_oracle(wrong_df, snap)
+end
+
+@testitem "UpdateStrategy: integrate with tree update replicates canonical result" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine, Tree, update, root
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, update_with_strategy
+
+    schema = ScalarSchema{Float64}(false)
+    id = identity(schema)
+
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 7.0,
+            sumsq = 49.0,
+            minimum = 7.0,
+            maximum = 7.0,
+            schema = schema,
+        ),
+    ]
+
+    tree = Tree(leaves; b = 2, schema = schema)
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 9.0,
+        sumsq = 81.0,
+        minimum = 9.0,
+        maximum = 9.0,
+        schema = schema,
+    )
+
+    # Canonical update
+    canonical_tree = update(tree, 2, new_leaf)
+    canonical_root = root(canonical_tree)
+
+    # Update with strategy (nothing Δf = canonical combine fallback)
+    updated_tree = update_with_strategy(tree, 2, new_leaf, UpdateStrategy(; Δf = nothing))
+    @test root(updated_tree) == canonical_root
+    @test updated_tree.levels[1] == canonical_tree.levels[1]
+    @test updated_tree.levels[2] == canonical_tree.levels[2]
+end
+
+@testitem "UpdateStrategy: tree update with correct Δf preserves canonical result" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine, Tree, update, root
+    using Tray.Incremental:
+        UpdateSnapshot, UpdateStrategy, apply_strategy, update_with_strategy
+
+    schema = ScalarSchema{Float64}(false)
+
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 7.0,
+            sumsq = 49.0,
+            minimum = 7.0,
+            maximum = 7.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+    ]
+
+    tree = Tree(leaves; b = 2, schema = schema)
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 10.0,
+        sumsq = 100.0,
+        minimum = 10.0,
+        maximum = 10.0,
+        schema = schema,
+    )
+
+    canonical_tree = update(tree, 3, new_leaf)
+    canonical_root = root(canonical_tree)
+
+    # Δf that computes the correct change:
+    # For combine(ScalarSummary, ScalarSummary), the Δ is ScalarSummaryChange
+    # The parent change is computed from combine(new_child, siblings) - combine(old_child, siblings)
+    function summary_df(old_child, old_parent, Δ_child)
+        # Find siblings by reconstructing from parent
+        # This is a simplified Δf that recomputes the exact change
+        return Δ_child  # In real usage, this would be a generated rule
+    end
+
+    updated_tree =
+        update_with_strategy(tree, 3, new_leaf, UpdateStrategy(; Δf = summary_df))
+    @test root(updated_tree) == canonical_root
+end
+
+@testitem "UpdateStrategy: validate oracle mode rejects wrong Δf and falls back" begin
+    using Tray: ScalarSummary, ScalarSchema, identity, combine, Tree, update, root
+    using Tray.Incremental:
+        UpdateSnapshot,
+        UpdateStrategy,
+        apply_strategy,
+        update_with_strategy,
+        ScalarSummaryChange
+
+    schema = ScalarSchema{Float64}(false)
+
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+    ]
+
+    tree = Tree(leaves; b = 2, schema = schema)
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 9.0,
+        sumsq = 81.0,
+        minimum = 9.0,
+        maximum = 9.0,
+        schema = schema,
+    )
+
+    canonical_tree = update(tree, 1, new_leaf)
+    canonical_root = root(canonical_tree)
+
+    # Wrong Δf: returns a change that would produce wrong result
+    function wrong_df(::Any, ::Any, ::Any)
+        return ScalarSummaryChange{Float64}(
+            count = 999,
+            sum = 999.0,
+            sumsq = 999.0,
+            minimum = 0.0,
+            maximum = 999.0,
+        )
+    end
+
+    # With validate=false, wrong Δf would produce wrong result
+    updated_tree_no_validate = update_with_strategy(
+        tree,
+        1,
+        new_leaf,
+        UpdateStrategy(; Δf = wrong_df, validate = false),
+    )
+    @test root(updated_tree_no_validate) != canonical_root
+
+    # With validate=true, oracle catches wrong Δf and falls back to combine
+    updated_tree_validate = update_with_strategy(
+        tree,
+        1,
+        new_leaf,
+        UpdateStrategy(; Δf = wrong_df, validate = true),
+    )
+    @test root(updated_tree_validate) == canonical_root
+end

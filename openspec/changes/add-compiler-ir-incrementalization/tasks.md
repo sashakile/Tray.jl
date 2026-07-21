@@ -12,7 +12,7 @@
 - [x] 3.2 Validate domain-neutral scalar-summary, aligned-array, sample, and user-defined fixtures against canonical `combine` and full recomputation; keep optional adapters out of compiler conformance.
 
 ## 4. REQ-A7–A10: strategy and boundaries
-- [ ] 4.1 Implement one update-strategy adapter retaining canonical `combine`, immutable old child/sibling/parent snapshots, and a full-recompute oracle.
+- [x] 4.1 Implement one update-strategy adapter retaining canonical `combine`, immutable old child/sibling/parent snapshots, and a full-recompute oracle.
 - [ ] 4.2 Detect changed branches and every specified effect/control boundary; classify and fall back without publishing partial state.
 - [ ] 4.3 Compute ancestor paths privately and atomically publish only complete validated results; otherwise use canonical `combine`.
 

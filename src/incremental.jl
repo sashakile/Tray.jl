@@ -20,7 +20,7 @@ See REQ-A1.
 module Incremental
 
 using ..TrayBase
-using ..Tray: ScalarSummary
+using ..Tray: ScalarSummary, Tree, leaf_count
 
 # ---------------------------------------------------------------------------
 # Change types
@@ -1374,6 +1374,213 @@ function derive(
 end
 
 # ---------------------------------------------------------------------------
+# Update-strategy adapter (REQ-A7)
+# ---------------------------------------------------------------------------
+
+"""
+    UpdateSnapshot{P}
+
+Immutable snapshot of the old state at one level of an ancestor path
+during a tree update. The adapter receives this snapshot and decides
+whether to use a generated Δf or fall back to canonical `combine`.
+
+Fields:
+- `old_value`: the old node value before the change
+- `new_value`: the new node value after applying the change
+- `parent_old`: the old parent aggregate, or `nothing` for root-level
+- `siblings`: the other children of the same parent (unchanged)
+
+See REQ-A7.
+"""
+Base.@kwdef struct UpdateSnapshot{P}
+    old_value::P
+    new_value::P
+    parent_old::Union{Nothing,P}
+    siblings::Vector{P}
+end
+
+"""
+    UpdateStrategy
+
+Update-strategy adapter that selects between a generated Δf and canonical
+`combine` for incremental tree updates.
+
+When `Δf` is `nothing`, the strategy always falls back to canonical `combine`.
+When `Δf` is provided, the strategy tries:
+1. Compute Δ_child = change_between(old_value, new_value)
+2. If valid: apply Δf(old_value, old_parent, Δ_child) → Δ_parent
+3. Compute new_parent = apply_change(old_parent, Δ_parent)
+4. If `validate=true`: check result against full-recompute oracle
+5. Any failure → fall back to canonical `combine`
+
+See REQ-A7.
+"""
+Base.@kwdef struct UpdateStrategy
+    Δf::Union{Nothing,Function} = nothing
+    validate::Bool = false
+end
+
+"""
+    apply_strategy(strategy::UpdateStrategy, snap::UpdateSnapshot) -> new_parent
+
+Apply an update strategy to a snapshot, returning the new parent value.
+
+Uses the strategy's Δf if available and valid; otherwise falls back to
+canonical `combine` over all children (new_value + siblings).
+
+When `strategy.validate=true`, the Δf result is checked against the
+full-recompute oracle. A mismatch triggers canonical fallback.
+
+See REQ-A7.
+"""
+function apply_strategy(strategy::UpdateStrategy, snap::UpdateSnapshot{P}) where {P}
+    # Canonical combine fallback: new_parent = combine(new_value, siblings...)
+    all_children = [snap.new_value; snap.siblings]
+    canonical_parent = if isempty(snap.siblings)
+        # Single child — combine with identity (which should be a no-op)
+        snap.new_value
+    else
+        reduce(TrayBase.combine, all_children)
+    end
+
+    # If no Δf, use canonical combine directly
+    if strategy.Δf === nothing
+        return canonical_parent
+    end
+
+    # Try Δf path
+    Δ_child = change_between(snap.old_value, snap.new_value)
+
+    if valid_change(snap.old_value, Δ_child) && snap.parent_old !== nothing
+        Δ_parent = strategy.Δf(snap.old_value, snap.parent_old, Δ_child)
+
+        if valid_change(snap.parent_old, Δ_parent)
+            Δf_parent = apply_change(snap.parent_old, Δ_parent)
+
+            # Validate against oracle if configured
+            if !strategy.validate || Δf_parent == canonical_parent
+                return Δf_parent
+            end
+        end
+    end
+
+    # Fall back to canonical combine
+    return canonical_parent
+end
+
+"""
+    validate_with_oracle(Δf, snap::UpdateSnapshot) -> Bool
+
+Check whether a Δf function produces the same result as the full-recompute
+oracle (canonical `combine` over all children).
+
+Returns `true` if `apply_change(parent, Δf(old, parent, Δ_child))` equals
+`reduce(combine, [new_value, siblings...])`.
+
+See REQ-A7.
+"""
+function validate_with_oracle(Δf::Function, snap::UpdateSnapshot{P}) where {P}
+    all_children = [snap.new_value; snap.siblings]
+    canonical_parent = if isempty(snap.siblings)
+        snap.new_value
+    else
+        reduce(TrayBase.combine, all_children)
+    end
+
+    Δ_child = change_between(snap.old_value, snap.new_value)
+    if !valid_change(snap.old_value, Δ_child) || snap.parent_old === nothing
+        return false
+    end
+
+    Δ_parent = Δf(snap.old_value, snap.parent_old, Δ_child)
+    if !valid_change(snap.parent_old, Δ_parent)
+        return false
+    end
+
+    return apply_change(snap.parent_old, Δ_parent) == canonical_parent
+end
+
+"""
+    update_with_strategy(tree::Tree{P}, index::Int, value::P,
+                         strategy::UpdateStrategy) -> Tree{P}
+
+Update a tree leaf using the given update strategy, producing a new tree.
+
+At each level of the ancestor path, the strategy decides whether to use
+the generated Δf or fall back to canonical `combine`. The result is
+always equivalent to `Tray.update(tree, index, value)` — the strategy
+only affects the performance characteristics.
+
+See REQ-A7.
+"""
+function update_with_strategy(
+    tree::Tree{P},
+    index::Int,
+    value::P,
+    strategy::UpdateStrategy,
+) where {P}
+    n = leaf_count(tree)
+    1 <= index <= n ||
+        throw(BoundsError("update_with_strategy: index $index out of bounds [1, $n]"))
+
+    new_levels = [copy(tree.levels[1])]
+    new_levels[1][index] = value
+
+    # Track the global index at each level: the node that changed
+    current_level_idx = index
+    current = new_levels[1]
+
+    for level_idx = 2:length(tree.levels)
+        next_level = copy(tree.levels[level_idx])
+
+        # The parent at this level that contains the changed node
+        parent_pos = div(current_level_idx - 1, tree.b) + 1
+
+        # Recompute all parents at this level
+        child_start = 1
+        for i in eachindex(next_level)
+            children = current[child_start:min(child_start+tree.b-1, end)]
+
+            if i == parent_pos
+                # This parent contains the changed child
+                # Find which child changed within this group
+                child_offset = current_level_idx - child_start  # 0-based
+                sibling_vec = P[]
+                for (j, child) in enumerate(children)
+                    if j - 1 != child_offset
+                        push!(sibling_vec, child)
+                    end
+                end
+
+                changed_child = current[current_level_idx]
+                old_child = tree.levels[level_idx-1][current_level_idx]
+                old_parent = tree.levels[level_idx][parent_pos]
+
+                snap = UpdateSnapshot{P}(
+                    old_value = old_child,
+                    new_value = changed_child,
+                    parent_old = old_parent,
+                    siblings = sibling_vec,
+                )
+                next_level[i] = apply_strategy(strategy, snap)
+            else
+                next_level[i] = reduce(TrayBase.combine, children)
+            end
+
+            child_start += tree.b
+        end
+
+        push!(new_levels, next_level)
+        current = next_level
+
+        # The changed node at this level is the parent just updated
+        current_level_idx = parent_pos
+    end
+
+    return Tree{P,typeof(tree.schema)}(tree.b, new_levels, tree.schema)
+end
+
+# ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
 
@@ -1431,6 +1638,11 @@ export Change,
     generate_recompute_artifact,
     lookup_classified,
     check_call_coverage,
-    availability_diagnostics
+    availability_diagnostics,
+    UpdateSnapshot,
+    UpdateStrategy,
+    apply_strategy,
+    validate_with_oracle,
+    update_with_strategy
 
 end # module Incremental

@@ -35,7 +35,12 @@ import .Incremental:
     AnalysisResult,
     Derived,
     Rejected,
-    derive
+    derive,
+    UpdateSnapshot,
+    UpdateStrategy,
+    apply_strategy,
+    validate_with_oracle,
+    update_with_strategy
 export Change,
     ScalarSummaryChange,
     zero_change,
@@ -55,7 +60,12 @@ export Change,
     AnalysisResult,
     Derived,
     Rejected,
-    derive
+    derive,
+    UpdateSnapshot,
+    UpdateStrategy,
+    apply_strategy,
+    validate_with_oracle,
+    update_with_strategy
 
 # Re-export generic interface from TrayBase
 import .TrayBase: combine, identity
