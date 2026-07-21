@@ -4,6 +4,7 @@ include("base.jl")
 include("scalar_summary.jl")
 include("attribution_payload.jl")
 include("core.jl")
+include("incremental.jl")
 
 # Export core interface
 export TrayBase
@@ -12,6 +13,11 @@ export AttributionSchema,
     AttributionPayload, AttributionConvention, Direct, Allocated, derive_ratio
 export Tree,
     root, leaf_count, depth, range_query, update, update!, canonical_nodes, derived_mean
+
+# Incremental exports
+import .Incremental:
+    Change, ScalarSummaryChange, zero_change, valid_change, apply_change, compose_change
+export Change, ScalarSummaryChange, zero_change, valid_change, apply_change, compose_change
 
 # Re-export generic interface from TrayBase
 import .TrayBase: combine, identity

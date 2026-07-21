@@ -2412,3 +2412,350 @@ end
     ]
     @test all(s -> s == sizes[1], sizes)
 end
+
+## ---------------------------------------------------------------------------
+## Finite-change algebra (TRAYS-ecx: Task 1.1 — REQ-A1)
+## ---------------------------------------------------------------------------
+
+@testitem "Change{Float64}: zero_change leaves value unchanged" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old = 3.14
+    Δ = inc.zero_change(old)
+    @test inc.valid_change(old, Δ)
+    @test inc.apply_change(old, Δ) == old
+end
+
+@testitem "Change{Float64}: apply_change adds delta" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old = 10.0
+    Δ = inc.Change{Float64}(3.0)
+    @test inc.valid_change(old, Δ)
+    @test inc.apply_change(old, Δ) == 13.0
+end
+
+@testitem "Change{Float64}: negative delta" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old = 5.0
+    Δ = inc.Change{Float64}(-2.0)
+    @test inc.valid_change(old, Δ)
+    @test inc.apply_change(old, Δ) == 3.0
+end
+
+@testitem "Change{Float64}: compose_change equals sequential application" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old = 10.0
+    Δ1 = inc.Change{Float64}(3.0)
+    Δ2 = inc.Change{Float64}(5.0)
+
+    composed = inc.compose_change(old, Δ1, Δ2)
+    @test inc.valid_change(old, composed)
+
+    after1 = inc.apply_change(old, Δ1)
+    after2 = inc.apply_change(after1, Δ2)
+    result = inc.apply_change(old, composed)
+
+    @test result == after2
+    @test composed.delta ≈ 8.0
+end
+
+@testitem "Change{Float64}: identity and sequential composition law" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old = 7.0
+    Δ = inc.Change{Float64}(2.0)
+
+    composed_with_zero = inc.compose_change(old, Δ, inc.zero_change(old))
+    @test inc.apply_change(old, composed_with_zero) == inc.apply_change(old, Δ)
+
+    composed_with_zero2 = inc.compose_change(old, inc.zero_change(old), Δ)
+    @test inc.apply_change(old, composed_with_zero2) == inc.apply_change(old, Δ)
+end
+
+@testitem "Change{Float64}: zero_change on any value" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    @test inc.apply_change(42.0, inc.zero_change(42.0)) == 42.0
+    @test inc.apply_change(-1.5, inc.zero_change(-1.5)) == -1.5
+    @test inc.apply_change(0.0, inc.zero_change(0.0)) == 0.0
+end
+
+@testitem "Change{Int}: zero_change leaves value unchanged" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old = 42
+    Δ = inc.zero_change(old)
+    @test inc.valid_change(old, Δ)
+    @test inc.apply_change(old, Δ) == old
+end
+
+@testitem "Change{Int}: apply_change adds delta" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old = 10
+    Δ = inc.Change{Int}(3)
+    @test inc.valid_change(old, Δ)
+    @test inc.apply_change(old, Δ) == 13
+end
+
+@testitem "Change{Int}: compose_change" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old = 10
+    Δ1 = inc.Change{Int}(3)
+    Δ2 = inc.Change{Int}(5)
+
+    composed = inc.compose_change(old, Δ1, Δ2)
+    @test inc.apply_change(old, composed) == 18
+    @test composed.delta == 8
+end
+
+## ---------------------------------------------------------------------------
+## Exact finite-change rule for basic operations (Task 1.1 — REQ-A1 law)
+## ---------------------------------------------------------------------------
+
+@testitem "Exactness law: f(x) = x + 1" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x) = x + 1
+    old_args = (10.0,)
+    Δargs = (inc.Change{Float64}(3.0),)
+
+    old_result = f(old_args...)
+    Δf = inc.Δf_for_add(inc.apply_change(old_args[1], Δargs[1]), old_result, Δargs[1])
+
+    lhs = inc.apply_change(old_result, Δf)
+    rhs = f(inc.apply_change(old_args[1], Δargs[1]))
+    @test lhs ≈ rhs
+end
+
+@testitem "Exactness law: multiplication with cross term" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x, y) = x * y
+    old_x, old_y = 10.0, 5.0
+    Δx = inc.Change{Float64}(3.0)
+    Δy = inc.Change{Float64}(2.0)
+
+    old_result = f(old_x, old_y)
+    new_x = inc.apply_change(old_x, Δx)
+    new_y = inc.apply_change(old_y, Δy)
+
+    Δf = inc.Δf_for_mul(new_x, new_y, old_result, Δx, Δy)
+    @test Δf.delta ≈ 41.0
+
+    lhs = inc.apply_change(old_result, Δf)
+    rhs = f(new_x, new_y)
+    @test lhs ≈ rhs
+    @test lhs ≈ 91.0
+end
+
+@testitem "Exactness law: sin" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x) = sin(x)
+    old_x = 1.0
+    Δx = inc.Change{Float64}(0.5)
+
+    old_result = f(old_x)
+    new_x = inc.apply_change(old_x, Δx)
+
+    Δf = inc.Δf_for_sin(old_x, old_result, Δx)
+    @test Δf.delta ≈ sin(new_x) - sin(old_x)
+
+    lhs = inc.apply_change(old_result, Δf)
+    rhs = f(new_x)
+    @test lhs ≈ rhs
+end
+
+@testitem "Exactness law: min" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x, y) = min(x, y)
+    old_x, old_y = 5.0, 10.0
+    Δx = inc.Change{Float64}(-2.0)
+    Δy = inc.Change{Float64}(-1.0)
+
+    old_result = f(old_x, old_y)
+    new_x = inc.apply_change(old_x, Δx)
+    new_y = inc.apply_change(old_y, Δy)
+
+    Δf = inc.Δf_for_minmax(new_x, new_y, old_result, Δx, Δy, true)
+    @test inc.apply_change(old_result, Δf) ≈ f(new_x, new_y)
+end
+
+@testitem "Exactness law: max" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x, y) = max(x, y)
+    old_x, old_y = 5.0, 10.0
+    Δx = inc.Change{Float64}(-2.0)
+    Δy = inc.Change{Float64}(-1.0)
+
+    old_result = f(old_x, old_y)
+    new_x = inc.apply_change(old_x, Δx)
+    new_y = inc.apply_change(old_y, Δy)
+
+    Δf = inc.Δf_for_minmax(new_x, new_y, old_result, Δx, Δy, false)
+    @test inc.apply_change(old_result, Δf) ≈ f(new_x, new_y)
+end
+
+@testitem "Exactness law: min with tie-breaking" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    old_x, old_y = 5.0, 5.0
+    Δx = inc.Change{Float64}(-1.0)
+    Δy = inc.Change{Float64}(2.0)
+
+    old_result = min(old_x, old_y)
+    new_x = inc.apply_change(old_x, Δx)
+    new_y = inc.apply_change(old_y, Δy)
+
+    Δf = inc.Δf_for_minmax(new_x, new_y, old_result, Δx, Δy, true)
+    @test inc.apply_change(old_result, Δf) ≈ min(new_x, new_y)
+end
+
+## ---------------------------------------------------------------------------
+## Change{ScalarSummary} (Task 1.1 — REQ-A1 for payload types)
+## ---------------------------------------------------------------------------
+
+@testitem "Change{ScalarSummary}: zero_change" begin
+    using Tray: Incremental, ScalarSchema, ScalarSummary
+
+    inc = Incremental
+    schema = ScalarSchema{Float64}(false)
+    old = ScalarSummary(
+        schema = schema,
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+    )
+
+    Δ = inc.zero_change(old)
+    @test inc.valid_change(old, Δ)
+    result = inc.apply_change(old, Δ)
+    @test result == old
+end
+
+@testitem "Change{ScalarSummary}: apply_change adds delta fields" begin
+    using Tray: Incremental, ScalarSchema, ScalarSummary
+
+    inc = Incremental
+    schema = ScalarSchema{Float64}(false)
+    old = ScalarSummary(
+        schema = schema,
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+    )
+
+    Δ = inc.ScalarSummaryChange{Float64}(
+        count = 1,
+        sum = 4.0,
+        sumsq = 10.0,
+        minimum = -1.0,
+        maximum = 2.0,
+    )
+    @test inc.valid_change(old, Δ)
+
+    result = inc.apply_change(old, Δ)
+    @test result.count == 4
+    @test result.sum == 10.0
+    @test result.sumsq == 24.0
+    @test result.minimum == -1.0
+    @test result.maximum == 3.0
+    @test result.schema === schema
+end
+
+@testitem "Change{ScalarSummary}: compose_change" begin
+    using Tray: Incremental, ScalarSchema, ScalarSummary
+
+    inc = Incremental
+    schema = ScalarSchema{Float64}(false)
+    old = ScalarSummary(
+        schema = schema,
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+    )
+
+    Δ1 = inc.ScalarSummaryChange{Float64}(
+        count = 1,
+        sum = 4.0,
+        sumsq = 10.0,
+        minimum = -1.0,
+        maximum = 2.0,
+    )
+    Δ2 = inc.ScalarSummaryChange{Float64}(
+        count = 2,
+        sum = 5.0,
+        sumsq = 13.0,
+        minimum = -2.0,
+        maximum = 1.0,
+    )
+
+    composed = inc.compose_change(old, Δ1, Δ2)
+    @test inc.valid_change(old, composed)
+
+    result_sequential = inc.apply_change(inc.apply_change(old, Δ1), Δ2)
+    result_composed = inc.apply_change(old, composed)
+    @test result_composed == result_sequential
+end
+
+@testitem "Change{ScalarSummary}: apply_change with zero_change == identity" begin
+    using Tray: Incremental, ScalarSchema, ScalarSummary
+
+    inc = Incremental
+    schema = ScalarSchema{Float64}(false)
+
+    old = ScalarSummary(
+        schema = schema,
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+    )
+
+    # Identity law: zero_change leaves the value unchanged
+    @test inc.apply_change(old, inc.zero_change(old)) == old
+
+    # compose_change with zero is identity
+    Δ = inc.ScalarSummaryChange{Float64}(
+        count = 1,
+        sum = 4.0,
+        sumsq = 10.0,
+        minimum = -1.0,
+        maximum = 2.0,
+    )
+
+    composed_with_zero = inc.compose_change(old, Δ, inc.zero_change(old))
+    @test inc.apply_change(old, composed_with_zero) == inc.apply_change(old, Δ)
+
+    composed_with_zero2 = inc.compose_change(old, inc.zero_change(old), Δ)
+    @test inc.apply_change(old, composed_with_zero2) == inc.apply_change(old, Δ)
+end
