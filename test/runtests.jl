@@ -2009,6 +2009,105 @@ end
     @test_throws ArgumentError derive_ratio(p, :pnl, :nonexistent)
 end
 
+@testitem "AttributionPayload: derive ratio with default (zero denominator)" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, derive_ratio
+
+    schema = AttributionSchema(
+        bucket_ids = (:revenue, :costs, :pnl),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    p = AttributionPayload(schema = schema, buckets = [0.0, 0.0, 0.0], realized_total = 0.0)
+    @test derive_ratio(p, :pnl, :revenue, 0.0) == 0.0
+    @test derive_ratio(p, :pnl, :revenue, -1.0) == -1.0
+end
+
+@testitem "AttributionPayload: derive ratio with default (non-zero denominator)" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, derive_ratio
+
+    schema = AttributionSchema(
+        bucket_ids = (:revenue, :costs, :pnl),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [100.0, -70.0, 30.0],
+        realized_total = 60.0,
+    )
+    @test derive_ratio(p, :pnl, :revenue, 0.0) ≈ 0.3
+end
+
+@testitem "AttributionPayload: derive ratio with default (invalid numerator ID)" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, derive_ratio
+
+    schema = AttributionSchema(
+        bucket_ids = (:revenue, :costs, :pnl),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [100.0, -70.0, 30.0],
+        realized_total = 60.0,
+    )
+    @test_throws ArgumentError derive_ratio(p, :nonexistent, :revenue, 0.0)
+end
+
+@testitem "AttributionPayload: derive ratio with default (invalid denominator ID)" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, derive_ratio
+
+    schema = AttributionSchema(
+        bucket_ids = (:revenue, :costs, :pnl),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [100.0, -70.0, 30.0],
+        realized_total = 60.0,
+    )
+    @test_throws ArgumentError derive_ratio(p, :pnl, :nonexistent, 0.0)
+end
+
+@testitem "AttributionPayload: single bucket (K=1) edge case" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:value,),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    a = AttributionPayload(schema = schema, buckets = [10.0], realized_total = 10.0)
+    b = AttributionPayload(schema = schema, buckets = [20.0], realized_total = 20.0)
+    c = combine(a, b)
+    @test c.buckets == [30.0]
+    @test c.realized_total == 30.0
+    id = identity(schema)
+    @test combine(id, a) == a
+end
+
+@testitem "AttributionPayload: within tolerance boundary accepted" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 1e-6,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    # gap = 0.5e-6, clearly within tolerance of 1e-6
+    realized = 3.0 + 0.5e-6
+    p = AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = realized)
+    @test sum(p.buckets) ≈ 3.0 atol = 1e-10
+    @test p.realized_total ≈ realized
+end
+
 @testitem "AttributionPayload: property test — elementwise sum through multi-level combine" begin
     using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
 

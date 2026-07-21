@@ -335,6 +335,13 @@ function derive_ratio(
     denominator_id::Symbol,
     default::T,
 ) where {K,T}
+    # Validate both IDs upfront for consistency (REQ-48)
+    num_idx = findfirst(==(numerator_id), payload.schema.bucket_ids)
+    num_idx !== nothing || throw(
+        ArgumentError(
+            "derive_ratio: numerator_id=:$numerator_id not found in schema bucket_ids",
+        ),
+    )
     den_idx = findfirst(==(denominator_id), payload.schema.bucket_ids)
     den_idx !== nothing || throw(
         ArgumentError(
@@ -342,5 +349,5 @@ function derive_ratio(
         ),
     )
     iszero(payload.buckets[den_idx]) && return default
-    return derive_ratio(payload, numerator_id, denominator_id)
+    return payload.buckets[num_idx] / payload.buckets[den_idx]
 end
