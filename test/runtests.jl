@@ -1308,6 +1308,225 @@ end
 end
 
 ## ---------------------------------------------------------------------------
+## Atomic point updates and snapshot isolation (TRAYS-ck3: REQ-9, REQ-11)
+## ---------------------------------------------------------------------------
+
+@testitem "Tree: update returns new tree with updated leaf" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, update, leaf_count, root, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:4
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    new_leaf = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 99.0,
+        sumsq = 9801.0,
+        minimum = 99.0,
+        maximum = 99.0,
+    )
+    t2 = update(t, 3, new_leaf)
+
+    # t2 has the new leaf
+    @test t2.levels[1][3] == new_leaf
+
+    # t is unchanged (snapshot isolation)
+    @test t.levels[1][3] == leaves[3]
+
+    # t2's root differs from t's root
+    @test root(t2) != root(t)
+
+    # t2's root equals fold of updated leaves
+    updated_leaves = copy(leaves)
+    updated_leaves[3] = new_leaf
+    @test root(t2) == reduce(combine, updated_leaves)
+end
+
+@testitem "Tree: update preserves old tree state (snapshot isolation)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, update, root, leaf_count, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:4
+    ]
+    t = Tree(leaves; b = 2, schema)
+    original_root = root(t)
+
+    new_leaf = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 99.0,
+        sumsq = 9801.0,
+        minimum = 99.0,
+        maximum = 99.0,
+    )
+    t2 = update(t, 2, new_leaf)
+
+    # Original tree is fully intact
+    @test leaf_count(t) == 4
+    @test root(t) == original_root
+    @test t.levels[1] == leaves
+    for level_idx in eachindex(t.levels)
+        @test t.levels[level_idx] == Tree(leaves; b = 2, schema).levels[level_idx]
+    end
+end
+
+@testitem "Tree: update recomputes only ancestor path (REQ-9)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, update
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:8
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    new_leaf = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 99.0,
+        sumsq = 9801.0,
+        minimum = 99.0,
+        maximum = 99.0,
+    )
+
+    # Update leaf 3. Only level 1 node 3, level 2 node 2, level 3 node 1, root change.
+    # Siblings at level 1 (nodes 1,2,4,5,6,7,8) stay same.
+    # Sibling at level 2 (node 1) stays same.
+    # Sibling at level 3 (node 2) stays same.
+    t2 = update(t, 3, new_leaf)
+
+    # Level 1: siblings unchanged
+    @test t2.levels[1][1] == t.levels[1][1]
+    @test t2.levels[1][2] == t.levels[1][2]
+    @test t2.levels[1][4] == t.levels[1][4]
+    @test t2.levels[1][5] == t.levels[1][5]
+    @test t2.levels[1][6] == t.levels[1][6]
+    @test t2.levels[1][7] == t.levels[1][7]
+    @test t2.levels[1][8] == t.levels[1][8]
+
+    # Level 2: sibling (node 1, covers [1,2]) unchanged
+    @test t2.levels[2][1] == t.levels[2][1]
+    # Level 2: sibling (node 3, covers [5,6]) unchanged
+    @test t2.levels[2][3] == t.levels[2][3]
+    # Level 2: sibling (node 4, covers [7,8]) unchanged
+    @test t2.levels[2][4] == t.levels[2][4]
+
+    # Level 3: sibling (node 2, covers [5,8]) unchanged
+    @test t2.levels[3][2] == t.levels[3][2]
+end
+
+@testitem "Tree: update rejects invalid index (REQ-11 bounds error)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, update, leaf_count
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+    )
+    t = Tree([leaf, leaf]; b = 2, schema)
+
+    @test_throws BoundsError update(t, 0, leaf)
+    @test_throws BoundsError update(t, 3, leaf)
+
+    # Original tree unchanged after failed update
+    @test leaf_count(t) == 2
+    @test t.levels[1][1] == leaf
+end
+
+@testitem "Tree: update on index 1 and n (boundary cases)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, update, root, identity, combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = float(i),
+            sumsq = float(i^2),
+            minimum = float(i),
+            maximum = float(i),
+        ) for i = 1:5
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    new_leaf = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 99.0,
+        sumsq = 9801.0,
+        minimum = 99.0,
+        maximum = 99.0,
+    )
+
+    # Update first leaf
+    t2 = update(t, 1, new_leaf)
+    updated = copy(leaves)
+    updated[1] = new_leaf
+    @test root(t2) == reduce(combine, updated)
+
+    # Update last leaf
+    t3 = update(t, 5, new_leaf)
+    updated2 = copy(leaves)
+    updated2[5] = new_leaf
+    @test root(t3) == reduce(combine, updated2)
+end
+
+@testitem "Tree: update with AttributionPayload" begin
+    using Tray:
+        AttributionSchema, AttributionPayload, Direct, Tree, update, root, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    new_leaf =
+        AttributionPayload(schema = schema, buckets = [10.0, 20.0], realized_total = 30.0)
+    t2 = update(t, 1, new_leaf)
+
+    @test t2.levels[1][1] == new_leaf
+    @test t.levels[1][1] == leaves[1]  # snapshot isolation
+    @test root(t2) == combine(new_leaf, leaves[2])
+end
+
+## ---------------------------------------------------------------------------
 ## AttributionPayload reconciliation (Tasks 2.1–2.2)
 ## ---------------------------------------------------------------------------
 

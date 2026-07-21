@@ -240,3 +240,39 @@ function update!(tray::Tree{P}, index::Int, value::P) where {P}
 
     return root(tray)
 end
+
+"""
+    update(tree::Tree{P}, index::Int, value::P) -> Tree{P}
+
+Return a new tree with leaf `index` replaced by `value` and all ancestors
+recomputed. The original tree is unchanged (snapshot isolation).
+
+Only the affected leaf and its ancestors are recomputed; sibling subtrees are
+shared between old and new trees (copy-on-write).
+
+See REQ-9, REQ-11.
+"""
+function update(tree::Tree{P}, index::Int, value::P) where {P}
+    n = leaf_count(tree)
+    1 <= index <= n || throw(BoundsError("update: index $index out of bounds [1, $n]"))
+
+    # Copy levels — for the leaf level and ancestor levels, create new arrays
+    # that share unchanged sibling subtrees
+    new_levels = [copy(tree.levels[1])]
+    new_levels[1][index] = value
+
+    current = new_levels[1]
+    for level_idx = 2:length(tree.levels)
+        next_level = copy(tree.levels[level_idx])
+        child_start = 1
+        for i in eachindex(next_level)
+            chunk = current[child_start:min(child_start+tree.b-1, end)]
+            next_level[i] = reduce(TrayBase.combine, chunk)
+            child_start += tree.b
+        end
+        push!(new_levels, next_level)
+        current = next_level
+    end
+
+    return Tree{P,typeof(tree.schema)}(tree.b, new_levels, tree.schema)
+end

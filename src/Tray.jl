@@ -10,7 +10,8 @@ export TrayBase
 export ScalarSchema, ScalarSummary
 export AttributionSchema,
     AttributionPayload, AttributionConvention, Direct, Allocated, derive_ratio
-export Tree, root, leaf_count, depth, range_query, update!, canonical_nodes, derived_mean
+export Tree,
+    root, leaf_count, depth, range_query, update, update!, canonical_nodes, derived_mean
 
 # Re-export generic interface from TrayBase
 import .TrayBase: combine, identity
