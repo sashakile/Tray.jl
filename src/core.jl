@@ -181,10 +181,12 @@ function range_query(tree::Tree{P}, lo::Int, hi::Int; target_depth = nothing) wh
 end
 
 """
-    derived_mean(summary::ScalarSummary) -> Float64
+    derived_mean(summary::ScalarSummary{T}) where {T} -> T
 
 Derive the mean (sum / count) from a ScalarSummary.
 Throws DomainError when count is zero.
+
+Note: return type follows the eltype of the schema (Float64 for Int, Float32 for Float32, etc.).
 
 See REQ-13.
 """
@@ -226,6 +228,8 @@ function update!(tray::Tree{P}, index::Int, value::P) where {P}
     tray.levels[1][index] = value
 
     # Recompute ancestors bottom-up
+    # TODO(POST-POC): trace only the ancestor path for O(log_b n) per REQ-9;
+    # currently iterates all nodes at each level (O(n) per update).
     current = tray.levels[1]
     for level_idx = 2:length(tray.levels)
         next_level = tray.levels[level_idx]
@@ -258,6 +262,8 @@ function update(tree::Tree{P}, index::Int, value::P) where {P}
 
     # Copy levels — for the leaf level and ancestor levels, create new arrays
     # that share unchanged sibling subtrees
+    # TODO(POST-POC): trace only the ancestor path for O(log_b n) per REQ-9;
+    # currently iterates all nodes at each level (O(n) per update).
     new_levels = [copy(tree.levels[1])]
     new_levels[1][index] = value
 

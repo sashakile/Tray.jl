@@ -236,7 +236,7 @@ function Base.show(io::IO, s::ScalarSummary{T}) where {T}
     if s.schema.higher_moment
         print(
             io,
-            "ScalarSummary{Float64}(",
+            "ScalarSummary{$T}(",
             s.count,
             " entries, sum=",
             s.sum,
@@ -255,7 +255,7 @@ function Base.show(io::IO, s::ScalarSummary{T}) where {T}
     else
         print(
             io,
-            "ScalarSummary{Float64}(",
+            "ScalarSummary{$T}(",
             s.count,
             " entries, sum=",
             s.sum,
