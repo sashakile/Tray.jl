@@ -2074,3 +2074,242 @@ end
         @test combine(p, id) == combine(id, p)
     end
 end
+
+## ---------------------------------------------------------------------------
+## Built-in and custom payload conformance (TRAYS-lw6: REQ-4, REQ-7, REQ-33, REQ-43)
+## ---------------------------------------------------------------------------
+
+@testitem "Payload conformance: ScalarSummary passes conformance suite" begin
+    using Tray: ScalarSchema, ScalarSummary, TrayBase, combine, identity
+
+    schema = ScalarSchema{Float64}(false)
+    id = identity(schema)
+
+    # Identity laws
+    leaf = ScalarSummary(
+        schema = schema,
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+    )
+    @test combine(id, leaf) == leaf
+    @test combine(leaf, id) == leaf
+
+    # Associativity (documented responsibility, verified for ScalarSummary)
+    a = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+    )
+    b = ScalarSummary(
+        schema = schema,
+        count = 2,
+        sum = 5.0,
+        sumsq = 13.0,
+        minimum = 2.0,
+        maximum = 3.0,
+    )
+    c = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 10.0,
+        sumsq = 100.0,
+        minimum = 10.0,
+        maximum = 10.0,
+    )
+    @test combine(combine(a, b), c) == combine(a, combine(b, c))
+
+    # Tree construction and query (end-to-end)
+    using Tray: Tree, root, leaf_count, range_query
+    leaves = [a, b, c]
+    t = Tree(leaves; b = 2, schema)
+    @test leaf_count(t) == 3
+    @test root(t) == reduce(combine, leaves)
+    @test range_query(t, 1, 2) == combine(a, b)
+    @test range_query(t, 2, 3) == combine(b, c)
+end
+
+@testitem "Payload conformance: custom payload passes same suite" begin
+    using Tray: TrayBase, Tree, root, leaf_count, range_query, combine, identity
+
+    # Minimal custom payload
+    struct MySum{T}
+        value::T
+    end
+
+    struct MySumSchema{T}
+        dummy::T
+    end
+
+    function TrayBase.combine(a::MySum{T}, b::MySum{T}) where {T}
+        return MySum{T}(a.value + b.value)
+    end
+
+    function TrayBase.identity(schema::MySumSchema{T}) where {T}
+        return MySum{T}(zero(T))
+    end
+
+    # Identity laws
+    schema = MySumSchema{Float64}(0.0)
+    id = identity(schema)
+
+    leaf = MySum(3.0)
+    @test combine(id, leaf) == leaf
+    @test combine(leaf, id) == leaf
+
+    # Associativity
+    a = MySum(1.0)
+    b = MySum(5.0)
+    c = MySum(10.0)
+    @test combine(combine(a, b), c) == combine(a, combine(b, c))
+
+    # Tree construction and query
+    leaves = [a, b, c]
+    t = Tree(leaves; b = 2, schema = schema)
+    @test leaf_count(t) == 3
+    @test root(t) == reduce(combine, leaves)
+    @test range_query(t, 1, 2) == combine(a, b)
+    @test range_query(t, 2, 3) == combine(b, c)
+end
+
+@testitem "Payload conformance: nonconforming payload rejected (REQ-31)" begin
+    using Tray: TrayBase, Tree, combine, identity
+
+    # A payload with combine but without identity
+    struct BadPayload
+        value::Float64
+    end
+
+    struct BadSchema end
+
+    # Provide combine only, no identity — Tree constructor calls identity first
+    function TrayBase.combine(a::BadPayload, b::BadPayload)
+        return BadPayload(a.value + b.value)
+    end
+
+    leaves = [BadPayload(1.0), BadPayload(2.0)]
+    @test_throws ErrorException Tree(leaves; b = 2, schema = BadSchema())
+end
+
+@testitem "Payload conformance: ScalarSummary constant size (REQ-43)" begin
+    using Tray: ScalarSchema, ScalarSummary
+
+    schema = ScalarSchema{Float64}(false)
+    sizes = [
+        sizeof(
+            ScalarSummary(
+                schema = schema,
+                count = 0,
+                sum = 0.0,
+                sumsq = 0.0,
+                minimum = Inf,
+                maximum = -Inf,
+            ),
+        ),
+        sizeof(
+            ScalarSummary(
+                schema = schema,
+                count = 1,
+                sum = 1.0,
+                sumsq = 1.0,
+                minimum = 1.0,
+                maximum = 1.0,
+            ),
+        ),
+        sizeof(
+            ScalarSummary(
+                schema = schema,
+                count = 100,
+                sum = 100.0,
+                sumsq = 100.0,
+                minimum = 1.0,
+                maximum = 100.0,
+            ),
+        ),
+    ]
+    @test all(s -> s == sizes[1], sizes)
+
+    # Higher-moment schema also constant
+    schema_hm = ScalarSchema{Float64}(true)
+    sizes_hm = [
+        sizeof(
+            ScalarSummary(
+                schema = schema_hm,
+                count = 0,
+                sum = 0.0,
+                sumsq = 0.0,
+                minimum = Inf,
+                maximum = -Inf,
+                m3 = 0.0,
+                m4 = 0.0,
+            ),
+        ),
+        sizeof(
+            ScalarSummary(
+                schema = schema_hm,
+                count = 1,
+                sum = 1.0,
+                sumsq = 1.0,
+                minimum = 1.0,
+                maximum = 1.0,
+                m3 = 0.0,
+                m4 = 0.0,
+            ),
+        ),
+        sizeof(
+            ScalarSummary(
+                schema = schema_hm,
+                count = 100,
+                sum = 100.0,
+                sumsq = 100.0,
+                minimum = 1.0,
+                maximum = 100.0,
+                m3 = 1000.0,
+                m4 = 10000.0,
+            ),
+        ),
+    ]
+    @test all(s -> s == sizes_hm[1], sizes_hm)
+
+    # Note: struct layout is same for all T (higher_moment is validation, not layout)
+end
+
+@testitem "Payload conformance: AttributionPayload constant size (REQ-43)" begin
+    using Tray: AttributionSchema, AttributionPayload, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b, :c),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    sizes = [
+        sizeof(
+            AttributionPayload(
+                schema = schema,
+                buckets = [1.0, 2.0, 3.0],
+                realized_total = 6.0,
+            ),
+        ),
+        sizeof(
+            AttributionPayload(
+                schema = schema,
+                buckets = [0.0, 0.0, 0.0],
+                realized_total = 0.0,
+            ),
+        ),
+        sizeof(
+            AttributionPayload(
+                schema = schema,
+                buckets = [100.0, -50.0, 25.0],
+                realized_total = 75.0,
+            ),
+        ),
+    ]
+    @test all(s -> s == sizes[1], sizes)
+end
