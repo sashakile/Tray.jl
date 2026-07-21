@@ -59,6 +59,5 @@ phase: research
 Total: 19 issues (19 open, 0 in progress)
 
 Status: ○ open  ◐ in_progress  ● blocked  ✓ closed  ❄ deferred
-
 ```
 
