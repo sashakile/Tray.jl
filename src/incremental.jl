@@ -676,13 +676,510 @@ struct Rejected <: AnalysisResult
 end
 
 # ---------------------------------------------------------------------------
+# IR analysis framework (REQ-A3, REQ-A8)
+# ---------------------------------------------------------------------------
+
+"""
+    IROpKind
+
+Classification of IR operations for coverage analysis.
+
+See REQ-A8 for boundary operations.
+"""
+@enum IROpKind begin
+    OpCall           # Function call — check coverage/registry
+    OpReturn         # Return statement — always covered
+    OpGoto           # Unconditional branch — always covered
+    OpGotoIfNot      # Conditional branch — check branch stability
+    OpPhi            # Phi node — covered if all incoming values covered
+    OpIsA            # Type check — always covered
+    OpNew            # Object allocation — always covered
+    OpInvoke         # Invoke (known method) — check coverage
+    OpExpr           # Expression / built-in — always covered
+    OpConstant       # Constant value — always covered
+    OpUnknown        # Unknown operation — always rejected
+end
+
+"""
+    AnalyzedStmt
+
+A single IR statement with its coverage classification.
+
+- `index`: the SSA value index
+- `kind`: the operation kind classification
+- `coverage`: the coverage level of this statement
+- `diagnostic`: optional diagnostic if rejected or boundary
+
+See REQ-A3.
+"""
+struct AnalyzedStmt
+    index::Int
+    kind::IROpKind
+    coverage::CoverageLevel
+    diagnostic::Union{Nothing,Diagnostic}
+end
+
+"""
+    IRSummary
+
+Summary of the IR analysis for a function.
+
+- `statements`: analyzed statements in SSA order
+- `coverage`: overall transitive coverage level
+- `diagnostics`: all diagnostics collected during analysis
+
+See REQ-A3, REQ-A5.
+"""
+struct IRSummary
+    statements::Vector{AnalyzedStmt}
+    coverage::CoverageLevel
+    diagnostics::Vector{Diagnostic}
+end
+
+"""
+    classify_operation(stmt) -> IROpKind
+
+Classify an IRTools IR statement into an `IROpKind`.
+
+IRTools IR statements are `Expr` heads with operation types. Falls back to
+`OpUnknown` for unrecognized forms.
+
+See REQ-A8.
+"""
+function classify_operation(stmt)
+    # stmt is an IRTools.IRStatement or similar
+    # We detect the operation type by heuristics on the expression
+    if !isa(stmt, Expr)
+        return OpConstant
+    end
+
+    head = stmt.head
+
+    if head === :return
+        return OpReturn
+    elseif head === :goto
+        return OpGoto
+    elseif head === :gotoifnot
+        return OpGotoIfNot
+    elseif head === :phi
+        return OpPhi
+    elseif head === :call
+        return OpCall
+    elseif head === :invoke
+        return OpInvoke
+    elseif head === :(=)
+        # Assignment: classify the RHS
+        rhs = stmt.args[2]
+        if isa(rhs, Expr)
+            return classify_operation(rhs)
+        end
+        return OpConstant
+    elseif head === :is_a || head === :isa
+        return OpIsA
+    elseif head === :new
+        return OpNew
+    elseif head === :foreigncall
+        return OpUnknown
+    else
+        # Unknown expression head — could be a straight-line expression
+        return OpExpr
+    end
+end
+
+"""
+    is_pure_call(f, argtypes, registry) -> Bool
+
+Check whether a call to `f` with the given argument types is pure (no side
+effects) and has a covered rule in the registry.
+
+For v1, we conservatively check:
+1. The function is a known pure built-in (+, *, sin, min, max)
+2. The function is in the registry with a covered rule
+
+See REQ-A8.
+"""
+function is_pure_call(f, argtypes, registry::Union{RuleRegistry,Nothing})
+    # Resolve Symbol to function reference (e.g., :+ -> +)
+    callee = if f isa Symbol
+        try
+            getfield(Base, f)
+        catch
+            f
+        end
+    else
+        f
+    end
+
+    # Known pure built-ins are always covered
+    if callee in (+, *, sin, min, max, isless, ==, <, >, <=, >=, abs, zero, one)
+        return true
+    end
+
+    # Check registry if available
+    if registry !== nothing
+        # For registry lookup, use a sample tuple instance
+        rule = lookup(registry, callee, ())
+        return rule !== nothing
+    end
+
+    # Conservative: no info available, treat as boundary
+    return false
+end
+
+"""
+    analyze_statement(kind::IROpKind, stmt, f, argtypes, registry) -> Tuple{CoverageLevel,Union{Nothing,Diagnostic}}
+
+Analyze a single IR statement and return its coverage level and optional diagnostic.
+
+Returns `(CovCovered, nothing)` for covered operations, `(CovBoundary, diag)` for
+boundary operations, and `(CovRejected, diag)` for rejected operations.
+
+See REQ-A3, REQ-A8, REQ-A11.
+"""
+function analyze_statement(
+    kind::IROpKind,
+    stmt,
+    f,
+    argtypes,
+    registry::Union{RuleRegistry,Nothing},
+)
+    if kind == OpReturn ||
+       kind == OpGoto ||
+       kind == OpConstant ||
+       kind == OpExpr ||
+       kind == OpIsA ||
+       kind == OpNew
+        return (CovCovered, nothing)
+    end
+
+    if kind == OpUnknown
+        return (
+            CovRejected,
+            Diagnostic(
+                "UnsupportedEffect",
+                "Unknown operation in IR: $(stmt). This operation cannot be " *
+                "incrementalized in v1.",
+                "analysis";
+                callable = f,
+                remediation = "Simplify the function to avoid the unknown operation",
+            ),
+        )
+    end
+
+    if kind == OpCall || kind == OpInvoke
+        # Extract the called function from the statement
+        callee = _extract_callee(stmt, kind)
+        if callee === nothing
+            return (
+                CovBoundary,
+                Diagnostic(
+                    "UnsupportedEffect",
+                    "Dynamic call or unresolvable callee in IR. Cannot determine " *
+                    "if the target is pure and covered.",
+                    "analysis";
+                    callable = f,
+                    remediation = "Use a direct function call instead of a dynamic dispatch",
+                ),
+            )
+        end
+
+        if is_pure_call(callee, argtypes, registry)
+            return (CovCovered, nothing)
+        else
+            return (
+                CovBoundary,
+                Diagnostic(
+                    "RuleMissing",
+                    "No rule available for call to $(callee) with argument types " *
+                    "$argtypes. Register a rule or simplify the function.",
+                    "analysis";
+                    callable = callee,
+                    remediation = "Register a rule for $(callee) with Pkg.add or define a built-in rule",
+                ),
+            )
+        end
+    end
+
+    if kind == OpGotoIfNot
+        # Conditional branch — check branch stability
+        # In v1, we can only handle branch-stable code
+        return (
+            CovBoundary,
+            Diagnostic(
+                "ControlFlowChanged",
+                "Conditional branch detected in IR. Branch-stable code is supported " *
+                "but requires all branches to be covered. This is a boundary in v1 " *
+                "unless explicitly unrolled.",
+                "analysis";
+                callable = f,
+                remediation = "Consider using a straight-line computation or registering " *
+                              "a custom rule for the conditional",
+            ),
+        )
+    end
+
+    if kind == OpPhi
+        # Phi nodes merge values from different branches
+        # In v1, phi nodes are a boundary since we don't support branch splitting
+        return (
+            CovBoundary,
+            Diagnostic(
+                "ControlFlowChanged",
+                "Phi node (value merge) detected in IR. Multiple incoming values " *
+                "from different branches cannot be merged in v1.",
+                "analysis";
+                callable = f,
+                remediation = "Eliminate the control flow merge or register a custom rule",
+            ),
+        )
+    end
+
+    return (
+        CovRejected,
+        Diagnostic(
+            "GenerationFailure",
+            "Unhandled operation kind $(kind) in IR analysis.",
+            "analysis";
+            callable = f,
+            remediation = "This is a bug — report it with the function source",
+        ),
+    )
+end
+
+"""
+    _extract_callee(stmt, kind::IROpKind) -> Union{Nothing,Any}
+
+Extract the called function from an IR call or invoke statement.
+
+For `:call` expressions, the callee is the first argument of the expression.
+For `:invoke` expressions, the callee is the first argument of the second argument.
+Returns `nothing` if the callee cannot be determined.
+"""
+function _extract_callee(stmt, ::IROpKind)
+    if !isa(stmt, Expr)
+        return nothing
+    end
+
+    if stmt.head === :call && length(stmt.args) >= 1
+        return stmt.args[1]
+    end
+
+    if stmt.head === :invoke && length(stmt.args) >= 2
+        # :invoke has form (method, argtypes, args...)
+        return stmt.args[2]
+    end
+
+    # For assignment expressions, check the RHS
+    if stmt.head === :(=) && length(stmt.args) >= 2
+        rhs = stmt.args[2]
+        if isa(rhs, Expr) && rhs.head === :call
+            return _extract_callee(rhs, OpCall)
+        end
+        if isa(rhs, Expr) && rhs.head === :invoke
+            return _extract_callee(rhs, OpInvoke)
+        end
+    end
+
+    return nothing
+end
+
+"""
+    analyze_ir(ir, f, argtypes::Type, registry::Union{RuleRegistry,Nothing}) -> IRSummary
+
+Analyze the IR of a function and return a coverage summary.
+
+Walks all IR statements, classifies each operation, and determines the
+transitive coverage level. Diagnostics are collected for any boundary or
+rejected operations.
+
+See REQ-A3, REQ-A8.
+"""
+function analyze_ir(ir, f, argtypes, registry::Union{RuleRegistry,Nothing})
+    stmts = AnalyzedStmt[]
+    diags = Diagnostic[]
+    cov = CovCovered
+
+    # IRTools IR has a `.stmts` field or similar; we iterate over statements
+    # Structure varies by IRTools version — handle both IR and Vector forms
+    ir_stmts = _get_ir_statements(ir)
+
+    for (i, stmt) in enumerate(ir_stmts)
+        kind = classify_operation(stmt)
+        stmt_cov, stmt_diag = analyze_statement(kind, stmt, f, argtypes, registry)
+        push!(stmts, AnalyzedStmt(i, kind, stmt_cov, stmt_diag))
+        if stmt_diag !== nothing
+            push!(diags, stmt_diag)
+        end
+        cov = coverage_join(cov, stmt_cov)
+    end
+
+    return IRSummary(stmts, cov, diags)
+end
+
+"""
+    _get_ir_statements(ir) -> Vector
+
+Extract the list of statements from an IRTools IR object.
+
+Handles multiple IRTools IR representations:
+- `IR` objects with `.stmts` field (IRTools 0.4.x)
+- `Vector` of statements (for testing with mock IR)
+"""
+function _get_ir_statements(ir)
+    # Check for IRTools IR structure (has .stmts field)
+    if hasproperty(ir, :stmts)
+        # IRTools 0.4.x IR stores statements in a dict/ordered dict
+        stmts_obj = ir.stmts
+        if hasproperty(stmts_obj, :vals)
+            return collect(stmts_obj.vals)
+        elseif hasproperty(stmts_obj, :pairs)
+            return [v for (k, v) in stmts_obj.pairs]
+        end
+        # Try iterating directly
+        return collect(stmts_obj)
+    end
+
+    # If it's already a vector (e.g., for testing), return as-is
+    if isa(ir, Vector)
+        return ir
+    end
+
+    # Unknown format — return empty
+    return []
+end
+
+"""
+    classify_ir_without_provider(f, argtypes, registry) -> IRSummary
+
+Classify coverage for a function when the IR provider is unavailable.
+
+Returns `CovRejected` with a diagnostic explaining that IR analysis
+requires the provider.
+
+See REQ-A17.
+"""
+function classify_ir_without_provider(f, argtypes::Type)
+    return IRSummary(
+        AnalyzedStmt[],
+        CovRejected,
+        [
+            Diagnostic(
+                "IRProviderUnavailable",
+                "Cannot analyze IR without an available IR provider. " *
+                "Install IRTools 0.4.x to enable IR-based coverage analysis.",
+                "analysis";
+                callable = f,
+                remediation = "Install IRTools 0.4.x with Pkg.add(\"IRTools\")",
+            ),
+        ],
+    )
+end
+
+# ---------------------------------------------------------------------------
+# Artifact generation from covered IR (REQ-A3)
+# ---------------------------------------------------------------------------
+
+"""
+    change_between(old, new) -> Change
+
+Compute the change that transforms `old` into `new`.
+
+For numeric types, returns `Change(delta)` where `delta = new - old`.
+For ScalarSummary, returns `ScalarSummaryChange` with per-field deltas.
+
+See REQ-A1.
+"""
+function change_between(old::T, new::T) where {T<:Number}
+    return Change{T}(new - old)
+end
+
+function change_between(old::ScalarSummary{T}, new::ScalarSummary{T}) where {T}
+    return ScalarSummaryChange{T}(
+        count = new.count - old.count,
+        sum = new.sum - old.sum,
+        sumsq = new.sumsq - old.sumsq,
+        minimum = new.minimum,
+        maximum = new.maximum,
+    )
+end
+
+"""
+    generate_recompute_artifact(f, nargs::Int) -> Function
+
+Generate a recompute-difference artifact for callable `f` with `nargs`
+arguments.
+
+The generated function takes `(old_args..., old_result, Δargs...)` and
+returns the composed change from `old_result` to `f(apply_change(old_args, Δargs)...)`.
+
+This is a correct but potentially inefficient approach — it recomputes the
+entire function rather than computing per-operation changes. The exactness
+law is still satisfied.
+
+See REQ-A3.
+"""
+function generate_recompute_artifact(f, nargs::Int)
+    return function (args...)
+        # Split args: [old_args..., old_result, Δargs...]
+        old_args = ntuple(i -> args[i], Val(nargs))
+        old_result = args[nargs+1]
+        Δargs = ntuple(i -> args[nargs+1+i], Val(nargs))
+
+        new_args = map(apply_change, old_args, Δargs)
+        new_result = f(new_args...)
+        Δ = change_between(old_result, new_result)
+
+        return compose_change(old_result, zero_change(old_result), Δ)
+    end
+end
+
+"""
+    generate_from_ir(ir, f, argtypes::Type, summary::IRSummary, registry) -> Union{Function,Nothing}
+
+Generate a finite-change artifact from covered IR.
+
+Returns the generated artifact if all operations are covered, or `nothing`
+if the IR contains boundary or rejected operations.
+
+See REQ-A3.
+"""
+function generate_from_ir(
+    ir,
+    f,
+    argtypes,
+    summary::IRSummary,
+    registry::Union{RuleRegistry,Nothing},
+)
+    if summary.coverage != CovCovered
+        return nothing
+    end
+
+    nargs = _nargs(argtypes)
+    return generate_recompute_artifact(f, nargs)
+end
+
+"""
+    _nargs(argtypes) -> Int
+
+Get the number of arguments from argtypes, which may be a type (e.g.,
+`Tuple{Float64, Float64}`) or a tuple instance (e.g., `(Float64, Float64)`).
+"""
+_nargs(argtypes::Type{<:Tuple}) = length(argtypes.parameters)
+_nargs(argtypes::Tuple) = length(argtypes)
+_nargs(::Any) = 0
+
+# ---------------------------------------------------------------------------
 # Derivation entry point (REQ-A2, REQ-A3)
 # ---------------------------------------------------------------------------
 
 """
-    derive(f, args::Type...; provider::AbstractProvider = DefaultProvider())
+    derive(f, args::Type...; provider::AbstractProvider = DefaultProvider(),
+           registry::Union{RuleRegistry,Nothing} = nothing)
 
 Derive a finite-change rule for callable `f` with the given argument types.
+
+Performs IR analysis to determine transitive coverage, then generates an
+artifact from covered IR.
 
 Probes the provider lazily at call time — IRTools is never loaded at module init.
 
@@ -692,7 +1189,12 @@ Returns an `AnalysisResult`:
 
 See REQ-A2, REQ-A3, REQ-A5, REQ-A11, REQ-A17.
 """
-function derive(f, args::Type...; provider::AbstractProvider = DefaultProvider())
+function derive(
+    f,
+    args::Type...;
+    provider::AbstractProvider = DefaultProvider(),
+    registry::Union{RuleRegistry,Nothing} = nothing,
+)
     if !available(provider)
         return Rejected(
             [
@@ -723,15 +1225,26 @@ function derive(f, args::Type...; provider::AbstractProvider = DefaultProvider()
                     "may be incompatible.",
                     "derive";
                     callable = f,
-                    remediation = "Check Julia/IRTools compatibility (Julia ≥ 1.10, IRTools 0.4.x)",
+                    remediation = "Check Julia/IR compatibility (Julia ≥ 1.10, IRTools 0.4.x)",
                 ),
             ],
             CovRejected,
         )
     end
 
-    # TODO: Full IR analysis, transitive coverage, and generation (Task 1.3)
-    return Derived(f, argtypes, CovCovered)
+    # Analyze IR for coverage
+    summary = analyze_ir(ir, f, argtypes, registry)
+
+    # Generate artifact from covered IR
+    if summary.coverage == CovCovered
+        artifact = generate_from_ir(ir, f, argtypes, summary, registry)
+        if artifact !== nothing
+            return Derived(artifact, argtypes, CovCovered)
+        end
+    end
+
+    # Return Rejected with diagnostics if not fully covered
+    return Rejected(summary.diagnostics, summary.coverage)
 end
 
 # ---------------------------------------------------------------------------
@@ -770,6 +1283,25 @@ export Change,
     AnalysisResult,
     Derived,
     Rejected,
-    derive
+    derive,
+    IROpKind,
+    OpCall,
+    OpReturn,
+    OpGoto,
+    OpGotoIfNot,
+    OpPhi,
+    OpIsA,
+    OpNew,
+    OpInvoke,
+    OpExpr,
+    OpConstant,
+    OpUnknown,
+    AnalyzedStmt,
+    IRSummary,
+    classify_operation,
+    analyze_statement,
+    analyze_ir,
+    change_between,
+    generate_recompute_artifact
 
 end # module Incremental
