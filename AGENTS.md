@@ -180,7 +180,7 @@ println(id)
 
 ### Cleanup (end of session)
 ```bash
-kill %1  # or pkill -f "port=5559"
+replyc shutdown --port 5559
 ```
 
 **Note**: The REPLy server uses its own session (global depot, not `--project`). Package precompilation happens once at server start. Subsequent evaluations are fast. Use `replyc` instead of `julia -e '...'` for all inline Julia snippets to avoid cold-start overhead.
