@@ -3658,6 +3658,11 @@ end
 #
 # REQ-A16 Reproducible artifact identity
 #   → Artifact binding test section below
+#
+# REQ-A17 Graceful operation without IRTools
+#   → REQ-A17 test section (line 3882)
+#   → IR provider interface section (line 2978, 2998)
+#   → derive returns Rejected tests (line 3039, 3222)
 
 # ---------------------------------------------------------------------------
 # REQ-A16 Artifact identity and binding (TRAYS-ecx Task 5.1)
@@ -3878,10 +3883,67 @@ end
     @test Incremental.detect_mutable_captures(sin) === nothing
 end
 
-#
-# REQ-A17 Graceful operation without IRTools
-#   → IR provider interface section (line 2978, 2998)
-#   → derive returns Rejected tests (line 3039, 3222)
+# ---------------------------------------------------------------------------
+# REQ-A17 Graceful operation without IRTools (TRAYS-ecx Task 5.3)
+# ---------------------------------------------------------------------------
+
+@testitem "REQ-A17: RuleRegistry operations work without IRTools" begin
+    using Tray: Incremental
+
+    reg = Incremental.RuleRegistry()
+    rule = Incremental.Rule(+, Tuple{Int,Int}, (a, b, c) -> c)
+    rev = Incremental.register!(reg, rule)
+    @test rev == 1
+    @test Incremental.snapshot(reg).revision == 1
+
+    found = Incremental.lookup(reg, +, (Int, Int))
+    @test found !== nothing
+
+    rule2 = Incremental.Rule(+, Tuple{Int,Int}, (a, b, c) -> c + c)
+    rev2 = Incremental.replace!(reg, rule2)
+    @test rev2 == 2
+
+    rev3 = Incremental.remove!(reg, typeof(+), Tuple{Int,Int})
+    @test rev3 == 3
+    @test Incremental.lookup(reg, +, (Int, Int)) === nothing
+
+    status, _ = Incremental.lookup_classified(reg, +, (Int, Int))
+    @test status == :missing
+end
+
+@testitem "REQ-A17: BoundArtifact invocation uses only metadata, no provider" begin
+    using Tray: Incremental
+
+    inner(x) = x + 1
+    binding = Incremental.ArtifactBinding(
+        nothing,
+        Base.tls_world_age(),
+        Tuple{Int},
+        nothing,
+        0,
+        "test",
+        VERSION,
+        1,
+    )
+    art = Incremental.BoundArtifact(inner, binding)
+
+    @test art(42) == 43
+    @test art(0) == 1
+end
+
+@testitem "REQ-A17: available() checks Julia version before loading IRTools" begin
+    using Tray: Incremental
+
+    provider = Incremental.DefaultProvider()
+    avail = Incremental.available(provider)
+    @test avail == false
+
+    @test VERSION >= v"1.10"
+
+    diags = Incremental.availability_diagnostics(provider, +)
+    @test length(diags) >= 1
+    @test diags[1].code == "IRProviderUnavailable"
+end
 
 # ---------------------------------------------------------------------------
 # REQ-A7  Canonical combine and strategy adapter (TRAYS-ecx Task 4.1)
