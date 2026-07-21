@@ -451,6 +451,161 @@ end
 snapshot(reg::RuleRegistry) = reg.current
 
 # ---------------------------------------------------------------------------
+# IR provider interface (REQ-A2)
+# ---------------------------------------------------------------------------
+
+"""
+    AbstractProvider
+
+Abstract type for IR providers. A provider exposes capability probing and
+IR retrieval for method derivation. Subtypes must implement:
+- `available(provider)::Bool` — whether the provider is usable in this environment
+- `retrieve_ir(provider, f, ArgTypes)::Union{Nothing,Any}` — retrieve IR
+
+Providers are loaded lazily at `derive` call time, never at module init.
+"""
+abstract type AbstractProvider end
+
+"""
+    DefaultProvider <: AbstractProvider
+
+Provider using documented IRTools `IR`, `code_ir`, and `@code_ir` surfaces.
+IRTools is loaded lazily at derive time, never at module load.
+
+Supports Julia ≥ 1.10 with compatible IRTools 0.4.x.
+See REQ-A2.
+"""
+struct DefaultProvider <: AbstractProvider end
+
+# Known UUID for IRTools in the Julia General registry
+const _IRTOOLS_UUID = Base.UUID("7869d1d1-7146-5819-86e3-9091afe4b00a")
+
+"""
+    available(provider::DefaultProvider)::Bool
+
+Check whether the default provider is usable in the current environment.
+Returns `true` only when:
+- Julia ≥ 1.10
+- IRTools 0.4.x can be loaded
+
+See REQ-A2, REQ-A11.
+"""
+function available(::DefaultProvider)
+    # Check Julia version ≥ 1.10
+    VERSION >= v"1.10" || return false
+
+    # Try to load IRTools at call time — never at module init
+    try
+        Base.require(Base.PkgId(_IRTOOLS_UUID, "IRTools"))
+        return true
+    catch
+        return false
+    end
+end
+
+"""
+    retrieve_ir(provider::DefaultProvider, f, ::Type{ArgTypes}) -> Union{Nothing,Any}
+
+Retrieve the IR for callable `f` with the given argument types using the
+IRTools `code_ir` surface. Returns `nothing` if IRTools is unavailable,
+incompatible, or the method cannot be retrieved.
+
+IRTools is loaded lazily — never at module init.
+
+See REQ-A2.
+"""
+function retrieve_ir(::DefaultProvider, f, ::Type{ArgTypes}) where {ArgTypes}
+    # Lazily load IRTools at derive call time
+    try
+        irtools = Base.require(Base.PkgId(_IRTOOLS_UUID, "IRTools"))
+        return irtools.code_ir(f, ArgTypes)
+    catch e
+        if e isa LoadError || e isa ArgumentError || e isa MethodError
+            return nothing
+        end
+        rethrow()
+    end
+end
+
+# ---------------------------------------------------------------------------
+# Derivation entry point (REQ-A2, REQ-A3)
+# ---------------------------------------------------------------------------
+
+"""
+    DerivedIR{F, A}
+
+Temporary result type for a successful IR derivation.
+Will be replaced by the sealed `AnalysisResult` sum type in Task 2.2.
+
+See REQ-A5.
+"""
+struct DerivedIR{F,A}
+    f::F
+    argtypes::Type{A}
+    ir::Any
+end
+
+"""
+    DerivationError
+
+Temporary error type for a failed derivation.
+Will be replaced by the sealed `AnalysisResult` sum type in Task 2.2.
+
+Fields mirror the classified errors from REQ-A11:
+- `code`: error class (e.g. "IRProviderUnavailable", "IRProviderIncompatible")
+- `message`: human-readable description
+- `phase`: phase of occurrence (e.g. "derive", "apply")
+"""
+struct DerivationError
+    code::String
+    message::String
+    phase::String
+end
+
+"""
+    derive(f, args::Type...; provider::AbstractProvider = DefaultProvider())
+
+Derive a finite-change rule for callable `f` with the given argument types.
+
+Probes the provider lazily at call time — IRTools is never loaded at module init.
+
+Returns a `DerivedIR` on success, or a `DerivationError` with a classified
+error code when:
+- The provider is unavailable (IRTools absent)
+- The provider is incompatible (Julia version, IRTools version)
+- IR retrieval fails for the given method
+
+See REQ-A2, REQ-A3, REQ-A11, REQ-A17.
+"""
+function derive(f, args::Type...; provider::AbstractProvider = DefaultProvider())
+    if !available(provider)
+        return DerivationError(
+            "IRProviderUnavailable",
+            "The default IR provider (IRTools) is not available in this " *
+            "environment. Install IRTools 0.4.x with Pkg.add(\"IRTools\") " *
+            "or use a different provider. Julia ≥ 1.10 is required.",
+            "derive",
+        )
+    end
+
+    argtypes = Tuple{args...}
+    ir = retrieve_ir(provider, f, argtypes)
+
+    if ir === nothing
+        return DerivationError(
+            "IRProviderIncompatible",
+            "Failed to retrieve IR for ($(f), $argtypes). " *
+            "The method may not be uniquely selected or the provider version " *
+            "may be incompatible.",
+            "derive",
+        )
+    end
+
+    # TODO: Full IR analysis, transitive coverage, and generation (Task 1.3)
+    return DerivedIR(f, argtypes, ir)
+end
+
+# ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
 
@@ -472,6 +627,13 @@ export Change,
     replace!,
     remove!,
     lookup,
-    snapshot
+    snapshot,
+    AbstractProvider,
+    DefaultProvider,
+    available,
+    retrieve_ir,
+    DerivedIR,
+    DerivationError,
+    derive
 
 end # module Incremental

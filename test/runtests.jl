@@ -2973,3 +2973,66 @@ end
 
     @test Incremental.lookup(reg, f, (Y,)) === nothing
 end
+
+## ---------------------------------------------------------------------------
+## IR provider interface (TRAYS-ecx Task 1.2: REQ-A2, REQ-A11, REQ-A17)
+## ---------------------------------------------------------------------------
+
+@testitem "IRProvider: DefaultProvider reports unavailable without IRTools" begin
+    using Tray: Incremental
+
+    # IRTools is not installed in this environment, so available() should
+    # return false gracefully without any load-time errors
+    provider = Incremental.DefaultProvider()
+    @test Incremental.available(provider) == false
+end
+
+@testitem "IRProvider: retrieve_ir returns nothing without IRTools" begin
+    using Tray: Incremental
+
+    # Without IRTools, retrieve_ir should return nothing rather than throwing
+    provider = Incremental.DefaultProvider()
+    @test Incremental.retrieve_ir(provider, +, Tuple{Float64,Float64}) === nothing
+end
+
+@testitem "IRProvider: derive returns DerivationError without IRTools" begin
+    using Tray: Incremental
+
+    # Without IRTools, derive should return a DerivationError with the
+    # IRProviderUnavailable code, not throw an exception
+    result = Incremental.derive(+, Float64, Float64)
+    @test result isa Incremental.DerivationError
+    @test result.code == "IRProviderUnavailable"
+    @test result.phase == "derive"
+end
+
+@testitem "IRProvider: DerivationError holds expected fields" begin
+    using Tray: Incremental
+
+    err =
+        Incremental.DerivationError("IRProviderIncompatible", "Version mismatch", "derive")
+    @test err.code == "IRProviderIncompatible"
+    @test err.message == "Version mismatch"
+    @test err.phase == "derive"
+end
+
+@testitem "IRProvider: DerivedIR holds expected fields" begin
+    using Tray: Incremental
+
+    f(x) = x + 1
+    ir_mock = "mocked IR"
+    result = Incremental.DerivedIR(f, Tuple{Int}, ir_mock)
+    @test result.f === f
+    @test result.argtypes == Tuple{Int}
+    @test result.ir == ir_mock
+end
+
+@testitem "IRProvider: derive with explicit provider argument" begin
+    using Tray: Incremental
+
+    # Passing an explicit provider should work the same as default
+    result =
+        Incremental.derive(+, Float64, Float64; provider = Incremental.DefaultProvider())
+    @test result isa Incremental.DerivationError
+    @test result.code == "IRProviderUnavailable"
+end

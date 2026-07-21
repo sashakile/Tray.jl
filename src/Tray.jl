@@ -16,8 +16,32 @@ export Tree,
 
 # Incremental exports
 import .Incremental:
-    Change, ScalarSummaryChange, zero_change, valid_change, apply_change, compose_change
-export Change, ScalarSummaryChange, zero_change, valid_change, apply_change, compose_change
+    Change,
+    ScalarSummaryChange,
+    zero_change,
+    valid_change,
+    apply_change,
+    compose_change,
+    AbstractProvider,
+    DefaultProvider,
+    available,
+    retrieve_ir,
+    DerivedIR,
+    DerivationError,
+    derive
+export Change,
+    ScalarSummaryChange,
+    zero_change,
+    valid_change,
+    apply_change,
+    compose_change,
+    AbstractProvider,
+    DefaultProvider,
+    available,
+    retrieve_ir,
+    DerivedIR,
+    DerivationError,
+    derive
 
 # Re-export generic interface from TrayBase
 import .TrayBase: combine, identity
