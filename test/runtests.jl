@@ -3504,3 +3504,96 @@ end
     expected = f(old_x, old_y)
     @test new_result ≈ expected
 end
+
+## ---------------------------------------------------------------------------
+## Non-goal tests (TRAYS-ecx Task 5.4: REQ-A12–A15)
+## ---------------------------------------------------------------------------
+
+@testitem "NonGoal: no LLVM dependency (REQ-A12)" begin
+    using Tray: Incremental
+
+    # Incremental module should not define or depend on LLVM types
+    @test !isdefined(Incremental, :LLVM)
+
+    # Verify no LLVM-related exports exist
+    exports = names(Incremental; all = true)
+    llvm_exports = filter(n -> occursin(r"LLVM|Enzyme", string(n)), exports)
+    @test isempty(llvm_exports)
+end
+
+@testitem "NonGoal: no differential-dataflow dependency (REQ-A13)" begin
+    using Tray: Incremental
+
+    exports = names(Incremental; all = true)
+    df_exports =
+        filter(n -> occursin(r"differential|timely|dataflow|Dataflow", string(n)), exports)
+    @test isempty(df_exports)
+end
+
+@testitem "NonGoal: generated artifact is plain callable (REQ-A14)" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x, y) = x + y
+    artifact = inc.generate_recompute_artifact(f, 2)
+
+    # The artifact is a plain Function
+    @test artifact isa Function
+
+    # It can be wrapped in a simple memoization layer (e.g., Dict)
+    calls = Ref(0)
+    memo = Dict{Tuple{Vararg{Any}},Any}()
+    function memoized(args...)
+        key = args
+        if haskey(memo, key)
+            return memo[key]
+        end
+        calls[] += 1
+        result = artifact(args...)
+        memo[key] = result
+        return result
+    end
+
+    old_x, old_y = 10.0, 5.0
+    old_result = f(old_x, old_y)
+    Δx = inc.Change{Float64}(3.0)
+    Δy = inc.Change{Float64}(2.0)
+
+    # First call computes
+    r1 = memoized(old_x, old_y, old_result, Δx, Δy)
+    @test calls[] == 1
+    # Second call should use cache
+    r2 = memoized(old_x, old_y, old_result, Δx, Δy)
+    @test r1 == r2
+    @test calls[] == 1  # not incremented
+
+    # Result is correct
+    new_result = inc.apply_change(old_result, r1)
+    @test new_result ≈ f(13.0, 7.0)
+end
+
+@testitem "NonGoal: different arguments bypass memo cache (REQ-A14)" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x) = x * 2
+    artifact = inc.generate_recompute_artifact(f, 1)
+
+    r1 = artifact(5.0, 10.0, inc.Change{Float64}(1.0))
+    r2 = artifact(5.0, 10.0, inc.Change{Float64}(2.0))  # different Δ
+
+    @test r1 != r2  # different changes
+end
+
+@testitem "NonGoal: broadcast call is a boundary (REQ-A15)" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    # Mock IR with a broadcast call
+    mock_ir = [Expr(:call, :broadcasted, :+, :x, :y), Expr(:return, :result)]
+
+    summary = inc.analyze_ir(mock_ir, +, (Vector{Float64}, Vector{Float64}), nothing)
+    @test summary.coverage == inc.CovBoundary
+    @test length(summary.diagnostics) >= 1
+    @test summary.diagnostics[1].code == "RuleMissing"
+end
