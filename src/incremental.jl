@@ -389,6 +389,49 @@ function lookup(reg::RuleRegistry, f, argtypes::Tuple)
     return candidate[3]
 end
 
+"""
+    lookup_classified(reg::RuleRegistry, f, argtypes::Tuple) -> Tuple{Symbol,Union{Nothing,Rule}}
+
+Classified registry lookup returning `(:found, rule)`, `(:missing, nothing)`,
+or `(:ambiguous, nothing)`.
+
+- `:found` — exactly one most-specific rule found
+- `:missing` — no applicable rule found
+- `:ambiguous` — multiple applicable rules with incomparable specificity
+
+See REQ-A4, REQ-A11.
+"""
+function lookup_classified(reg::RuleRegistry, f, argtypes::Tuple)
+    ftype = typeof(f)
+
+    applicable = Tuple{Type,Type,Any,Int}[]
+    for ((rf, ra), rule) in reg.current.rules
+        if isapplicable(rf, ra, ftype, argtypes)
+            push!(applicable, (rf, ra, rule, length(applicable)))
+        end
+    end
+
+    isempty(applicable) && return (:missing, nothing)
+    length(applicable) == 1 && return (:found, applicable[1][3])
+
+    candidate = applicable[1]
+    for i = 2:length(applicable)
+        cmp = compare_specificity(
+            candidate[1],
+            candidate[2],
+            applicable[i][1],
+            applicable[i][2],
+        )
+        if cmp == :incomparable
+            return (:ambiguous, nothing)
+        elseif cmp == :second_more_specific
+            candidate = applicable[i]
+        end
+    end
+
+    return (:found, candidate[3])
+end
+
 function isapplicable(rf::Type, ra::Type, ftype::Type, argtypes::Tuple)
     ftype <: rf || return false
     return type_tuple_issubset(argtypes, ra)
@@ -500,6 +543,46 @@ function available(::DefaultProvider)
         return true
     catch
         return false
+    end
+end
+
+"""
+    availability_diagnostics(::DefaultProvider, f) -> Vector{Diagnostic}
+
+Return diagnostics explaining why the default provider is unavailable.
+Returns an empty vector if the provider is available.
+
+Distinguishes between:
+- `UnsupportedEnvironment` — Julia version too old (< 1.10)
+- `IRProviderUnavailable` — IRTools not installed
+
+See REQ-A11.
+"""
+function availability_diagnostics(::DefaultProvider, f)
+    if VERSION >= v"1.10"
+        # Julia version OK, IRTools missing
+        return [
+            Diagnostic(
+                "IRProviderUnavailable",
+                "IRTools is not available in this environment. " *
+                "Install IRTools 0.4.x with Pkg.add(\"IRTools\") to enable " *
+                "IR-based derivation.",
+                "derive";
+                callable = f,
+                remediation = "Install IRTools 0.4.x with Pkg.add(\"IRTools\")",
+            ),
+        ]
+    else
+        return [
+            Diagnostic(
+                "UnsupportedEnvironment",
+                "Julia version $(VERSION) does not meet the minimum " *
+                "requirement of 1.10 for the default IR provider.",
+                "derive";
+                callable = f,
+                remediation = "Upgrade to Julia ≥ 1.10",
+            ),
+        ]
     end
 end
 
@@ -787,6 +870,71 @@ function classify_operation(stmt)
 end
 
 """
+    check_call_coverage(f, argtypes, registry) -> Tuple{CoverageLevel,Union{Nothing,Diagnostic}}
+
+Check whether a call to `f` with the given argument types is covered for
+incrementalization. Returns `(CovCovered, nothing)` for covered calls,
+`(CovBoundary, diag)` for missing or ambiguous rules, and `(CovRejected, diag)`
+for unsupported operations.
+
+Distinguishes between:
+- `RuleMissing` — no applicable rule found
+- `RuleAmbiguous` — multiple applicable rules with incomparable specificity
+
+See REQ-A4, REQ-A11.
+"""
+function check_call_coverage(f, argtypes, registry::Union{RuleRegistry,Nothing})
+    # Resolve Symbol to function reference (e.g., :+ -> +)
+    callee = if f isa Symbol
+        try
+            getfield(Base, f)
+        catch
+            f
+        end
+    else
+        f
+    end
+
+    # Known pure built-ins are always covered
+    if callee in (+, *, sin, min, max, isless, ==, <, >, <=, >=, abs, zero, one)
+        return (CovCovered, nothing)
+    end
+
+    # Check registry if available
+    if registry !== nothing
+        status, rule = lookup_classified(registry, callee, ())
+        if status == :found
+            return (CovCovered, nothing)
+        elseif status == :ambiguous
+            return (
+                CovBoundary,
+                Diagnostic(
+                    "RuleAmbiguous",
+                    "Ambiguous rule lookup for $(callee). Multiple applicable " *
+                    "rules exist with incomparable specificity.",
+                    "analysis";
+                    callable = callee,
+                    remediation = "Add a more specific rule or remove the ambiguous rules",
+                ),
+            )
+        end
+    end
+
+    # No rule found
+    return (
+        CovBoundary,
+        Diagnostic(
+            "RuleMissing",
+            "No rule available for call to $(callee). Register a rule or " *
+            "simplify the function.",
+            "analysis";
+            callable = callee,
+            remediation = "Register a rule for $(callee) or use a built-in",
+        ),
+    )
+end
+
+"""
     is_pure_call(f, argtypes, registry) -> Bool
 
 Check whether a call to `f` with the given argument types is pure (no side
@@ -886,17 +1034,7 @@ function analyze_statement(
         if is_pure_call(callee, argtypes, registry)
             return (CovCovered, nothing)
         else
-            return (
-                CovBoundary,
-                Diagnostic(
-                    "RuleMissing",
-                    "No rule available for call to $(callee) with argument types " *
-                    "$argtypes. Register a rule or simplify the function.",
-                    "analysis";
-                    callable = callee,
-                    remediation = "Register a rule for $(callee) with Pkg.add or define a built-in rule",
-                ),
-            )
+            return check_call_coverage(callee, argtypes, registry)
         end
     end
 
@@ -1196,20 +1334,8 @@ function derive(
     registry::Union{RuleRegistry,Nothing} = nothing,
 )
     if !available(provider)
-        return Rejected(
-            [
-                Diagnostic(
-                    "IRProviderUnavailable",
-                    "The default IR provider (IRTools) is not available in this " *
-                    "environment. Install IRTools 0.4.x with Pkg.add(\"IRTools\") " *
-                    "or use a different provider. Julia ≥ 1.10 is required.",
-                    "derive";
-                    callable = f,
-                    remediation = "Install IRTools 0.4.x with Pkg.add(\"IRTools\")",
-                ),
-            ],
-            CovRejected,
-        )
+        diags = availability_diagnostics(provider, f)
+        return Rejected(diags, CovRejected)
     end
 
     argtypes = Tuple{args...}
@@ -1302,6 +1428,9 @@ export Change,
     analyze_statement,
     analyze_ir,
     change_between,
-    generate_recompute_artifact
+    generate_recompute_artifact,
+    lookup_classified,
+    check_call_coverage,
+    availability_diagnostics
 
 end # module Incremental
