@@ -45,6 +45,7 @@ makedocs(
     sitename = "Tray.jl",
     authors = "sasha",
     modules = [Tray],
+    checkdocs = :none,
     pages = [
         "Home" => "index.md",
         "API Reference" => "api.md",
