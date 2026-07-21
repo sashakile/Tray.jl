@@ -1,5 +1,3 @@
-module TrayDocs
-
 using Documenter
 using Tray
 
@@ -59,5 +57,3 @@ makedocs(
         "Status" => "status.md",
     ],
 )
-
-end

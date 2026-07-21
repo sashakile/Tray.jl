@@ -43,3 +43,12 @@ pre-push:
     testaruda-shadow:
       # shadow mode: compute selection but report all tests should run
       run: testaruda select --shadow; [ $? -eq 10 ] && exit 0 || exit $?
+
+    doc-check:
+      skip: true
+      run: >-
+        bash -c '
+        julia --project=docs -e "using Pkg; Pkg.develop(Pkg.PackageSpec(path=pwd())); Pkg.instantiate()"
+        julia --project=docs docs/make.jl
+        '
+      tags: [slow]

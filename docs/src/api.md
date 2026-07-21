@@ -1,9 +1,7 @@
 # API Reference
 
-## Tray
-
 ```@autodocs
-Modules = [Tray, Tray.TrayBase]
+Modules = [Tray]
 Private = false
 Order   = [:module, :type, :function]
 ```
