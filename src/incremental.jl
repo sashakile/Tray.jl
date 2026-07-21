@@ -778,7 +778,7 @@ Call the bound artifact, validating staleness first.
 Checks:
 1. Current world age is >= the binding's world (world ages only increase)
 2. Julia version matches
-   
+
 If the binding is stale, throws `StaleArtifactError` with details.
 The caller (e.g., `try_apply_strategy`) is responsible for catching
 this and falling back to canonical combine.
