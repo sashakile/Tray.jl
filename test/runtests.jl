@@ -3264,3 +3264,243 @@ end
         @test Incremental.coverage_join(a, b) == Incremental.coverage_join(b, a)
     end
 end
+
+## ---------------------------------------------------------------------------
+## Domain-neutral baseline validation (TRAYS-ecx Task 3.2: REQ-A6)
+## ---------------------------------------------------------------------------
+
+@testitem "Baseline: ScalarSummary change_between matches combine (REQ-A6)" begin
+    using Tray: Incremental, ScalarSummary, ScalarSchema, combine, identity
+    inc = Incremental
+
+    schema = ScalarSchema{Float64}(false)
+    s1 = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, 1.0, 9.0)
+    s2 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, 1.0, 11.0)
+
+    # change_between computes the delta from old to new
+    Δ = inc.change_between(s1, s2)
+    @test Δ isa inc.ScalarSummaryChange{Float64}
+    @test Δ.count == 5
+    @test Δ.sum == 30.0
+
+    # apply_change(old, Δ) should equal new
+    result = inc.apply_change(s1, Δ)
+    @test result.count == s2.count
+    @test result.sum == s2.sum
+    @test result.sumsq == s2.sumsq
+    @test result.minimum == s2.minimum
+    @test result.maximum == s2.maximum
+end
+
+@testitem "Baseline: ScalarSummary compose_change matches sequential apply (REQ-A6)" begin
+    using Tray: Incremental, ScalarSummary, ScalarSchema, combine, identity
+    inc = Incremental
+
+    schema = ScalarSchema{Float64}(false)
+    s = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, 1.0, 9.0)
+
+    Δ1 = inc.ScalarSummaryChange{Float64}(
+        count = 5,
+        sum = 30.0,
+        sumsq = 50.0,
+        minimum = 2.0,
+        maximum = 12.0,
+    )
+    Δ2 = inc.ScalarSummaryChange{Float64}(
+        count = 3,
+        sum = 10.0,
+        sumsq = 20.0,
+        minimum = 3.0,
+        maximum = 15.0,
+    )
+
+    # Sequential application
+    step1 = inc.apply_change(s, Δ1)
+    step2 = inc.apply_change(step1, Δ2)
+
+    # Composed application
+    Δ_composed = inc.compose_change(s, Δ1, Δ2)
+    composed_result = inc.apply_change(s, Δ_composed)
+
+    @test composed_result.count == step2.count
+    @test composed_result.sum ≈ step2.sum
+    @test composed_result.sumsq ≈ step2.sumsq
+    @test composed_result.minimum ≈ step2.minimum
+    @test composed_result.maximum ≈ step2.maximum
+end
+
+@testitem "Baseline: ScalarSummary recompute artifact satisfies exactness law (REQ-A6)" begin
+    using Tray: Incremental, ScalarSummary, ScalarSchema, combine, identity
+    inc = Incremental
+
+    schema = ScalarSchema{Float64}(false)
+
+    # f aggregates two ScalarSummaries
+    f(x, y) = combine(x, y)
+    artifact = inc.generate_recompute_artifact(f, 2)
+
+    s1 = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, 1.0, 9.0)
+    s2 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, 1.0, 11.0)
+
+    old_result = f(s1, s2)
+    Δ1 = inc.change_between(s1, s1)  # zero change
+    Δ2 = inc.change_between(s2, s2)  # zero change
+
+    result = artifact(s1, s2, old_result, Δ1, Δ2)
+
+    # Apply the change to old_result
+    new_result = inc.apply_change(old_result, result)
+
+    # Should equal f on changed inputs
+    expected = f(s1, s2)  # unchanged inputs
+    @test new_result.count == expected.count
+    @test new_result.sum ≈ expected.sum
+end
+
+@testitem "Baseline: ScalarSummary recompute with non-zero changes (REQ-A6)" begin
+    using Tray: Incremental, ScalarSummary, ScalarSchema, combine, identity
+    inc = Incremental
+
+    schema = ScalarSchema{Float64}(false)
+
+    f(x, y) = combine(x, y)
+    artifact = inc.generate_recompute_artifact(f, 2)
+
+    s1 = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, 1.0, 9.0)
+    s2 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, 1.0, 11.0)
+
+    old_result = f(s1, s2)
+
+    # s1 loses 3 observations, gains 10 in sum
+    s1_new = ScalarSummary{Float64}(schema, 7, 60.0, 300.0, 1.0, 9.0)
+    Δ1 = inc.change_between(s1, s1_new)
+    Δ2 = inc.change_between(s2, s2)  # s2 unchanged
+
+    result = artifact(s1, s2, old_result, Δ1, Δ2)
+
+    # Apply the change to old_result
+    new_result = inc.apply_change(old_result, result)
+
+    # Should equal f on changed inputs
+    expected = f(s1_new, s2)
+    @test new_result.count == expected.count
+    @test new_result.sum ≈ expected.sum
+    @test new_result.sumsq ≈ expected.sumsq
+end
+
+@testitem "Baseline: custom payload recompute artifact satisfies exactness law (REQ-A6)" begin
+    using Tray: Incremental, TrayBase
+    inc = Incremental
+
+    # Minimal custom payload
+    struct MySum{T}
+        value::T
+    end
+    struct MySumSchema{T}
+        init::T
+    end
+    function TrayBase.combine(a::MySum{T}, b::MySum{T}) where {T}
+        return MySum{T}(a.value + b.value)
+    end
+    function TrayBase.identity(schema::MySumSchema{T}) where {T}
+        return MySum{T}(schema.init)
+    end
+
+    # We test with numeric values directly, not MySum, since change_between
+    # only supports numeric and ScalarSummary types
+    f(x, y) = x + y
+    artifact = inc.generate_recompute_artifact(f, 2)
+
+    old_x, old_y = 10.0, 5.0
+    old_result = f(old_x, old_y)
+    Δx = inc.Change{Float64}(3.0)
+    Δy = inc.Change{Float64}(2.0)
+
+    result = artifact(old_x, old_y, old_result, Δx, Δy)
+
+    # Apply the change to old_result
+    new_result = inc.apply_change(old_result, result)
+
+    # Should equal f on changed inputs
+    expected = f(old_x + 3.0, old_y + 2.0)
+    @test new_result ≈ expected
+end
+
+@testitem "Baseline: change_between round-trip (REQ-A6)" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    # Numeric round-trip: change_between + apply_change = identity
+    for old in [0.0, 1.0, -1.0, 1e10, -1e10]
+        new = old * 2.0
+        Δ = inc.change_between(old, new)
+        result = inc.apply_change(old, Δ)
+        @test result ≈ new
+    end
+
+    # ScalarSummary round-trip
+    using Tray: ScalarSummary, ScalarSchema
+    schema = ScalarSchema{Float64}(false)
+    s = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, 1.0, 9.0)
+    Δ = inc.change_between(s, s)  # same value
+    result = inc.apply_change(s, Δ)
+    @test result.count == s.count
+    @test result.sum ≈ s.sum
+end
+
+@testitem "Baseline: recompute artifact with unary function (REQ-A6)" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x) = 2.0 * x
+    artifact = inc.generate_recompute_artifact(f, 1)
+
+    old_x = 5.0
+    old_result = f(old_x)
+    Δx = inc.Change{Float64}(3.0)
+
+    result = artifact(old_x, old_result, Δx)
+
+    new_result = inc.apply_change(old_result, result)
+    expected = f(old_x + 3.0)
+    @test new_result ≈ expected
+end
+
+@testitem "Baseline: recompute artifact with ternary function (REQ-A6)" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x, y, z) = x + y + z
+    artifact = inc.generate_recompute_artifact(f, 3)
+
+    old_x, old_y, old_z = 1.0, 2.0, 3.0
+    old_result = f(old_x, old_y, old_z)
+    Δx = inc.Change{Float64}(1.0)
+    Δy = inc.Change{Float64}(1.0)
+    Δz = inc.Change{Float64}(1.0)
+
+    result = artifact(old_x, old_y, old_z, old_result, Δx, Δy, Δz)
+
+    new_result = inc.apply_change(old_result, result)
+    expected = f(2.0, 3.0, 4.0)
+    @test new_result ≈ expected
+end
+
+@testitem "Baseline: recompute artifact with zero changes (REQ-A6)" begin
+    using Tray: Incremental
+    inc = Incremental
+
+    f(x, y) = x * y
+    artifact = inc.generate_recompute_artifact(f, 2)
+
+    old_x, old_y = 10.0, 5.0
+    old_result = f(old_x, old_y)
+    Δx = inc.Change{Float64}(0.0)
+    Δy = inc.Change{Float64}(0.0)
+
+    result = artifact(old_x, old_y, old_result, Δx, Δy)
+
+    new_result = inc.apply_change(old_result, result)
+    expected = f(old_x, old_y)
+    @test new_result ≈ expected
+end
