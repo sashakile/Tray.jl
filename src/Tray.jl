@@ -7,6 +7,7 @@ include("core.jl")
 include("axes.jl")
 include("incremental.jl")
 include("sample_analytics.jl")
+include("aligned_array.jl")
 
 # Export core interface
 export TrayBase
@@ -137,5 +138,14 @@ export SamplePayload,
     ApproximateResult,
     SketchConfigError,
     SketchStorageError
+
+# Aligned array exports
+import .AlignedArray:
+    AlignedArrayPayload,
+    quadratic_projection,
+    normalized_covariance_contribution,
+    AlignedArrayError
+export AlignedArrayPayload,
+    quadratic_projection, normalized_covariance_contribution, AlignedArrayError
 
 end # module Tray
