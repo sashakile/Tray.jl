@@ -42,8 +42,14 @@ end
 
 Per-field deltas for a ScalarSummary.
 
-Each field is the delta to apply. Minimum and maximum carry the *new*
-extreme value, not a delta — the result takes the extrema of old and new.
+Each field is the delta to apply for the numeric fields (count, sum,
+sumsq). Minimum and maximum carry the *new* extreme value, not a delta
+— the result takes the extrema of old and new (append-only widening).
+
+This means ScalarSummary changes are append-only for extrema: they can
+only widen the [min, max] range, never narrow it. A narrowing such as
+[1, 10] → [2, 9] cannot be represented as a ScalarSummaryChange because
+apply_change would keep the old extrema (1 and 10) instead of narrowing.
 """
 Base.@kwdef struct ScalarSummaryChange{T} <: Number
     count::Int
@@ -1465,6 +1471,13 @@ Compute the change that transforms `old` into `new`.
 
 For numeric types, returns `Change(delta)` where `delta = new - old`.
 For ScalarSummary, returns `ScalarSummaryChange` with per-field deltas.
+
+**Important:** Because ScalarSummary changes use append-only (widening)
+extrema semantics, the round-trip `apply_change(old, change_between(old, new)) == new`
+is only guaranteed when `new.minimum >= old.minimum && new.maximum <= old.maximum`
+(i.e., the extrema are non-narrowing). For narrowing cases, the applied extrema
+will retain the old values. Use `valid_change` to check whether a given change
+can be applied without narrowing.
 
 See REQ-A1.
 """

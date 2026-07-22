@@ -4170,6 +4170,29 @@ end
     result = inc.apply_change(s, Δ)
     @test result.count == s.count
     @test result.sum ≈ s.sum
+
+    # ScalarSummary extrema are append-only (widening): narrowing does not round-trip.
+    # change_between produces a delta that preserves old extrema on apply_change.
+    # Round-trip is guaranteed only for non-narrowing changes.
+    # Widening case (max 9→11): round-trips correctly.
+    s2 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, 1.0, 11.0)
+    Δ2 = inc.change_between(s, s2)
+    result2 = inc.apply_change(s, Δ2)
+    @test result2.count == s2.count
+    @test result2.sum ≈ s2.sum
+    @test result2.minimum == s2.minimum
+    @test result2.maximum == s2.maximum
+
+    # Narrowing case (max 11→9): apply_change keeps old max (11), not new (9).
+    s3 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, 1.0, 9.0)
+    Δ3 = inc.change_between(s2, s3)
+    result3 = inc.apply_change(s2, Δ3)
+    @test result3.count == s3.count
+    @test result3.sum ≈ s3.sum
+    @test result3.sumsq ≈ s3.sumsq
+    # min/max stay at the widest extreme (append-only semantics)
+    @test result3.minimum == 1.0   # unchanged (old sentinel/new match)
+    @test result3.maximum == 11.0  # NOT 9.0 — narrowing is not representable
 end
 
 @testitem "Baseline: recompute artifact with unary function (REQ-A6)" begin
