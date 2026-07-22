@@ -23,4 +23,5 @@ Supposition.jl provides the required generation and shrinking model, but its cus
 ## Dependencies
 - Existing lawful `combine`, tree construction, range-query, and persistent-update behavior supply the pilot laws and reference oracles.
 - Implementation is gated on approval of this proposal.
-- Scalar-summary finite-change round trips remain blocked on a separate semantic decision; they are not required for the pilot.
+- Scalar-summary finite-change round trips remain blocked on the separate semantic decision tracked by `TRAYS-719`; they are not required for the pilot.
+- Repairing the pre-existing focused-test recipe is tracked by `TRAYS-ltz` and is not required for the pilot.

@@ -13,10 +13,10 @@
 ## 3. Documentation and known limitations
 - [ ] 3.1 Expand contributor testing documentation with Supposition syntax, generator rules, deterministic budgets, shrinking/reproduction workflow, and regression promotion.
 - [ ] 3.2 Document the mandatory ordinary-`@testset` boundary, prohibited `@testitem`/`record=false` placements, ReTestItems failure mode, and future-runner migration warning.
-- [ ] 3.3 Document CI and coverage inclusion, Testaruda non-discovery, disabled example database policy, the supported complete-property-file command, unavailable individual-`@check` selection, and the pre-existing `just test-file` limitation.
-- [ ] 3.4 Record the `ScalarSummary` extrema round-trip inconsistency in a separate tracked decision/issue; do not add a constrained property that hides it.
+- [ ] 3.3 Document CI and coverage inclusion, Testaruda non-discovery, disabled example database policy, full `Pkg.test()` as the supported pilot command, unavailable individual-`@check` selection, and the `TRAYS-ltz` focused-test limitation.
+- [ ] 3.4 Preserve the link to `TRAYS-719` for the `ScalarSummary` extrema round-trip inconsistency; do not add a constrained property that hides it.
 
 ## 4. Review and validation
-- [ ] 4.1 Run the complete ordinary property file/testset through its documented command, the complete package test suite, formatting, and coverage/runtime comparison against the previous randomized loops.
+- [ ] 4.1 Run the complete package test suite through the documented `Pkg.test()` command, formatting, and coverage/runtime comparison against the previous randomized loops.
 - [ ] 4.2 Run the required Rule of 5 review, fix findings, and verify no production dependency or behavior changed.
-- [ ] 4.3 Map every property-based-testing scenario contract to its implemented test, then run `ah check --changes add-property-based-testing`, `openspec validate add-property-based-testing --strict`, and `git diff --check`.
+- [ ] 4.3 Run and report `ah check --changes add-property-based-testing`, linking any contract-persistence or missing-runner findings to `TRAYS-msh`; then run `openspec validate add-property-based-testing --strict` and `git diff --check`.

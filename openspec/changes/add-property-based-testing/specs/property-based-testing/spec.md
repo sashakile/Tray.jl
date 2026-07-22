@@ -56,7 +56,7 @@ Required properties SHALL use stable names, explicit copyable RNG seeds, bounded
 - **THEN** its stable property name, seed/configuration, and shrunk counterexample provide enough information to reproduce it locally and preserve it as a regression test
 
 ### Requirement: Tooling visibility and limitations
-The testing documentation SHALL state that Supposition properties run in required `Pkg.test()` and coverage workflows but are not individually discoverable by the current Testaruda ReTestItems adapter. It SHALL provide a supported command for executing the complete ordinary property file/testset and state that individual `@check` selection is unavailable. Any future move to ReTestItems-scanned worker files SHALL preserve a separate ordinary-Test execution path or first verify supported custom-testset interoperability.
+The testing documentation SHALL state that full `Pkg.test()` is the supported local and CI invocation for Supposition properties and coverage, while individual properties are not discoverable by the current Testaruda ReTestItems adapter. It SHALL state that individual `@check` selection is unavailable during the pilot. Any future move to ReTestItems-scanned worker files SHALL preserve a separate ordinary-Test execution path or first verify supported custom-testset interoperability.
 
 #### Scenario: Required CI execution
 - **WHEN** the GitHub package-test and coverage workflows execute

@@ -75,11 +75,13 @@ Every valuable shrunk counterexample is promoted to an ordinary focused regressi
 
 `Pkg.test()`, the GitHub `julia-runtest` action, and coverage execute ordinary `Test.@testset`s, so the pilot remains a required gate and contributes coverage. The configured Testaruda adapter discovers only ReTestItems `@testitem` blocks, so it cannot individually select Supposition properties. This limitation is accepted for the pilot because CI runs the complete package tests before the optional Testaruda shadow step.
 
-The existing `just test-file` recipe references a `retest` API unavailable in the verified ReTestItems version. That pre-existing workflow defect is documented separately and is not solved by wrapping Supposition in unsupported runner internals. Contributor documentation supplies the supported command for executing the complete ordinary property file/testset directly and states that individual `@check` selection is unavailable.
+The existing `just test-file` recipe references a `retest` API unavailable in the verified ReTestItems version; `TRAYS-ltz` tracks that pre-existing defect. The pilot does not add a second test environment or rely on transitive test-environment helpers merely to run one included file. Contributor documentation identifies full `Pkg.test()` as the supported local and CI command and states that individual `@check` selection is unavailable.
+
+The repository currently ignores `.espectacular/` and configures no Espectacular runner, so generated scenario contracts cannot provide durable executable mappings in this change. `TRAYS-msh` tracks that repository-level infrastructure gap. This change still runs and reports `ah check`, but does not claim correspondence that cannot survive a clean checkout.
 
 ### Defer the ScalarSummary round-trip law
 
-`change_between(old::ScalarSummary, new::ScalarSummary)` claims to produce a change from any old value to the new value and stores the new extrema. `apply_change`, however, computes extrema with `min(old.minimum, Δ.minimum)` and `max(old.maximum, Δ.maximum)`. It therefore cannot represent a replacement that narrows extrema, such as `[1, 10] → [2, 9]`.
+`change_between(old::ScalarSummary, new::ScalarSummary)` claims to produce a change from any old value to the new value and stores the new extrema. `apply_change`, however, computes extrema with `min(old.minimum, Δ.minimum)` and `max(old.maximum, Δ.maximum)`. It therefore cannot represent a replacement that narrows extrema, such as `[1, 10] → [2, 9]`. `TRAYS-719` tracks the required semantic decision and fix.
 
 The property `apply_change(old, change_between(old, new)) == new` must not be constrained to hide this inconsistency. A separate decision must establish whether scalar-summary changes are append-only or support arbitrary replacement; only then should the corresponding generator and law be added.
 
@@ -92,6 +94,7 @@ The property `apply_change(old, change_between(old, new)) == new` must not be co
 - Default high example counts can increase CI time; the pilot uses small measured budgets.
 - A future migration to conventional ReTestItems-scanned files could break this arrangement; contributor documentation and an integration smoke property make the boundary visible.
 - Failure replay can drift when properties, generators, or Julia versions change; shrunk examples are promoted to ordinary regression tests.
+- Espectacular cannot yet persist or execute scenario mappings from a clean checkout; `TRAYS-msh` separates that infrastructure fix from this test-framework pilot.
 
 ## Migration Plan
 
