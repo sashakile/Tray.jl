@@ -6618,3 +6618,323 @@ end
     @test root(t).samples ≈ [2200.0, 2600.0, 3000.0]
     @test root(t).dataset_revision == rev1 + 1
 end
+
+## ---------------------------------------------------------------------------
+## CompressedSamplePayload & sketch tests (TRAYS-x6z: REQ-21, REQ-22, REQ-32, REQ-44)
+## ---------------------------------------------------------------------------
+
+@testitem "SketchConfig: construction validates parameters (REQ-21)" begin
+    using Tray: SketchConfig, SketchConfigError
+
+    cfg = SketchConfig(1, 100, 0.0, 100.0, 0.05)
+    @test cfg.n_bins == 100
+    @test cfg.epsilon == 0.05
+    @test cfg.config_id == 1
+
+    @test_throws SketchConfigError SketchConfig(1, 1, 0.0, 1.0, 0.05)
+    @test_throws SketchConfigError SketchConfig(1, 10, 10.0, 0.0, 0.05)
+    @test_throws SketchConfigError SketchConfig(1, 10, 0.0, 1.0, 0.0)
+    @test_throws SketchConfigError SketchConfig(1, 10, 0.0, 1.0, -1.0)
+end
+
+@testitem "HistogramSketch: empty sketch and add_value (REQ-21)" begin
+    using Tray: SketchConfig, HistogramSketch
+    using Tray.SampleAnalytics: add_value!
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    s = HistogramSketch(cfg)
+
+    @test s.count == 0
+    @test all(s.counts .== 0)
+
+    add_value!(s, 1.5)
+    @test s.count == 1
+    @test s.counts[2] == 1
+end
+
+@testitem "HistogramSketch: value clamped to bin edges (REQ-21)" begin
+    using Tray: SketchConfig, HistogramSketch
+    using Tray.SampleAnalytics: add_value!
+
+    cfg = SketchConfig(1, 4, 0.0, 4.0, 0.1)
+    s = HistogramSketch(cfg)
+
+    add_value!(s, -1.0)
+    @test s.counts[1] == 1
+
+    add_value!(s, 10.0)
+    @test s.counts[4] == 1
+
+    add_value!(s, 0.0)
+    add_value!(s, 4.0)
+    @test s.count == 4
+end
+
+@testitem "HistogramSketch: combine performs aligned-sum (REQ-21)" begin
+    using Tray: SketchConfig, HistogramSketch, TrayBase
+    using Tray.SampleAnalytics: add_value!
+
+    cfg = SketchConfig(1, 5, 0.0, 5.0, 0.1)
+    a = HistogramSketch(cfg)
+    b = HistogramSketch(cfg)
+
+    for v = 0.5:1.0:4.5
+        add_value!(a, v)
+        add_value!(b, v)
+    end
+
+    c = TrayBase.combine(a, b)
+    @test c.count == 10
+    @test all(c.counts .== 2)
+
+    empty_s = HistogramSketch(cfg)
+    @test TrayBase.combine(a, empty_s) == a
+    @test TrayBase.combine(empty_s, a) == a
+end
+
+@testitem "HistogramSketch: combine rejects different configs (REQ-21)" begin
+    using Tray: SketchConfig, HistogramSketch, TrayBase
+
+    a = HistogramSketch(SketchConfig(1, 5, 0.0, 5.0, 0.1))
+    b = HistogramSketch(SketchConfig(2, 10, 0.0, 10.0, 0.2))
+    @test_throws ArgumentError TrayBase.combine(a, b)
+end
+
+@testitem "CompressedSamplePayload: construction from samples (REQ-21)" begin
+    using Tray: SketchConfig, CompressedSamplePayload
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    csp = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0, 4.0, 5.0], config = cfg)
+
+    @test csp.sketch.count == 5
+    @test csp.config_id == 1
+    @test csp.dataset_revision == 1
+    @test csp.scalar_summary.count == 5
+    @test csp.scalar_summary.sum ≈ 15.0
+end
+
+@testitem "CompressedSamplePayload: identity laws (REQ-21)" begin
+    using Tray: SketchConfig, CompressedSamplePayload, ScalarSchema, TrayBase
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    id = TrayBase.identity(ScalarSchema{Float64}(false), cfg)
+    x = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0], config = cfg)
+
+    @test TrayBase.combine(id, x) == x
+    @test TrayBase.combine(x, id) == x
+end
+
+@testitem "CompressedSamplePayload: combine adds elementwise (REQ-21)" begin
+    using Tray: SketchConfig, CompressedSamplePayload, TrayBase
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    a = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0], config = cfg)
+    b = CompressedSamplePayload(; samples = [4.0, 5.0, 6.0], config = cfg)
+    c = TrayBase.combine(a, b)
+
+    @test c.sketch.count == 6
+    @test c.scalar_summary.count == 6
+    @test c.scalar_summary.sum ≈ 21.0
+end
+
+@testitem "CompressedSamplePayload: combine rejects cross-config (REQ-21)" begin
+    using Tray: SketchConfig, CompressedSamplePayload, TrayBase
+
+    a = CompressedSamplePayload(;
+        samples = [1.0, 2.0],
+        config = SketchConfig(1, 10, 0.0, 10.0, 0.1),
+    )
+    b = CompressedSamplePayload(;
+        samples = [3.0, 4.0],
+        config = SketchConfig(2, 10, 0.0, 10.0, 0.1),
+    )
+    @test_throws ArgumentError TrayBase.combine(a, b)
+end
+
+@testitem "CompressedSamplePayload: combine rejects cross-revision (REQ-20)" begin
+    using Tray: SketchConfig, CompressedSamplePayload, TrayBase
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    a = CompressedSamplePayload(; samples = [1.0, 2.0], config = cfg, dataset_revision = 1)
+    b = CompressedSamplePayload(; samples = [3.0, 4.0], config = cfg, dataset_revision = 2)
+    @test_throws ArgumentError TrayBase.combine(a, b)
+end
+
+@testitem "compress: from SamplePayload to CompressedSamplePayload (REQ-21)" begin
+    using Tray: ScalarSchema, SamplePayload, SketchConfig, CompressedSamplePayload, compress
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    schema = ScalarSchema{Float64}(false)
+    sp = SamplePayload(; schema = schema, samples = [1.0, 2.0, 3.0, 4.0, 5.0])
+    csp = compress(sp, cfg)
+
+    @test isa(csp, CompressedSamplePayload)
+    @test csp.sketch.count == 5
+    @test csp.scalar_summary == sp.summary
+    @test csp.dataset_revision == sp.dataset_revision
+end
+
+@testitem "compress: full tree compression (REQ-21)" begin
+    using Tray: ScalarSchema, SamplePayload, SketchConfig, Tree, compress, leaf_count, root
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    schema = ScalarSchema{Float64}(false)
+    leaves = [SamplePayload(; schema = schema, samples = fill(Float64(i), 3)) for i = 1:4]
+    t = Tree(leaves; b = 2, schema = schema)
+    ct = compress(t, cfg)
+
+    @test leaf_count(ct) == 4
+    @test root(ct).sketch.count == 12
+end
+
+@testitem "exact_quantile: empirical quantile computation (REQ-6)" begin
+    using Tray: exact_quantile
+
+    samples = [1.0, 2.0, 3.0, 4.0, 5.0]
+    @test exact_quantile(samples, 0.5) ≈ 3.0
+    @test exact_quantile(samples, 0.2) ≈ 1.0
+    @test exact_quantile(samples, 0.8) ≈ 4.0
+    @test exact_quantile(samples, 1.0) ≈ 5.0
+    @test exact_quantile(samples, 0.001) ≈ 1.0
+end
+
+@testitem "exact_quantile: from SamplePayload (REQ-6)" begin
+    using Tray: ScalarSchema, SamplePayload, exact_quantile
+
+    schema = ScalarSchema{Float64}(false)
+    sp = SamplePayload(; schema = schema, samples = [10.0, 20.0, 30.0, 40.0])
+    @test exact_quantile(sp, 0.5) ≈ 20.0
+end
+
+@testitem "exact_quantile: rejects invalid inputs (REQ-6)" begin
+    using Tray: exact_quantile
+
+    @test_throws DomainError exact_quantile(Float64[], 0.5)
+    @test_throws DomainError exact_quantile([1.0], 0.0)
+    @test_throws DomainError exact_quantile([1.0], -0.5)
+    @test_throws DomainError exact_quantile([1.0], 1.5)
+end
+
+@testitem "exact_tail_mean: upper-tail mean computation (REQ-6)" begin
+    using Tray: exact_tail_mean
+
+    samples = [1.0, 2.0, 3.0, 4.0, 5.0]
+    @test exact_tail_mean(samples, 0.8) ≈ 5.0
+    @test exact_tail_mean(samples, 0.0) ≈ 3.0
+end
+
+@testitem "sketch_quantile: approximate quantile with error bound (REQ-21, REQ-22)" begin
+    using Tray: SketchConfig, HistogramSketch, sketch_quantile
+    using Tray.SampleAnalytics: add_value!
+
+    cfg = SketchConfig(1, 100, 0.0, 100.0, 0.05)
+    s = HistogramSketch(cfg)
+    for v = 1.0:100.0
+        add_value!(s, v)
+    end
+
+    result = sketch_quantile(s, 0.5)
+    @test result.approximate == true
+    @test result.rank_error_bound ≈ 0.05
+    @test result.config_id == 1
+    @test result.tail_mean_uncertainty === nothing
+    @test result.value ≈ 50.0 atol = 2.0
+end
+
+@testitem "sketch_quantile: from CompressedSamplePayload (REQ-32)" begin
+    using Tray: SketchConfig, CompressedSamplePayload, sketch_quantile
+
+    cfg = SketchConfig(1, 50, 0.0, 50.0, 0.1)
+    csp = CompressedSamplePayload(; samples = collect(1.0:50.0), config = cfg)
+
+    result = sketch_quantile(csp, 0.5)
+    @test result.approximate == true
+    @test result.value ≈ 25.0 atol = 2.0
+end
+
+@testitem "sketch_tail_mean: approximate upper-tail mean (REQ-22)" begin
+    using Tray: SketchConfig, HistogramSketch, sketch_tail_mean
+    using Tray.SampleAnalytics: add_value!
+
+    cfg = SketchConfig(1, 50, 0.0, 100.0, 0.1)
+    s = HistogramSketch(cfg)
+    for v = 1.0:100.0
+        add_value!(s, v)
+    end
+
+    result = sketch_tail_mean(s, 0.9)
+    @test result.approximate == true
+    @test result.tail_mean_uncertainty !== nothing
+    @test result.value ≈ 95.0 atol = 5.0
+end
+
+@testitem "sketch_quantile: rejects empty sketch (REQ-32)" begin
+    using Tray: SketchConfig, HistogramSketch, sketch_quantile
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    @test_throws DomainError sketch_quantile(HistogramSketch(cfg), 0.5)
+end
+
+@testitem "CompressedSamplePayload: storage bound independent of leaf count (REQ-44)" begin
+    using Tray: ScalarSchema, SketchConfig, CompressedSamplePayload, Tree, leaf_count, root
+
+    cfg = SketchConfig(1, 20, 0.0, 100.0, 0.1)
+    schema = ScalarSchema{Float64}(false)
+
+    small = [
+        CompressedSamplePayload(; samples = fill(Float64(i*10), 5), config = cfg) for
+        i = 1:4
+    ]
+    small_tree = Tree(small; b = 2, schema = schema)
+
+    large = [
+        CompressedSamplePayload(; samples = fill(Float64(i), 5), config = cfg) for i = 1:100
+    ]
+    large_tree = Tree(large; b = 2, schema = schema)
+
+    @test length(root(small_tree).sketch.counts) == 20
+    @test length(root(large_tree).sketch.counts) == 20
+    @test root(small_tree).sketch.count == 20
+    @test root(large_tree).sketch.count == 500
+end
+
+@testitem "CompressedSamplePayload: tree range query consistency (REQ-21)" begin
+    using Tray:
+        ScalarSchema,
+        SketchConfig,
+        CompressedSamplePayload,
+        SamplePayload,
+        Tree,
+        compress,
+        range_query
+
+    cfg = SketchConfig(1, 50, 0.0, 10.0, 0.1)
+    schema = ScalarSchema{Float64}(false)
+
+    exact_leaves = [SamplePayload(; schema = schema, samples = [1.0, 2.0, 3.0]) for _ = 1:4]
+    exact_tree = Tree(exact_leaves; b = 2, schema = schema)
+    comp_tree = compress(exact_tree, cfg)
+
+    sub = range_query(comp_tree, 1, 2)
+    @test sub.sketch.count == 6
+end
+
+@testitem "exact_tail_mean: fractional boundary mass (REQ-6)" begin
+    using Tray: exact_tail_mean
+
+    result = exact_tail_mean([1.0, 2.0, 3.0, 4.0, 5.0], 0.75)
+    @test result ≈ 4.8
+end
+
+@testitem "CompressedSamplePayload: equality and hashing" begin
+    using Tray: SketchConfig, CompressedSamplePayload
+
+    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
+    a = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0], config = cfg)
+    b = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0], config = cfg)
+    c = CompressedSamplePayload(; samples = [1.0, 2.0, 4.0], config = cfg)
+
+    @test a == b
+    @test hash(a) == hash(b)
+    @test a != c
+end

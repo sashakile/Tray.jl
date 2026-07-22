@@ -13,6 +13,17 @@ Exports:
 - `dataset_revision` — extract revision from a SamplePayload tree
 - `AlignedProjectionError` — thrown on misaligned projection inputs
 - `MomentQuantileResult` — result struct for moment-based quantile
+- `SketchConfig` — configuration for fixed-bin histogram sketch
+- `HistogramSketch` — fixed-bin sketch with aligned-sum combine
+- `CompressedSamplePayload` — tree payload using a sketch
+- `compress` — compress exact samples into a sketch
+- `sketch_quantile` — approximate quantile with rank-error bound
+- `sketch_tail_mean` — approximate upper-tail mean
+- `exact_quantile` — exact empirical quantile
+- `exact_tail_mean` — exact upper-tail mean
+- `ApproximateResult` — result with error provenance
+- `SketchConfigError` — invalid sketch configuration
+- `SketchStorageError` — storage bound exceeded
 """
 module SampleAnalytics
 
@@ -26,7 +37,18 @@ export SamplePayload,
     regenerate_samples,
     dataset_revision,
     AlignedProjectionError,
-    MomentQuantileResult
+    MomentQuantileResult,
+    SketchConfig,
+    HistogramSketch,
+    CompressedSamplePayload,
+    compress,
+    sketch_quantile,
+    sketch_tail_mean,
+    exact_quantile,
+    exact_tail_mean,
+    ApproximateResult,
+    SketchConfigError,
+    SketchStorageError
 
 # ---------------------------------------------------------------------------
 # Dataset revision constant
@@ -767,6 +789,744 @@ function moment_quantile(p::Real, summary::ScalarSummary{T}) where {T}
     γ₂ = σ² > 0 ? m4_central / σ²^2 - 3 : zero(T)  # excess kurtosis
 
     return moment_quantile(p, μ, σ², γ₁, γ₂)
+end
+
+# ---------------------------------------------------------------------------
+# REQ-21: Sketch compression — SketchConfig and HistogramSketch
+# ---------------------------------------------------------------------------
+
+"""
+    SketchConfig
+
+Configuration for a fixed-bin histogram sketch. The sketch divides the value
+range into `n_bins` equal-width bins between `vmin` and `vmax`, with a
+declared rank-error bound `epsilon`.
+
+- `config_id` — unique identifier for this configuration
+- `n_bins` — number of bins (positive integer)
+- `vmin`, `vmax` — value range (finite, vmin < vmax)
+- `epsilon` — rank-error bound, 0 < epsilon ≤ 1
+
+Bins are indexed 1..n_bins. Values below vmin or above vmax are clamped to
+the nearest bin edge.
+
+See REQ-21, REQ-44.
+"""
+struct SketchConfig
+    config_id::Int
+    n_bins::Int
+    vmin::Float64
+    vmax::Float64
+    epsilon::Float64
+
+    function SketchConfig(
+        config_id::Int,
+        n_bins::Int,
+        vmin::Float64,
+        vmax::Float64,
+        epsilon::Float64,
+    )
+        n_bins >= 2 || throw(SketchConfigError("n_bins must be ≥ 2, got $n_bins"))
+        isfinite(vmin) || throw(SketchConfigError("vmin must be finite, got $vmin"))
+        isfinite(vmax) || throw(SketchConfigError("vmax must be finite, got $vmax"))
+        vmin < vmax || throw(SketchConfigError("vmin ($vmin) must be < vmax ($vmax)"))
+        0 < epsilon <= 1 ||
+            throw(SketchConfigError("epsilon must be in (0, 1], got $epsilon"))
+        return new(config_id, n_bins, vmin, vmax, epsilon)
+    end
+end
+
+"""
+    SketchConfigError <: Exception
+
+Thrown when a sketch configuration is invalid.
+"""
+struct SketchConfigError <: Exception
+    message::String
+end
+Base.showerror(io::IO, e::SketchConfigError) = print(io, "SketchConfigError: ", e.message)
+
+"""
+    SketchStorageError <: Exception
+
+Thrown when a sketch storage bound is exceeded (REQ-44).
+"""
+struct SketchStorageError <: Exception
+    message::String
+end
+Base.showerror(io::IO, e::SketchStorageError) = print(io, "SketchStorageError: ", e.message)
+
+Base.:(==)(a::SketchConfig, b::SketchConfig) =
+    a.config_id == b.config_id &&
+    a.n_bins == b.n_bins &&
+    a.vmin == b.vmin &&
+    a.vmax == b.vmax &&
+    a.epsilon == b.epsilon
+
+function Base.hash(a::SketchConfig, h::UInt)
+    return hash(a.epsilon, hash(a.vmax, hash(a.vmin, hash(a.n_bins, hash(a.config_id, h)))))
+end
+
+function Base.show(io::IO, c::SketchConfig)
+    print(
+        io,
+        "SketchConfig(id=$(c.config_id), $(c.n_bins) bins, [$(c.vmin), $(c.vmax)], ε=$(c.epsilon))",
+    )
+end
+
+"""
+    HistogramSketch{T}
+
+A fixed-bin histogram sketch that supports aligned-sum combination.
+
+- `counts` — bin count vector of length n_bins (each bin is a fixed-width interval)
+- `config` — the associated SketchConfig
+- `count` — total number of values added to the sketch
+- `min_val`, `max_val` — observed minimum and maximum values
+
+For aligned-sum (REQ-21): `sketch(a + b) ≈ sketch(a) ⊕ sketch(b)` where
+`⊕` is bin-wise addition of counts. This is exact for the histogram of the
+sum when bins are aligned to the same value range.
+
+Quantiles are estimated by linear interpolation within bins.
+Storage is bounded by `config.n_bins` regardless of leaf count (REQ-44).
+
+See REQ-21, REQ-22, REQ-44.
+"""
+mutable struct HistogramSketch{T}
+    config::SketchConfig
+    counts::Vector{T}
+    count::Int
+    min_val::T
+    max_val::T
+
+    function HistogramSketch{T}(
+        config::SketchConfig,
+        counts::Vector{T},
+        count::Int,
+        min_val::T,
+        max_val::T,
+    ) where {T}
+        length(counts) == config.n_bins || throw(
+            ArgumentError(
+                "HistogramSketch: expected $(config.n_bins) bins, got $(length(counts))",
+            ),
+        )
+        count >= 0 || throw(ArgumentError("HistogramSketch: count must be ≥ 0, got $count"))
+        all(x -> x >= 0, counts) ||
+            throw(ArgumentError("HistogramSketch: all counts must be non-negative"))
+        return new{T}(config, counts, count, min_val, max_val)
+    end
+end
+
+"""
+    HistogramSketch(config::SketchConfig)
+
+Create an empty HistogramSketch (all counts zero).
+"""
+function HistogramSketch(config::SketchConfig)
+    T = Float64
+    counts = zeros(T, config.n_bins)
+    return HistogramSketch{T}(config, counts, 0, T(Inf), T(-Inf))
+end
+
+# Bin index for a value
+function _bin_index(config::SketchConfig, value::Float64)
+    if value <= config.vmin
+        return 1
+    elseif value >= config.vmax
+        return config.n_bins
+    end
+    bin_width = (config.vmax - config.vmin) / config.n_bins
+    idx = Int(floor((value - config.vmin) / bin_width)) + 1
+    return clamp(idx, 1, config.n_bins)
+end
+
+"""
+    add_value!(sketch::HistogramSketch{T}, value::T)
+
+Add a single value to the histogram sketch.
+"""
+function add_value!(sketch::HistogramSketch{T}, value::T) where {T}
+    idx = _bin_index(sketch.config, Float64(value))
+    sketch.counts[idx] += 1
+    sketch.count += 1
+    if value < sketch.min_val
+        sketch.min_val = value
+    end
+    if value > sketch.max_val
+        sketch.max_val = value
+    end
+    return nothing
+end
+
+"""
+    combine(a::HistogramSketch{T}, b::HistogramSketch{T}) -> HistogramSketch{T}
+
+Aligned-sum combination: bin-wise addition of counts (REQ-21).
+Configurations must match exactly.
+
+Raises `ArgumentError` if configs differ.
+"""
+function TrayBase.combine(a::HistogramSketch{T}, b::HistogramSketch{T}) where {T}
+    a.config == b.config ||
+        throw(ArgumentError("HistogramSketch: config mismatch — cannot combine"))
+
+    combined_counts = a.counts .+ b.counts
+    combined_count = a.count + b.count
+    min_val = min(a.min_val, b.min_val)
+    max_val = max(a.max_val, b.max_val)
+
+    return HistogramSketch{T}(a.config, combined_counts, combined_count, min_val, max_val)
+end
+
+function Base.:(==)(a::HistogramSketch{T}, b::HistogramSketch{T}) where {T}
+    return a.config == b.config &&
+           a.counts == b.counts &&
+           a.count == b.count &&
+           a.min_val == b.min_val &&
+           a.max_val == b.max_val
+end
+Base.:(==)(a::HistogramSketch, b::HistogramSketch) = false
+
+function Base.hash(a::HistogramSketch{T}, h::UInt) where {T}
+    return hash(
+        a.config,
+        hash(a.counts, hash(a.count, hash(a.min_val, hash(a.max_val, h)))),
+    )
+end
+
+function Base.show(io::IO, s::HistogramSketch{T}) where {T}
+    print(
+        io,
+        "HistogramSketch{$T}(",
+        s.count,
+        " vals, ",
+        s.config.n_bins,
+        " bins, ε=",
+        s.config.epsilon,
+        ")",
+    )
+end
+
+# ---------------------------------------------------------------------------
+# REQ-21: CompressedSamplePayload
+# ---------------------------------------------------------------------------
+
+"""
+    CompressedSamplePayload{T}
+
+A tree payload that stores a compressed sketch of sample values instead of
+the exact sample vector. Sketch storage is bounded by `config.n_bins`
+regardless of subtree leaf count (REQ-44).
+
+- `sketch` — the histogram sketch
+- `scalar_summary` — ScalarSummary for fast scalar queries (count, sum, etc.)
+- `dataset_revision` — revision counter
+- `config_id` — sketch config identifier
+
+For combination (REQ-21):
+- Exact+Exact → stays exact (SamplePayload)
+- Exact+Compressed → Compressed (promote exact to compressed, then combine)
+- Compressed+Compressed → Compressed (sketch combine)
+
+See REQ-21, REQ-44.
+"""
+struct CompressedSamplePayload{T}
+    sketch::HistogramSketch{T}
+    scalar_summary::ScalarSummary{T}
+    dataset_revision::Int
+    config_id::Int
+
+    function CompressedSamplePayload{T}(
+        sketch::HistogramSketch{T},
+        scalar_summary::ScalarSummary{T},
+        dataset_revision::Int,
+        config_id::Int,
+    ) where {T}
+        return new{T}(sketch, scalar_summary, dataset_revision, config_id)
+    end
+end
+
+function CompressedSamplePayload(
+    sketch::HistogramSketch{T},
+    scalar_summary::ScalarSummary{T},
+    dataset_revision::Int = INITIAL_REVISION,
+) where {T}
+    return CompressedSamplePayload{T}(
+        sketch,
+        scalar_summary,
+        dataset_revision,
+        sketch.config.config_id,
+    )
+end
+
+"""
+    CompressedSamplePayload(; samples, config, dataset_revision)
+
+Convenience constructor: compress raw samples into a CompressedSamplePayload.
+"""
+function CompressedSamplePayload(;
+    samples::Vector{T},
+    config::SketchConfig,
+    dataset_revision::Int = INITIAL_REVISION,
+) where {T}
+    isempty(samples) &&
+        throw(ArgumentError("CompressedSamplePayload: samples must be non-empty"))
+    all(isfinite, samples) ||
+        throw(ArgumentError("CompressedSamplePayload: all sample values must be finite"))
+
+    # Build the sketch
+    sketch = HistogramSketch(config)
+    for v in samples
+        add_value!(sketch, Float64(v))
+    end
+
+    # Build scalar summary
+    schema = ScalarSchema{T}(false)
+    count = length(samples)
+    s = sum(samples)
+    sq = sum(x -> x^2, samples)
+    mn = minimum(samples)
+    mx = maximum(samples)
+    summary = ScalarSummary(;
+        schema = schema,
+        count = count,
+        sum = s,
+        sumsq = sq,
+        minimum = mn,
+        maximum = mx,
+    )
+
+    return CompressedSamplePayload{T}(sketch, summary, dataset_revision, config.config_id)
+end
+
+"""
+    compress(payload::SamplePayload{T}, config::SketchConfig) -> CompressedSamplePayload{T}
+
+Compress an exact SamplePayload into a CompressedSamplePayload using the
+given sketch configuration.
+
+See REQ-21.
+"""
+function compress(payload::SamplePayload{T}, config::SketchConfig) where {T}
+    sketch = HistogramSketch(config)
+    for v in payload.samples
+        add_value!(sketch, Float64(v))
+    end
+    return CompressedSamplePayload{T}(
+        sketch,
+        payload.summary,
+        payload.dataset_revision,
+        config.config_id,
+    )
+end
+
+"""
+    compress(tree::Tree{<:SamplePayload{T}}, config::SketchConfig) -> Tree{<:CompressedSamplePayload{T}}
+
+Compress all leaves in a SamplePayload tree into CompressedSamplePayloads.
+Returns a new tree with the same topology.
+
+See REQ-21.
+"""
+function compress(tree::Tree{<:SamplePayload{T}}, config::SketchConfig) where {T}
+    new_leaves = [compress(leaf, config) for leaf in tree.levels[1]]
+    return Tree(new_leaves; b = tree.b, schema = tree.schema)
+end
+
+# ---------------------------------------------------------------------------
+# REQ-21: CompressedSamplePayload combine
+# ---------------------------------------------------------------------------
+
+"""
+    combine(a::CompressedSamplePayload{T}, b::CompressedSamplePayload{T}) -> CompressedSamplePayload{T}
+
+Combine two compressed payloads by merging their sketches (aligned-sum).
+Configs must match. Revisions must match (REQ-20).
+
+See REQ-21.
+"""
+function TrayBase.combine(
+    a::CompressedSamplePayload{T},
+    b::CompressedSamplePayload{T},
+) where {T}
+    # Reject cross-revision (REQ-20)
+    if a.dataset_revision != b.dataset_revision
+        throw(
+            ArgumentError(
+                "CompressedSamplePayload: cannot combine different revisions " *
+                "($(a.dataset_revision) vs $(b.dataset_revision)); REQ-20",
+            ),
+        )
+    end
+
+    # Reject cross-config (REQ-21: same configuration)
+    if a.config_id != b.config_id
+        throw(
+            ArgumentError(
+                "CompressedSamplePayload: cannot combine different configs " *
+                "($(a.config_id) vs $(b.config_id)); REQ-21",
+            ),
+        )
+    end
+
+    combined_sketch = TrayBase.combine(a.sketch, b.sketch)
+    combined_summary = TrayBase.combine(a.scalar_summary, b.scalar_summary)
+
+    return CompressedSamplePayload{T}(
+        combined_sketch,
+        combined_summary,
+        a.dataset_revision,
+        a.config_id,
+    )
+end
+
+# Fallback for mismatched types
+function TrayBase.combine(a::CompressedSamplePayload, b::CompressedSamplePayload)
+    throw(
+        ArgumentError(
+            "CompressedSamplePayload type mismatch: $(typeof(a)) vs $(typeof(b))",
+        ),
+    )
+end
+
+"""
+    identity(schema::ScalarSchema{T}, config::SketchConfig) -> CompressedSamplePayload{T}
+
+Return the identity CompressedSamplePayload: empty sketch, zero summary.
+"""
+function TrayBase.identity(schema::ScalarSchema{T}, config::SketchConfig) where {T}
+    sketch = HistogramSketch(config)
+    summary = TrayBase.identity(schema)
+    return CompressedSamplePayload{T}(sketch, summary, INITIAL_REVISION, config.config_id)
+end
+
+"""
+    TrayBase.identity(schema::ScalarSchema{T}, ::Type{CompressedSamplePayload{T}}, prototype::CompressedSamplePayload{T}) -> CompressedSamplePayload{T}
+
+Prototype-based identity for tree construction.
+"""
+function TrayBase.identity(
+    schema::ScalarSchema{T},
+    ::Type{CompressedSamplePayload{T}},
+    prototype::CompressedSamplePayload{T},
+) where {T}
+    sketch = HistogramSketch(prototype.sketch.config)
+    summary = TrayBase.identity(schema)
+    return CompressedSamplePayload{T}(
+        sketch,
+        summary,
+        prototype.dataset_revision,
+        prototype.config_id,
+    )
+end
+
+function Base.:(==)(a::CompressedSamplePayload{T}, b::CompressedSamplePayload{T}) where {T}
+    return a.sketch == b.sketch &&
+           a.scalar_summary == b.scalar_summary &&
+           a.dataset_revision == b.dataset_revision &&
+           a.config_id == b.config_id
+end
+Base.:(==)(a::CompressedSamplePayload, b::CompressedSamplePayload) = false
+
+function Base.hash(a::CompressedSamplePayload{T}, h::UInt) where {T}
+    return hash(
+        a.sketch,
+        hash(a.scalar_summary, hash(a.dataset_revision, hash(a.config_id, h))),
+    )
+end
+
+function Base.show(io::IO, p::CompressedSamplePayload{T}) where {T}
+    print(
+        io,
+        "CompressedSamplePayload{$T}(",
+        p.sketch.count,
+        " vals, config=",
+        p.config_id,
+        ", rev=",
+        p.dataset_revision,
+        ")",
+    )
+end
+
+# ---------------------------------------------------------------------------
+# REQ-6: Exact quantile and tail-mean
+# ---------------------------------------------------------------------------
+
+"""
+    exact_quantile(samples::Vector{T}, p::Real) -> T
+
+Compute the exact empirical quantile of `samples` at probability `p`.
+
+Uses the nearest-rank definition: `q_p = sorted[ceil(p * S)]`.
+Raises `DomainError` if `p` is not in (0, 1] or samples is empty.
+
+See REQ-6.
+"""
+function exact_quantile(samples::Vector{T}, p::Real) where {T}
+    isempty(samples) && throw(DomainError(p, "exact_quantile: samples must be non-empty"))
+    0 < p <= 1 || throw(DomainError(p, "exact_quantile: p must be in (0, 1]"))
+
+    sorted = sort(samples)
+    S = length(sorted)
+    idx = max(1, ceil(Int, p * S))
+    return sorted[idx]
+end
+
+"""
+    exact_quantile(payload::SamplePayload{T}, p::Real) -> T
+
+Compute the exact empirical quantile from a SamplePayload's sample vector.
+
+See REQ-6.
+"""
+function exact_quantile(payload::SamplePayload{T}, p::Real) where {T}
+    return exact_quantile(payload.samples, p)
+end
+
+"""
+    exact_tail_mean(samples::Vector{T}, p::Real) -> T
+
+Compute the exact upper-tail mean: `(1/(1-p)) ∫_p^1 q_u(x) du`.
+
+For discrete samples, this is the mean of the upper `ceil((1-p) * S)`
+samples, weighted by the fractional boundary mass.
+
+Raises `DomainError` if `p` is not in [0, 1) or samples is empty.
+
+See REQ-6.
+"""
+function exact_tail_mean(samples::Vector{T}, p::Real) where {T}
+    isempty(samples) && throw(DomainError(p, "exact_tail_mean: samples must be non-empty"))
+    0 <= p < 1 || throw(DomainError(p, "exact_tail_mean: p must be in [0, 1)"))
+
+    sorted = sort(samples)
+    S = length(sorted)
+
+    if p == 0
+        return sum(sorted) / S  # full mean
+    end
+
+    S_upper = S - floor(Int, p * S)  # number of samples in upper tail
+    S_upper >= 1 || return sorted[end]  # at least the max
+
+    # Fractional boundary mass: the fraction of the boundary sample included
+    boundary_idx = floor(Int, p * S) + 1
+    boundary_frac = 1 - ((p * S) - floor(Int, p * S))
+
+    # Compute tail sum: fractional boundary + full upper samples
+    tail_sum = boundary_frac * sorted[boundary_idx]
+    for i = (boundary_idx+1):S
+        tail_sum += sorted[i]
+    end
+
+    # Effective count = (1-p) * S
+    effective_count = (1 - p) * S
+    return tail_sum / effective_count
+end
+
+"""
+    exact_tail_mean(payload::SamplePayload{T}, p::Real) -> T
+
+Compute the exact upper-tail mean from a SamplePayload.
+
+See REQ-6.
+"""
+function exact_tail_mean(payload::SamplePayload{T}, p::Real) where {T}
+    return exact_tail_mean(payload.samples, p)
+end
+
+# ---------------------------------------------------------------------------
+# REQ-21, REQ-22, REQ-32: ApproximateResult and sketch quantile/tail-mean
+# ---------------------------------------------------------------------------
+
+"""
+    ApproximateResult{T}
+
+Result of an approximate quantile or tail-mean query from a sketch.
+
+- `value` — the estimated value
+- `approximate::Bool` — always `true`
+- `p` — the requested probability
+- `rank_error_bound` — cumulative absolute rank-error bound, min(1, Σε) (REQ-22)
+- `config_id` — sketch configuration provenance
+- `tail_mean_uncertainty` — for tail mean, the rank-uncertainty envelope (nothing if unavailable)
+
+See REQ-22, REQ-32.
+"""
+struct ApproximateResult{T}
+    value::T
+    approximate::Bool
+    p::T
+    rank_error_bound::T
+    config_id::Int
+    tail_mean_uncertainty::Union{Nothing,T}
+end
+
+function ApproximateResult(
+    value::T,
+    p::Real,
+    rank_error_bound::Real,
+    config_id::Int,
+) where {T}
+    return ApproximateResult{T}(
+        T(value),
+        true,
+        T(p),
+        T(rank_error_bound),
+        config_id,
+        nothing,
+    )
+end
+
+function Base.show(io::IO, r::ApproximateResult{T}) where {T}
+    print(
+        io,
+        "ApproximateResult($(r.value), p=$(r.p), ε=$(r.rank_error_bound), " *
+        "config=$(r.config_id))",
+    )
+end
+
+# Estimate quantile from a histogram sketch
+function _sketch_quantile(sketch::HistogramSketch{T}, p::Float64) where {T}
+    sketch.count > 0 || throw(DomainError(p, "sketch_quantile: sketch is empty"))
+    0 < p <= 1 || throw(DomainError(p, "sketch_quantile: p must be in (0, 1]"))
+
+    config = sketch.config
+    target_rank = p * sketch.count
+    cumulative = 0
+
+    bin_width = (config.vmax - config.vmin) / config.n_bins
+
+    for i = 1:config.n_bins
+        prev_cumulative = cumulative
+        cumulative += sketch.counts[i]
+
+        if target_rank <= cumulative
+            # Found the bin: linear interpolation
+            bin_lo = config.vmin + (i - 1) * bin_width
+            bin_hi = config.vmin + i * bin_width
+
+            # Fraction within this bin
+            if sketch.counts[i] > 0
+                frac = (target_rank - max(prev_cumulative - 1, 0)) / sketch.counts[i]
+            else
+                frac = 0.5
+            end
+
+            # Interpolate within bin, clamp to observed min/max
+            value = bin_lo + frac * (bin_hi - bin_lo)
+            return clamp(value, sketch.min_val, sketch.max_val)
+        end
+    end
+
+    # Should not reach here for p <= 1
+    return sketch.max_val
+end
+
+"""
+    sketch_quantile(sketch::HistogramSketch{T}, p::Real) -> ApproximateResult{T}
+
+Estimate a quantile from a histogram sketch with rank-error bound.
+
+Returns an `ApproximateResult` with:
+- The estimated quantile value
+- `approximate = true`
+- Cumulative rank-error bound: `min(1, config.epsilon)`
+- Configuration provenance
+
+See REQ-21, REQ-22.
+"""
+function sketch_quantile(sketch::HistogramSketch{T}, p::Real) where {T}
+    value = _sketch_quantile(sketch, Float64(p))
+    # Single-sketch error bound: epsilon is the rank error per sketch
+    error_bound = min(1.0, Float64(sketch.config.epsilon))
+    return ApproximateResult(value, p, error_bound, sketch.config.config_id)
+end
+
+"""
+    sketch_quantile(payload::CompressedSamplePayload{T}, p::Real) -> ApproximateResult{T}
+
+Estimate a quantile from a CompressedSamplePayload's sketch.
+
+See REQ-32.
+"""
+function sketch_quantile(payload::CompressedSamplePayload{T}, p::Real) where {T}
+    return sketch_quantile(payload.sketch, p)
+end
+
+"""
+    sketch_tail_mean(sketch::HistogramSketch{T}, p::Real) -> ApproximateResult{T}
+
+Estimate the upper-tail mean from a histogram sketch.
+
+Integrates the quantile function over [p, 1] using the sketch bins.
+The rank-uncertainty envelope is computed from the bin-width.
+
+See REQ-22.
+"""
+function sketch_tail_mean(sketch::HistogramSketch{T}, p::Real) where {T}
+    sketch.count > 0 || throw(DomainError(p, "sketch_tail_mean: sketch is empty"))
+    0 <= p < 1 || throw(DomainError(p, "sketch_tail_mean: p must be in [0, 1)"))
+
+    config = sketch.config
+    bin_width = (config.vmax - config.vmin) / config.n_bins
+
+    # Integrate quantile function over [p, 1]
+    tail_sum = 0.0
+    tail_count = 0
+    start_rank = p * sketch.count
+
+    cumulative = 0
+    for i = 1:config.n_bins
+        prev_cumulative = cumulative
+        cumulative += sketch.counts[i]
+
+        bin_lo = config.vmin + (i - 1) * bin_width
+        bin_hi = config.vmin + i * bin_width
+
+        if cumulative > start_rank
+            # This bin is partially or fully in the tail
+            bin_start = max(prev_cumulative, start_rank)
+            bin_contrib = cumulative - bin_start
+
+            if bin_contrib > 0
+                # Midpoint of bin as approximation
+                bin_mid = (bin_lo + bin_hi) / 2
+                tail_sum += bin_mid * bin_contrib
+                tail_count += bin_contrib
+            end
+        end
+    end
+
+    tail_count > 0 || throw(DomainError(p, "sketch_tail_mean: no values in tail region"))
+
+    value = tail_sum / tail_count
+
+    # Rank-uncertainty envelope: half bin width (conservative)
+    uncertainty = bin_width / 2
+    error_bound = min(1.0, Float64(config.epsilon))
+
+    return ApproximateResult{T}(
+        T(value),
+        true,
+        T(p),
+        T(error_bound),
+        config.config_id,
+        T(uncertainty),
+    )
+end
+
+"""
+    sketch_tail_mean(payload::CompressedSamplePayload{T}, p::Real) -> ApproximateResult{T}
+
+Estimate the upper-tail mean from a CompressedSamplePayload.
+
+See REQ-32.
+"""
+function sketch_tail_mean(payload::CompressedSamplePayload{T}, p::Real) where {T}
+    return sketch_tail_mean(payload.sketch, p)
 end
 
 end # module SampleAnalytics

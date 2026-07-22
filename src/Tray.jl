@@ -106,7 +106,18 @@ import .SampleAnalytics:
     regenerate_samples,
     dataset_revision,
     AlignedProjectionError,
-    MomentQuantileResult
+    MomentQuantileResult,
+    SketchConfig,
+    HistogramSketch,
+    CompressedSamplePayload,
+    compress,
+    sketch_quantile,
+    sketch_tail_mean,
+    exact_quantile,
+    exact_tail_mean,
+    ApproximateResult,
+    SketchConfigError,
+    SketchStorageError
 export SamplePayload,
     project_samples,
     moment_quantile,
@@ -114,6 +125,17 @@ export SamplePayload,
     regenerate_samples,
     dataset_revision,
     AlignedProjectionError,
-    MomentQuantileResult
+    MomentQuantileResult,
+    SketchConfig,
+    HistogramSketch,
+    CompressedSamplePayload,
+    compress,
+    sketch_quantile,
+    sketch_tail_mean,
+    exact_quantile,
+    exact_tail_mean,
+    ApproximateResult,
+    SketchConfigError,
+    SketchStorageError
 
 end # module Tray
