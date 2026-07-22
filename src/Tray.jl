@@ -4,6 +4,7 @@ include("base.jl")
 include("scalar_summary.jl")
 include("attribution_payload.jl")
 include("core.jl")
+include("axes.jl")
 include("incremental.jl")
 
 # Export core interface
@@ -77,6 +78,10 @@ export combine, identity, reweight
 
 # Structural mutation exports
 export insert!, insert, remove!, remove, reweight_subtree
+
+# Axes exports
+export AxisMap,
+    AxisIndex, MultiAxisSet, register_axis!, update_axis_map!, get_leaf_ids, intersect_axes
 
 # Lazy tag exports
 export LazyTag,

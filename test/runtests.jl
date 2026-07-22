@@ -5457,3 +5457,537 @@ end
     )
     @test root(result_tree) == canonical_root
 end
+
+## ---------------------------------------------------------------------------
+## Multidimensional axes and intersections (TRAYS-x38: REQ-8, REQ-25, REQ-39)
+## ---------------------------------------------------------------------------
+
+@testitem "AxisMap: construction with node-to-leaves mapping" begin
+    using Tray: AxisMap
+
+    node_to_leaves = Dict("electronics" => [1, 3, 5], "clothing" => [2, 4, 6])
+    am = AxisMap(node_to_leaves)
+
+    @test am.node_to_leaves["electronics"] == [1, 3, 5]
+    @test am.node_to_leaves["clothing"] == [2, 4, 6]
+    @test am.revision == 1
+    @test am.leaf_membership[1] == ["electronics"]
+    @test am.leaf_membership[2] == ["clothing"]
+end
+
+@testitem "AxisMap: leaf membership reverse map" begin
+    using Tray: AxisMap
+
+    # Leaf 3 belongs to both categories
+    node_to_leaves = Dict("a" => [1, 3], "b" => [2, 3])
+    am = AxisMap(node_to_leaves)
+
+    @test sort(am.leaf_membership[3]) == ["a", "b"]
+end
+
+@testitem "AxisMap: rejects invalid leaf IDs" begin
+    using Tray: AxisMap
+
+    @test_throws ArgumentError AxisMap(Dict("bad" => [0, 1]))
+end
+
+@testitem "MultiAxisSet: register and query an axis (REQ-8)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        root,
+        leaf_count,
+        identity,
+        combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 1.0,
+            sumsq = 1.0,
+            minimum = 1.0,
+            maximum = 1.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 4.0,
+            sumsq = 16.0,
+            minimum = 4.0,
+            maximum = 4.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    # Register a category axis
+    cat_map = AxisMap(Dict("groceries" => [1, 3], "utilities" => [2, 4]))
+    axis = register_axis!(mas, "category", cat_map)
+
+    @test axis.name == "category"
+    @test axis.revision == 1
+    @test leaf_count(axis.tree) == 4
+    @test haskey(mas.axes, "category")
+end
+
+@testitem "MultiAxisSet: register two axes sharing leaves (REQ-8)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        get_leaf_ids
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 1.0,
+            sumsq = 1.0,
+            minimum = 1.0,
+            maximum = 1.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 4.0,
+            sumsq = 16.0,
+            minimum = 4.0,
+            maximum = 4.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 6.0,
+            sumsq = 36.0,
+            minimum = 6.0,
+            maximum = 6.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    cat_map = AxisMap(Dict("food" => [1, 3, 5], "tools" => [2, 4, 6]))
+    register_axis!(mas, "category", cat_map)
+
+    time_map = AxisMap(Dict("Q1" => [1, 2], "Q2" => [3, 4], "Q3" => [5, 6]))
+    register_axis!(mas, "time", time_map)
+
+    @test haskey(mas.axes, "category")
+    @test haskey(mas.axes, "time")
+    @test get_leaf_ids(mas.axes["category"], "food") == [1, 3, 5]
+    @test get_leaf_ids(mas.axes["time"], "Q2") == [3, 4]
+end
+
+@testitem "MultiAxisSet: register rejects duplicate axis name" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, MultiAxisSet, AxisMap, register_axis!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+        schema = schema,
+    )
+    t = Tree([leaf]; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    register_axis!(mas, "cat", AxisMap(Dict("a" => [1])))
+    @test_throws ArgumentError register_axis!(mas, "cat", AxisMap(Dict("b" => [1])))
+end
+
+@testitem "MultiAxisSet: update axis map independently (REQ-25)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        update_axis_map!,
+        get_leaf_ids
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 1.0,
+            sumsq = 1.0,
+            minimum = 1.0,
+            maximum = 1.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 4.0,
+            sumsq = 16.0,
+            minimum = 4.0,
+            maximum = 4.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    cat_map = AxisMap(Dict("food" => [1, 3], "tools" => [2, 4]))
+    register_axis!(mas, "category", cat_map)
+
+    new_cat_map = AxisMap(Dict("food" => [1, 2], "tools" => [3, 4]))
+    old_revision = mas.axes["category"].revision
+    update_axis_map!(mas, "category", new_cat_map)
+
+    @test mas.axes["category"].revision == old_revision + 1
+    @test get_leaf_ids(mas.axes["category"], "food") == [1, 2]
+    @test get_leaf_ids(mas.axes["category"], "tools") == [3, 4]
+end
+
+@testitem "MultiAxisSet: intersect axes across categories and time (REQ-39)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        intersect_axes,
+        identity,
+        combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 10.0,
+            sumsq = 100.0,
+            minimum = 10.0,
+            maximum = 10.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 20.0,
+            sumsq = 400.0,
+            minimum = 20.0,
+            maximum = 20.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 30.0,
+            sumsq = 900.0,
+            minimum = 30.0,
+            maximum = 30.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 40.0,
+            sumsq = 1600.0,
+            minimum = 40.0,
+            maximum = 40.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 50.0,
+            sumsq = 2500.0,
+            minimum = 50.0,
+            maximum = 50.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 60.0,
+            sumsq = 3600.0,
+            minimum = 60.0,
+            maximum = 60.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    cat_map = AxisMap(Dict("electronics" => [1, 3, 5], "clothing" => [2, 4, 6]))
+    register_axis!(mas, "category", cat_map)
+
+    time_map = AxisMap(Dict("Q1" => [1, 2], "Q2" => [3, 4], "Q3" => [5, 6]))
+    register_axis!(mas, "time", time_map)
+
+    # Query: electronics in Q2 → leaves [3] (sum=30)
+    result = intersect_axes(mas, [("category", "electronics"), ("time", "Q2")])
+    expected = combine(identity(schema), leaves[3])
+    @test result == expected
+end
+
+@testitem "MultiAxisSet: intersect with multiple ids in range (REQ-39)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        intersect_axes,
+        identity,
+        combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 10.0,
+            sumsq = 100.0,
+            minimum = 10.0,
+            maximum = 10.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 20.0,
+            sumsq = 400.0,
+            minimum = 20.0,
+            maximum = 20.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 30.0,
+            sumsq = 900.0,
+            minimum = 30.0,
+            maximum = 30.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 40.0,
+            sumsq = 1600.0,
+            minimum = 40.0,
+            maximum = 40.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 50.0,
+            sumsq = 2500.0,
+            minimum = 50.0,
+            maximum = 50.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 60.0,
+            sumsq = 3600.0,
+            minimum = 60.0,
+            maximum = 60.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    cat_map = AxisMap(Dict("elec" => [1, 3, 5], "cloth" => [2, 4, 6]))
+    register_axis!(mas, "category", cat_map)
+
+    time_map = AxisMap(Dict("early" => [1, 2, 3], "late" => [4, 5, 6]))
+    register_axis!(mas, "time", time_map)
+
+    # elec ∩ early = [1, 3] → sum=10+30=40
+    result = intersect_axes(mas, [("category", "elec"), ("time", "early")])
+    expected = combine(combine(identity(schema), leaves[1]), leaves[3])
+    @test result == expected
+end
+
+@testitem "MultiAxisSet: intersect three axes (REQ-39)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        intersect_axes,
+        identity,
+        combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 10.0,
+            sumsq = 100.0,
+            minimum = 10.0,
+            maximum = 10.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 20.0,
+            sumsq = 400.0,
+            minimum = 20.0,
+            maximum = 20.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 30.0,
+            sumsq = 900.0,
+            minimum = 30.0,
+            maximum = 30.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 40.0,
+            sumsq = 1600.0,
+            minimum = 40.0,
+            maximum = 40.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 50.0,
+            sumsq = 2500.0,
+            minimum = 50.0,
+            maximum = 50.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    region_map = AxisMap(Dict("north" => [1, 2], "south" => [3, 4, 5]))
+    register_axis!(mas, "region", region_map)
+
+    cat_map = AxisMap(Dict("elec" => [1, 3, 5], "cloth" => [2, 4]))
+    register_axis!(mas, "category", cat_map)
+
+    time_map = AxisMap(Dict("q1" => [1, 2], "q2" => [3, 4], "q3" => [5]))
+    register_axis!(mas, "time", time_map)
+
+    # South ∩ Elec ∩ Q2 = [3] (sum=30)
+    result =
+        intersect_axes(mas, [("region", "south"), ("category", "elec"), ("time", "q2")])
+    expected = combine(identity(schema), leaves[3])
+    @test result == expected
+end
+
+@testitem "MultiAxisSet: intersect rejects unknown axis (REQ-39)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        intersect_axes
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+        schema = schema,
+    )
+    t = Tree([leaf]; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    register_axis!(mas, "cat", AxisMap(Dict("a" => [1])))
+
+    @test_throws ArgumentError intersect_axes(mas, [("cat", "a"), ("unknown", "x")])
+end
+
+@testitem "MultiAxisSet: intersect rejects unknown node" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        intersect_axes
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+        schema = schema,
+    )
+    t = Tree([leaf]; b = 2, schema)
+    mas = MultiAxisSet(t)
+
+    register_axis!(mas, "cat", AxisMap(Dict("a" => [1])))
+
+    @test_throws ArgumentError intersect_axes(mas, [("cat", "nonexistent")])
+end
