@@ -188,7 +188,7 @@ Base.:(==)(a::ScalarSchema, b::ScalarSchema) = false
     hash(a::ScalarSchema, h::UInt) -> UInt
 
 """
-function Base.hash(a::ScalarSchema, h::UInt)
+function Base.hash(a::ScalarSchema{T}, h::UInt) where {T}
     return hash(a.higher_moment, hash(T, h))
 end
 

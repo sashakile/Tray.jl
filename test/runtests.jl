@@ -6089,3 +6089,532 @@ end
 
     @test_throws ArgumentError intersect_axes(mas, [("cat", "nonexistent")])
 end
+
+## ---------------------------------------------------------------------------
+## SamplePayload focused tests (TRAYS-t3f: REQ-20, REQ-28, REQ-30)
+## ---------------------------------------------------------------------------
+
+@testitem "SamplePayload: construction from samples computes summary" begin
+    using Tray: ScalarSchema, SamplePayload
+
+    schema = ScalarSchema{Float64}(false)
+    p = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0, 4.0, 5.0])
+
+    @test length(p.samples) == 5
+    @test p.dataset_revision == 1
+    @test p.summary.count == 5
+    @test p.summary.sum ≈ 15.0
+    @test p.summary.sumsq ≈ 55.0
+    @test p.summary.minimum ≈ 1.0
+    @test p.summary.maximum ≈ 5.0
+end
+
+@testitem "SamplePayload: construction with higher moments" begin
+    using Tray: ScalarSchema, SamplePayload
+
+    schema = ScalarSchema{Float64}(true)
+    p = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])
+
+    @test p.summary.m3 ≈ 1.0 + 8.0 + 27.0  # sum of cubes
+    @test p.summary.m4 ≈ 1.0 + 16.0 + 81.0  # sum of 4th powers
+end
+
+@testitem "SamplePayload: rejects empty samples" begin
+    using Tray: ScalarSchema, SamplePayload
+
+    schema = ScalarSchema{Float64}(false)
+    @test_throws ArgumentError SamplePayload(schema = schema, samples = Float64[])
+end
+
+@testitem "SamplePayload: rejects non-finite values" begin
+    using Tray: ScalarSchema, SamplePayload
+
+    schema = ScalarSchema{Float64}(false)
+    @test_throws ArgumentError SamplePayload(schema = schema, samples = [1.0, NaN, 3.0])
+    @test_throws ArgumentError SamplePayload(schema = schema, samples = [1.0, Inf, 3.0])
+end
+
+@testitem "SamplePayload: identity construction" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    id = TrayBase.identity(schema, 3)
+
+    @test length(id.samples) == 3
+    @test all(s == 0.0 for s in id.samples)
+    @test id.summary.count == 0
+    @test id.dataset_revision == 1
+end
+
+@testitem "SamplePayload: identity laws (left)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    id = TrayBase.identity(schema, 3)
+    x = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])
+
+    @test TrayBase.combine(id, x) == x
+end
+
+@testitem "SamplePayload: identity laws (right)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    id = TrayBase.identity(schema, 3)
+    x = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])
+
+    @test TrayBase.combine(x, id) == x
+end
+
+@testitem "SamplePayload: combine adds elementwise" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])
+    b = SamplePayload(schema = schema, samples = [4.0, 5.0, 6.0])
+    c = TrayBase.combine(a, b)
+
+    @test c.samples ≈ [5.0, 7.0, 9.0]
+    @test c.summary.count == 6
+    @test c.summary.sum ≈ 21.0
+    @test c.dataset_revision == 1
+end
+
+@testitem "SamplePayload: combine is associative" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0])
+    b = SamplePayload(schema = schema, samples = [3.0, 4.0])
+    c = SamplePayload(schema = schema, samples = [5.0, 6.0])
+
+    r1 = TrayBase.combine(TrayBase.combine(a, b), c)
+    r2 = TrayBase.combine(a, TrayBase.combine(b, c))
+
+    @test r1 == r2
+    @test r1.samples ≈ [9.0, 12.0]
+end
+
+@testitem "SamplePayload: combine rejects cross-revision (REQ-20)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0], dataset_revision = 1)
+    b = SamplePayload(schema = schema, samples = [3.0, 4.0], dataset_revision = 2)
+
+    @test_throws ArgumentError TrayBase.combine(a, b)
+end
+
+@testitem "SamplePayload: combine rejects different sample lengths" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0])
+    b = SamplePayload(schema = schema, samples = [3.0, 4.0, 5.0])
+
+    @test_throws ArgumentError TrayBase.combine(a, b)
+end
+
+@testitem "SamplePayload: structural equality" begin
+    using Tray: ScalarSchema, SamplePayload
+
+    schema = ScalarSchema{Float64}(false)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])
+    b = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])
+
+    @test a == b
+    @test hash(a) == hash(b)
+end
+
+@testitem "SamplePayload: inequality on different samples" begin
+    using Tray: ScalarSchema, SamplePayload
+
+    schema = ScalarSchema{Float64}(false)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0])
+    b = SamplePayload(schema = schema, samples = [1.0, 3.0])
+
+    @test a != b
+end
+
+@testitem "SamplePayload: reweight scales samples (REQ-18)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    p = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])
+    r = TrayBase.reweight(p, 2.0)
+
+    @test r.samples ≈ [2.0, 4.0, 6.0]
+    @test r.summary.sum ≈ 12.0
+    # Count, min, max preserved
+    @test r.summary.count == 3
+    @test r.summary.minimum ≈ 1.0
+    @test r.summary.maximum ≈ 3.0
+end
+
+## ---------------------------------------------------------------------------
+## Tree with SamplePayload (REQ-20: tree construction and updates)
+## ---------------------------------------------------------------------------
+
+@testitem "Tree: construction with SamplePayload" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, root, leaf_count, depth
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0]),
+        SamplePayload(schema = schema, samples = [4.0, 5.0, 6.0]),
+        SamplePayload(schema = schema, samples = [7.0, 8.0, 9.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test leaf_count(t) == 3
+    @test depth(t) == 2
+    @test root(t).samples ≈ [12.0, 15.0, 18.0]
+    @test root(t).summary.count == 9
+    @test root(t).summary.sum ≈ 45.0
+end
+
+@testitem "Tree: SamplePayload update snapshot isolation" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, root, update
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    original_root = root(t)
+
+    new_leaf = SamplePayload(schema = schema, samples = [10.0, 20.0])
+    t2 = update(t, 1, new_leaf)
+
+    @test root(t2) != original_root
+    @test root(t) == original_root  # snapshot isolation
+    @test t2.levels[1][1].samples ≈ [10.0, 20.0]
+    @test t.levels[1][1].samples ≈ [1.0, 2.0]
+end
+
+## ---------------------------------------------------------------------------
+## REQ-28: project_samples
+## ---------------------------------------------------------------------------
+
+@testitem "project_samples: basic w * M projection (REQ-28)" begin
+    using Tray: project_samples, AlignedProjectionError
+
+    w = [1.0, 2.0, 3.0]
+    M = [
+        1.0 4.0
+        2.0 5.0
+        3.0 6.0
+    ]
+    # w * M = [1*1 + 2*2 + 3*3, 1*4 + 2*5 + 3*6] = [14.0, 32.0]
+    result = project_samples(w, M)
+
+    @test result ≈ [14.0, 32.0]
+end
+
+@testitem "project_samples: single dimension (REQ-28)" begin
+    using Tray: project_samples
+
+    w = [2.0]
+    M = Float64[1.0 2.0 3.0]  # 1×3 matrix
+
+    result = project_samples(w, M)
+    @test result ≈ [2.0, 4.0, 6.0]
+end
+
+@testitem "project_samples: single sample (REQ-28)" begin
+    using Tray: project_samples
+
+    w = [1.0, 2.0, 3.0]
+    M = reshape([1.0, 2.0, 3.0], 3, 1)
+
+    result = project_samples(w, M)
+    @test result ≈ [14.0]
+end
+
+@testitem "project_samples: weight from tree leaves (REQ-28)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, project_samples, leaf_count
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0]),
+        SamplePayload(schema = schema, samples = [4.0, 5.0, 6.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    # Weight both leaves equally
+    result = project_samples(t, [1.0, 1.0])
+    @test result.samples ≈ [5.0, 7.0, 9.0]
+    @test result.summary.count == 6
+
+    # Weight first leaf only
+    result2 = project_samples(t, [1.0, 0.0])
+    @test result2.samples ≈ [1.0, 2.0, 3.0]
+end
+
+@testitem "project_samples: rejects mismatched dimensions (REQ-28)" begin
+    using Tray: project_samples, AlignedProjectionError
+
+    w = [1.0, 2.0]
+    M = [
+        1.0 2.0 3.0
+        4.0 5.0 6.0
+        7.0 8.0 9.0
+    ]  # 3×3, but w has length 2
+
+    @test_throws AlignedProjectionError project_samples(w, M)
+end
+
+@testitem "project_samples: rejects non-finite values (REQ-28)" begin
+    using Tray: project_samples, AlignedProjectionError
+
+    @test_throws AlignedProjectionError project_samples([1.0, NaN], [1.0 2.0; 3.0 4.0])
+    @test_throws AlignedProjectionError project_samples([1.0, 2.0], [1.0 2.0; Inf 4.0])
+end
+
+@testitem "project_samples: rejects weight length mismatch with tree" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, project_samples, AlignedProjectionError
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+        SamplePayload(schema = schema, samples = [5.0, 6.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test_throws AlignedProjectionError project_samples(t, [1.0, 2.0])  # need 3 weights
+end
+
+## ---------------------------------------------------------------------------
+## REQ-20: regenerate_samples! / regenerate_samples
+## ---------------------------------------------------------------------------
+
+@testitem "regenerate_samples!: replaces samples and increments revision (REQ-20)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, regenerate_samples!, root, leaf_count
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    orig_revision = root(t).dataset_revision
+
+    new_root = regenerate_samples!(t, [[10.0, 20.0], [30.0, 40.0]])
+
+    @test leaf_count(t) == 2
+    @test t.levels[1][1].samples ≈ [10.0, 20.0]
+    @test t.levels[1][2].samples ≈ [30.0, 40.0]
+    @test root(t).summary.count == 4
+    @test root(t).summary.sum ≈ 100.0
+
+    # Revision incremented
+    @test root(t).dataset_revision == orig_revision + 1
+    @test new_root == root(t)
+end
+
+@testitem "regenerate_samples!: rejects sample count mismatch" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, regenerate_samples!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test_throws ArgumentError regenerate_samples!(t, [[5.0, 6.0]])  # need 2, got 1
+end
+
+@testitem "regenerate_samples!: rejects inconsistent sample lengths" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, regenerate_samples!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test_throws ArgumentError regenerate_samples!(t, [[1.0, 2.0, 3.0], [4.0, 5.0]])
+end
+
+@testitem "regenerate_samples: immutable version preserves original (REQ-20)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, regenerate_samples, root
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    original_root = root(t)
+
+    t2 = regenerate_samples(t, [[10.0, 20.0], [30.0, 40.0]])
+
+    # Original unchanged
+    @test root(t).samples ≈ [4.0, 6.0]
+    @test root(t) == original_root
+
+    # New tree has updated data
+    @test t2.levels[1][1].samples ≈ [10.0, 20.0]
+    @test root(t2).dataset_revision == original_root.dataset_revision + 1
+end
+
+## ---------------------------------------------------------------------------
+## REQ-30: moment_quantile (Cornish-Fisher)
+## ---------------------------------------------------------------------------
+
+@testitem "moment_quantile: normal distribution (zero skewness, zero kurtosis)" begin
+    using Tray: moment_quantile
+
+    # For a standard normal (μ=0, σ²=1, γ₁=0, γ₂=0), Cornish-Fisher reduces to z_p
+    result = moment_quantile(0.5, 0.0, 1.0, 0.0, 0.0)  # median
+    @test result.quantile ≈ 0.0 atol = 0.01
+    @test result.approximate == true
+    @test contains(result.assumption, "Cornish-Fisher")
+
+    # 0.975 quantile ≈ 1.96
+    result2 = moment_quantile(0.975, 0.0, 1.0, 0.0, 0.0)
+    @test result2.quantile ≈ 1.96 atol = 0.01
+end
+
+@testitem "moment_quantile: skewed distribution (REQ-30)" begin
+    using Tray: moment_quantile
+
+    # Positive skew (γ₁=1) shifts upper quantile up, lower quantile down
+    # For μ=0, σ²=1, p=0.95: z≈1.645, term1=(z²-1)*1/6 ≈ 0.284
+    # q ≈ 0 + 1*(1.645 + 0.284) ≈ 1.93 (vs normal 1.645)
+    result = moment_quantile(0.95, 0.0, 1.0, 1.0, 0.0)
+    @test result.quantile > 1.645  # shifted right (fatter upper tail)
+    @test result.skewness ≈ 1.0
+
+    # Negative skew shifts lower quantile down
+    result2 = moment_quantile(0.05, 0.0, 1.0, -1.0, 0.0)
+    @test result2.quantile < -1.645  # shifted left
+end
+
+@testitem "moment_quantile: kurtosis effect (REQ-30)" begin
+    using Tray: moment_quantile
+
+    # Positive excess kurtosis (fat tails): extremal quantiles move outward
+    # For μ=0, σ²=1, p=0.975: z≈1.96, term2=(z³-3z)*1/24 ≈ 0.09
+    # q ≈ 0 + 1*(1.96 + 0.09) ≈ 2.05 (vs normal 1.96)
+    result = moment_quantile(0.975, 0.0, 1.0, 0.0, 1.0)
+    @test result.quantile > 1.96  # fatter tails
+    @test result.excess_kurtosis ≈ 1.0
+end
+
+@testitem "moment_quantile: from ScalarSummary with higher moments" begin
+    using Tray: ScalarSchema, ScalarSummary, moment_quantile
+
+    schema = ScalarSchema{Float64}(true)
+    # Create a summary for [1, 2, 3, 4, 5]
+    # mean=3, variance=2, skewness=0 (symmetric), kurtosis slightly negative
+    s = ScalarSummary(;
+        schema = schema,
+        count = 5,
+        sum = 15.0,
+        sumsq = 55.0,
+        minimum = 1.0,
+        maximum = 5.0,
+        m3 = 225.0,   # sum of cubes: 1+8+27+64+125 = 225
+        m4 = 979.0,   # sum of 4th powers: 1+16+81+256+625 = 979
+    )
+
+    result = moment_quantile(0.5, s)
+    # Median of symmetric distribution ≈ mean ≈ 3.0
+    @test result.quantile ≈ 3.0 atol = 0.1
+    @test result.approximate == true
+end
+
+@testitem "moment_quantile: rejects invalid inputs (REQ-30)" begin
+    using Tray: moment_quantile
+
+    # Probability out of range
+    @test_throws DomainError moment_quantile(-0.1, 0.0, 1.0, 0.0, 0.0)
+    @test_throws DomainError moment_quantile(1.5, 0.0, 1.0, 0.0, 0.0)
+
+    # Non-positive variance
+    @test_throws DomainError moment_quantile(0.5, 0.0, 0.0, 0.0, 0.0)
+    @test_throws DomainError moment_quantile(0.5, 0.0, -1.0, 0.0, 0.0)
+
+    # Non-finite moments
+    @test_throws DomainError moment_quantile(0.5, 0.0, 1.0, NaN, 0.0)
+    @test_throws DomainError moment_quantile(0.5, 0.0, 1.0, Inf, 0.0)
+end
+
+@testitem "moment_quantile: rejects ScalarSummary without higher_moment (REQ-36)" begin
+    using Tray: ScalarSchema, ScalarSummary, moment_quantile
+
+    schema = ScalarSchema{Float64}(false)  # no higher moments
+    s = ScalarSummary(;
+        schema = schema,
+        count = 3,
+        sum = 6.0,
+        sumsq = 14.0,
+        minimum = 1.0,
+        maximum = 3.0,
+    )
+
+    @test_throws DomainError moment_quantile(0.5, s)
+end
+
+@testitem "moment_quantile: rejects empty ScalarSummary" begin
+    using Tray: ScalarSchema, moment_quantile, TrayBase
+
+    schema = ScalarSchema{Float64}(true)
+    id = TrayBase.identity(schema)
+
+    @test_throws DomainError moment_quantile(0.5, id)
+end
+
+@testitem "SamplePayload tree: range query and regeneration end-to-end" begin
+    using Tray:
+        ScalarSchema,
+        SamplePayload,
+        Tree,
+        root,
+        range_query,
+        regenerate_samples!,
+        dataset_revision
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0]),
+        SamplePayload(schema = schema, samples = [4.0, 5.0, 6.0]),
+        SamplePayload(schema = schema, samples = [7.0, 8.0, 9.0]),
+        SamplePayload(schema = schema, samples = [10.0, 11.0, 12.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    rev1 = dataset_revision(t)
+
+    # Full range equals root
+    full = range_query(t, 1, 4)
+    @test full.samples ≈ [22.0, 26.0, 30.0]
+
+    # Sub-range
+    sub = range_query(t, 2, 3)
+    @test sub.samples ≈ [11.0, 13.0, 15.0]
+
+    # Regenerate with new samples
+    new_root = regenerate_samples!(
+        t,
+        [
+            [100.0, 200.0, 300.0],
+            [400.0, 500.0, 600.0],
+            [700.0, 800.0, 900.0],
+            [1000.0, 1100.0, 1200.0],
+        ],
+    )
+
+    # Revision incremented
+    @test dataset_revision(t) == rev1 + 1
+
+    # All indices reflect new revision
+    @test root(t).samples ≈ [2200.0, 2600.0, 3000.0]
+    @test root(t).dataset_revision == rev1 + 1
+end

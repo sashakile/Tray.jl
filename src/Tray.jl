@@ -6,6 +6,7 @@ include("attribution_payload.jl")
 include("core.jl")
 include("axes.jl")
 include("incremental.jl")
+include("sample_analytics.jl")
 
 # Export core interface
 export TrayBase
@@ -95,5 +96,24 @@ export AxisMap,
 # Lazy tag exports
 export LazyTag,
     apply_lazy, compose_lazy, identity_lazy, is_identity_lazy, is_distributive, flush_lazy
+
+# Sample analytics exports
+import .SampleAnalytics:
+    SamplePayload,
+    project_samples,
+    moment_quantile,
+    regenerate_samples!,
+    regenerate_samples,
+    dataset_revision,
+    AlignedProjectionError,
+    MomentQuantileResult
+export SamplePayload,
+    project_samples,
+    moment_quantile,
+    regenerate_samples!,
+    regenerate_samples,
+    dataset_revision,
+    AlignedProjectionError,
+    MomentQuantileResult
 
 end # module Tray

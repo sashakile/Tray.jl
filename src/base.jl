@@ -31,6 +31,18 @@ function identity(schema)
 end
 
 """
+    identity(schema, ::Type{P}, prototype)
+
+Return the identity for the given schema and payload type, using `prototype`
+as a template for parameters (e.g., sample length). By default, delegates
+`identity(schema)`. Payload types with additional parameters override this
+method to produce a correctly-sized identity.
+"""
+function identity(schema, ::Type{P}, prototype) where {P}
+    return identity(schema)
+end
+
+"""
     reweight(payload, weight)
 
 Return a new payload with values scaled by `weight`. Must be closed over the
