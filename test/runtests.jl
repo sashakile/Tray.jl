@@ -1288,6 +1288,104 @@ end
     @test_throws DomainError derived_mean(root(t))
 end
 
+@testitem "Tree: derived variance and std from ScalarSummary (REQ-5)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        root,
+        derived_mean,
+        derived_variance,
+        derived_std,
+        identity,
+        combine
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 1.0,
+            sumsq = 1.0,
+            minimum = 1.0,
+            maximum = 1.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 4.0,
+            sumsq = 16.0,
+            minimum = 4.0,
+            maximum = 4.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    r = root(t)
+
+    # Mean = (1+2+3+4+5)/5 = 3.0
+    @test derived_mean(r) ≈ 3.0
+
+    # Variance = E[X²] - E[X]²
+    # E[X²] = (1+4+9+16+25)/5 = 55/5 = 11.0
+    # E[X]² = 9.0
+    # Var = 11.0 - 9.0 = 2.0
+    @test derived_variance(r) ≈ 2.0
+
+    # Std = sqrt(2.0)
+    @test derived_std(r) ≈ sqrt(2.0)
+end
+
+@testitem "Tree: derived variance and std reject empty (REQ-5)" begin
+    using Tray: ScalarSchema, ScalarSummary, derived_variance, derived_std, identity
+
+    schema = ScalarSchema{Float64}(false)
+    id = identity(schema)  # count=0 identity
+
+    @test_throws DomainError derived_variance(id)
+    @test_throws DomainError derived_std(id)
+end
+
+@testitem "Tree: derived_variance clamps tiny negative rounding errors (REQ-5)" begin
+    using Tray: ScalarSchema, ScalarSummary, derived_variance
+
+    schema = ScalarSchema{Float64}(false)
+    # A single value has zero variance
+    s = ScalarSummary(
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+        schema = schema,
+    )
+
+    @test derived_variance(s) >= 0.0
+end
+
 @testitem "Tree: range_query bounds error (REQ-34)" begin
     using Tray: ScalarSchema, ScalarSummary, Tree, range_query
 

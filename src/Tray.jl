@@ -13,7 +13,16 @@ export ScalarSchema, ScalarSummary
 export AttributionSchema,
     AttributionPayload, AttributionConvention, Direct, Allocated, derive_ratio
 export Tree,
-    root, leaf_count, depth, range_query, update, update!, canonical_nodes, derived_mean
+    root,
+    leaf_count,
+    depth,
+    range_query,
+    update,
+    update!,
+    canonical_nodes,
+    derived_mean,
+    derived_variance,
+    derived_std
 
 # Incremental exports
 import .Incremental:

@@ -196,6 +196,53 @@ function derived_mean(summary::ScalarSummary{T}) where {T}
 end
 
 """
+    derived_variance(summary::ScalarSummary{T}) where {T} -> T
+
+Derive the population variance (sumsq / count - mean^2) from a ScalarSummary.
+Throws DomainError when count is zero or variance is negative due to
+floating-point rounding (clamped to zero).
+
+See REQ-5.
+"""
+function derived_variance(summary::ScalarSummary{T}) where {T}
+    summary.count > 0 ||
+        throw(DomainError(summary.count, "derived_variance: count is zero"))
+    n = T(summary.count)
+    mean = summary.sum / n
+    var = summary.sumsq / n - mean^2
+    # Clamp tiny negative values from floating-point rounding to zero
+    return max(var, zero(T))
+end
+
+"""
+    derived_std(summary::ScalarSummary{T}) where {T} -> T
+
+Derive the population standard deviation from a ScalarSummary.
+Throws DomainError when count is zero or variance is effectively negative.
+
+See REQ-5.
+"""
+function derived_std(summary::ScalarSummary{T}) where {T}
+    summary.count > 0 || throw(DomainError(summary.count, "derived_std: count is zero"))
+    var = derived_variance(summary)
+    return sqrt(var)
+end
+
+"""
+    derived_sample_error()
+
+Raise an informative error when a sample-derived statistic is requested
+from a ScalarSummary-only node (REQ-36).
+"""
+function derived_sample_error(statistic_name::String)
+    error(
+        "$statistic_name requires sample data; " *
+        "the queried node contains only ScalarSummary aggregates. " *
+        "Use a SamplePayload-based tree to compute sample statistics.",
+    )
+end
+
+"""
     root(tray::Tree) -> P
 
 The root aggregate (fold of all leaves).
