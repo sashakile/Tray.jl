@@ -269,3 +269,27 @@ function Base.show(io::IO, s::ScalarSummary{T}) where {T}
         )
     end
 end
+
+"""
+    TrayBase.reweight(s::ScalarSummary{T}, weight::Number) -> ScalarSummary{T}
+
+Scale `sum` and `sumsq` by `weight`. Count, minimum, and maximum are
+preserved unchanged (weight affects only aggregate-dependent fields).
+
+Weight must be ≥ 0. Weight 1.0 is the identity.
+
+See REQ-18, REQ-29.
+"""
+function TrayBase.reweight(s::ScalarSummary{T}, weight::Number) where {T}
+    weight >= 0 || throw(ArgumentError("reweight: weight must be ≥ 0, got $weight"))
+    return ScalarSummary{T}(
+        s.schema,
+        s.count,
+        s.sum * weight,
+        s.sumsq * weight,
+        s.minimum,
+        s.maximum,
+        s.m3,
+        s.m4,
+    )
+end

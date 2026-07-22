@@ -30,4 +30,20 @@ function identity(schema)
     error("identity not implemented for schema type $(typeof(schema))")
 end
 
+"""
+    reweight(payload, weight)
+
+Return a new payload with values scaled by `weight`. Must be closed over the
+payload type. Used by subtree reweighting (REQ-18) and lazy range updates (REQ-29).
+
+Weight `1.0` SHALL be the identity: `reweight(x, 1.0) == x`.
+"""
+function reweight(payload, weight)
+    error(
+        "reweight not implemented for $(typeof(payload)). " *
+        "Define `TrayBase.reweight(::$(typeof(payload)), ::typeof(weight))` " *
+        "to enable subtree reweighting.",
+    )
+end
+
 end # module TrayBase

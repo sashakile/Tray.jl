@@ -1527,6 +1527,629 @@ end
 end
 
 ## ---------------------------------------------------------------------------
+## Structural and deferred mutations (TRAYS-ebb: REQ-14, REQ-15, REQ-18, REQ-29, REQ-41)
+## ---------------------------------------------------------------------------
+
+@testitem "Tree: insert leaf at end (REQ-14)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, leaf_count, root, identity, combine, insert!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 4.0,
+        sumsq = 16.0,
+        minimum = 4.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+    insert!(t, 3, new_leaf)
+
+    @test leaf_count(t) == 3
+    @test t.levels[1][3] == new_leaf
+    @test root(t) == reduce(combine, t.levels[1])
+end
+
+@testitem "Tree: insert leaf at beginning (REQ-14)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, leaf_count, root, identity, combine, insert!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+        schema = schema,
+    )
+    insert!(t, 1, new_leaf)
+
+    @test leaf_count(t) == 3
+    @test t.levels[1][1] == new_leaf
+    @test t.levels[1][2] == leaves[1]
+    @test t.levels[1][3] == leaves[2]
+    @test root(t) == reduce(combine, t.levels[1])
+end
+
+@testitem "Tree: insert rejects out-of-bounds (REQ-14)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, insert!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+        schema = schema,
+    )
+    t = Tree([leaf]; b = 2, schema)
+
+    @test_throws BoundsError insert!(t, 0, leaf)
+    @test_throws BoundsError insert!(t, 3, leaf)  # n+1=2, so 3 is out of bounds
+end
+
+@testitem "Tree: insert grows tree level when needed (REQ-14)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        leaf_count,
+        depth,
+        root,
+        identity,
+        combine,
+        insert!
+
+    schema = ScalarSchema{Float64}(false)
+    # b=2, start with 2 leaves = 1 internal node + root (2 levels: depth=1)
+    # Insert 3rd leaf → tree grows to 3 levels (depth=2)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 1.0,
+            sumsq = 1.0,
+            minimum = 1.0,
+            maximum = 1.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    orig_depth = depth(t)
+    @test orig_depth == 1
+
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 3.0,
+        sumsq = 9.0,
+        minimum = 3.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+    insert!(t, 3, new_leaf)
+
+    # 3 leaves → level1=3, level2=ceil(3/2)=2, level3=ceil(2/2)=1 → depth=2
+    @test depth(t) == 2
+    @test leaf_count(t) == 3
+    @test root(t) == reduce(combine, t.levels[1])
+end
+
+@testitem "Tree: remove leaf from end (REQ-15)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, leaf_count, root, identity, combine, remove!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 4.0,
+            sumsq = 16.0,
+            minimum = 4.0,
+            maximum = 4.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    remove!(t, 3)
+
+    @test leaf_count(t) == 2
+    @test t.levels[1][1] == leaves[1]
+    @test t.levels[1][2] == leaves[2]
+    @test root(t) == reduce(combine, t.levels[1])
+end
+
+@testitem "Tree: remove leaf from beginning (REQ-15)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, leaf_count, root, identity, combine, remove!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 4.0,
+            sumsq = 16.0,
+            minimum = 4.0,
+            maximum = 4.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    remove!(t, 1)
+
+    @test leaf_count(t) == 2
+    @test t.levels[1][1] == leaves[2]
+    @test t.levels[1][2] == leaves[3]
+    @test root(t) == reduce(combine, t.levels[1])
+end
+
+@testitem "Tree: remove rejects final leaf (REQ-15)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, leaf_count, remove!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+        schema = schema,
+    )
+    t = Tree([leaf]; b = 2, schema)
+
+    @test_throws ArgumentError remove!(t, 1)
+    @test leaf_count(t) == 1  # unchanged
+end
+
+@testitem "Tree: remove rejects out-of-bounds (REQ-15)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, remove!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test_throws BoundsError remove!(t, 0)
+    @test_throws BoundsError remove!(t, 3)
+end
+
+@testitem "Tree: remove compacts tree level when possible (REQ-15)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        leaf_count,
+        depth,
+        root,
+        identity,
+        combine,
+        remove!
+
+    schema = ScalarSchema{Float64}(false)
+    # b=2, 3 leaves → depth 2, remove to 2 leaves → depth 1
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 1.0,
+            sumsq = 1.0,
+            minimum = 1.0,
+            maximum = 1.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    @test depth(t) == 2
+
+    remove!(t, 3)
+
+    @test depth(t) == 1
+    @test leaf_count(t) == 2
+    @test root(t) == reduce(combine, t.levels[1])
+end
+
+@testitem "Tree: immutable insert returns new tree (REQ-14)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, leaf_count, root, identity, combine, insert
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    new_leaf = ScalarSummary(
+        count = 1,
+        sum = 4.0,
+        sumsq = 16.0,
+        minimum = 4.0,
+        maximum = 4.0,
+        schema = schema,
+    )
+
+    t2 = insert(t, 3, new_leaf)
+
+    @test leaf_count(t) == 2       # original unchanged
+    @test leaf_count(t2) == 3
+    @test t2.levels[1][3] == new_leaf
+    @test root(t2) == reduce(combine, t2.levels[1])
+end
+
+@testitem "Tree: immutable remove returns new tree (REQ-15)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, leaf_count, root, identity, combine, remove
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 4.0,
+            sumsq = 16.0,
+            minimum = 4.0,
+            maximum = 4.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    t2 = remove(t, 1)
+
+    @test leaf_count(t) == 3       # original unchanged
+    @test leaf_count(t2) == 2
+    @test t2.levels[1][1] == leaves[2]
+    @test t2.levels[1][2] == leaves[3]
+    @test root(t2) == reduce(combine, t2.levels[1])
+end
+
+@testitem "Tree: reweight subtree (REQ-18)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        root,
+        identity,
+        combine,
+        reweight_subtree,
+        leaf_count,
+        reweight
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        ScalarSummary(
+            count = 1,
+            sum = 2.0,
+            sumsq = 4.0,
+            minimum = 2.0,
+            maximum = 2.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 3.0,
+            sumsq = 9.0,
+            minimum = 3.0,
+            maximum = 3.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 4.0,
+            sumsq = 16.0,
+            minimum = 4.0,
+            maximum = 4.0,
+            schema = schema,
+        ),
+        ScalarSummary(
+            count = 1,
+            sum = 5.0,
+            sumsq = 25.0,
+            minimum = 5.0,
+            maximum = 5.0,
+            schema = schema,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    # Reweight the subtree at level 2, node 1 (covers leaves [1,2]) with weight 2.0
+    t2 = reweight_subtree(t, 2, 1, 2.0)
+
+    # Leaves [1,2] should have sum*2, leaves [3,4] unchanged
+    @test t2.levels[1][1] == reweight(leaves[1], 2.0)
+    @test t2.levels[1][2] == reweight(leaves[2], 2.0)
+    @test t2.levels[1][3] == leaves[3]
+    @test t2.levels[1][4] == leaves[4]
+
+    # Root should equal fold of reweighted leaves
+    expected_root = combine(
+        combine(reweight(leaves[1], 2.0), reweight(leaves[2], 2.0)),
+        combine(leaves[3], leaves[4]),
+    )
+    @test root(t2) == expected_root
+end
+
+@testitem "Tree: reweight rejects undefined operation (REQ-18)" begin
+    using Tray: Tree, leaf_count, reweight_subtree
+
+    # AttributionPayload does not define TrayBase.reweight
+    using Tray: AttributionSchema, AttributionPayload, AttributionConvention, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaf = AttributionPayload(buckets = [1.0, 2.0], realized_total = 3.0, schema = schema)
+    t = Tree([leaf, leaf]; b = 2, schema = schema)
+
+    @test_throws ErrorException reweight_subtree(t, 2, 1, 2.0)
+end
+
+@testitem "Tree: reweight on leaf level (REQ-18 subtree boundary)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        root,
+        identity,
+        combine,
+        reweight_subtree,
+        leaf_count,
+        reweight
+
+    schema = ScalarSchema{Float64}(false)
+    leaf = ScalarSummary(
+        count = 1,
+        sum = 5.0,
+        sumsq = 25.0,
+        minimum = 5.0,
+        maximum = 5.0,
+        schema = schema,
+    )
+    t = Tree([leaf]; b = 2, schema)
+
+    # Level 1, node 1 = the single leaf, depth 0 = leaf level
+    t2 = reweight_subtree(t, 1, 1, 3.0)
+
+    @test t2.levels[1][1] == reweight(leaf, 3.0)
+    @test root(t2) == reweight(leaf, 3.0)
+end
+
+@testitem "Tree: update! O(log_b n) ancestor path only (REQ-41)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, update!, root, identity, combine
+
+    # Build a larger tree to verify only the ancestor path is recomputed
+    schema = ScalarSchema{Float64}(false)
+    n_leaves = 64
+    leaves = ScalarSummary[
+        ScalarSummary(
+            schema = schema,
+            count = 1,
+            sum = Float64(i),
+            sumsq = Float64(i) ^ 2,
+            minimum = Float64(i),
+            maximum = Float64(i),
+        ) for i = 1:n_leaves
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    # Snapshot original levels
+    orig = [copy(level) for level in t.levels]
+
+    new_leaf = ScalarSummary(
+        schema = schema,
+        count = 1,
+        sum = 999.0,
+        sumsq = 999.0 ^ 2,
+        minimum = 999.0,
+        maximum = 999.0,
+    )
+    update!(t, 17, new_leaf)
+
+    # Verify leaf at index 17 was updated
+    @test t.levels[1][17] == new_leaf
+
+    # Unaffected leaves should match originals
+    for i = 1:n_leaves
+        if i != 17
+            @test t.levels[1][i] == orig[1][i]
+        end
+    end
+
+    # Root should equal fold of updated leaves
+    @test root(t) == reduce(combine, t.levels[1])
+end
+
+@testitem "Tree: lazy tag apply and compose (REQ-29)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        LazyTag,
+        apply_lazy,
+        compose_lazy,
+        identity_lazy,
+        is_identity_lazy,
+        is_distributive
+
+    schema = ScalarSchema{Float64}(false)
+    s = ScalarSummary(
+        count = 2,
+        sum = 5.0,
+        sumsq = 13.0,
+        minimum = 2.0,
+        maximum = 3.0,
+        schema = schema,
+    )
+
+    # Scale by 2
+    tag2 = LazyTag(:scale, 2.0)
+    s2 = apply_lazy(tag2, s)
+    @test s2.sum ≈ 10.0
+    @test s2.sumsq ≈ 26.0
+
+    # Identity tag
+    tag_id = identity_lazy(schema)
+    @test is_identity_lazy(tag_id)
+    @test apply_lazy(tag_id, s) == s
+
+    # Compose: scale by 2 then scale by 3 = scale by 6
+    tag3 = LazyTag(:scale, 3.0)
+    composed = compose_lazy(tag2, tag3)
+    @test composed.value ≈ 6.0  # 2.0 * 3.0 = 6.0
+    # compose(tag2, tag3) = tag2 ∘ tag3, i.e., apply tag3 then apply tag2
+    # apply(compose(tag2, tag3), s) = apply(tag2, apply(tag3, s))
+    @test apply_lazy(composed, s) == apply_lazy(tag2, apply_lazy(tag3, s))
+
+    # Distributive check
+    @test is_distributive(tag2)
+    @test is_distributive(tag3)
+end
+
+## ---------------------------------------------------------------------------
 ## Tree invariant and complexity property tests (TRAYS-lep.2: REQ-3, REQ-31, REQ-42)
 ## ---------------------------------------------------------------------------
 

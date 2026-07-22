@@ -72,7 +72,14 @@ export Change,
     update_with_boundary_detection
 
 # Re-export generic interface from TrayBase
-import .TrayBase: combine, identity
-export combine, identity
+import .TrayBase: combine, identity, reweight
+export combine, identity, reweight
+
+# Structural mutation exports
+export insert!, insert, remove!, remove, reweight_subtree
+
+# Lazy tag exports
+export LazyTag,
+    apply_lazy, compose_lazy, identity_lazy, is_identity_lazy, is_distributive, flush_lazy
 
 end # module Tray
