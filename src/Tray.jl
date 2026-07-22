@@ -9,9 +9,6 @@ include("incremental.jl")
 include("sample_analytics.jl")
 include("aligned_array.jl")
 include("fractional_depth.jl")
-=======
-include("fractional_depth.jl")
->>>>>>> e54d170 (feat: implement AlignedArrayPayload, quadratic_projection, normalized_covariance_contribution (TRAYS-ha1))
 
 # Export core interface
 export TrayBase
