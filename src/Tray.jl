@@ -9,6 +9,7 @@ include("incremental.jl")
 include("sample_analytics.jl")
 include("aligned_array.jl")
 include("fractional_depth.jl")
+include("persistence.jl")
 
 # Export core interface
 export TrayBase
@@ -153,4 +154,9 @@ export AlignedArrayPayload,
 import .FractionalDepth:
     fractional_depth_query, fractional_depth_quantile, FractionalDepthError
 export fractional_depth_query, fractional_depth_quantile, FractionalDepthError
+
+# Persistence exports
+import .Persistence: save_tree, load_tree, TreeSnapshot, format_version
+export save_tree, load_tree, TreeSnapshot, format_version
+
 end # module Tray
