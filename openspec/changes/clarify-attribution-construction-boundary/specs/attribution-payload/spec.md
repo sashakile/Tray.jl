@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Finalized attribution input boundary
-An attribution payload's buckets SHALL be finalized additive contributions before the payload is supplied to Tray. `Direct` and `Allocated(method, ordered_factor_ids)` SHALL record immutable provenance for that upstream construction and SHALL NOT register an executable allocation function for Tray to rerun at internal nodes or query cuts. The producer SHALL document the source partition at which allocation was finalized; changing that partition or rerunning allocation over aggregate driver signals requires a new externally constructed dataset revision.
+An attribution payload's buckets SHALL be finalized additive contributions before the payload is supplied to Tray. `Direct` and `Allocated(method, ordered_factor_ids, source_partition_id::Symbol)` SHALL record immutable provenance for that upstream construction and SHALL NOT register an executable allocation function for Tray to rerun at internal nodes or query cuts. An allocated convention's `source_partition_id` MUST be non-empty and identify the partition at which allocation was finalized. Changing that partition or rerunning allocation over aggregate driver signals requires a new externally constructed schema and dataset revision.
 
 #### Scenario: Aggregate allocated leaf contributions
 - **WHEN** a tree receives reconciled leaf bucket vectors carrying an `Allocated` convention
@@ -9,19 +9,33 @@ An attribution payload's buckets SHALL be finalized additive contributions befor
 
 #### Scenario: Request allocation at another partition
 - **WHEN** a caller needs a nonlinear allocation recomputed over a different source partition or query cut
-- **THEN** the caller must compute new finalized buckets outside Tray and publish them as a new schema-compatible dataset revision
+- **THEN** the caller must compute new finalized buckets outside Tray and publish them with a new schema and dataset revision carrying the new source partition ID
 
-### Requirement: Construction-only residual correction
-The configured residual bucket SHALL absorb an out-of-tolerance reconciliation gap only when an external leaf payload is constructed. Internal `combine` SHALL add bucket and total fields without residual correction. If deterministic internal folding produces reconciliation drift outside tolerance, the library SHALL apply REQ-3's deterministic rebuild policy or return an explicit error when rebuild source is unavailable.
+#### Scenario: Reject missing partition provenance
+- **WHEN** an allocated convention omits or supplies an empty source partition ID
+- **THEN** schema construction fails before any attribution payload is accepted
 
-#### Scenario: Correct an external leaf gap
-- **WHEN** an externally supplied leaf has an out-of-tolerance gap and its schema designates a residual bucket
-- **THEN** construction assigns that gap exactly once to the residual bucket before the leaf enters the tree
+### Requirement: Canonical residual reconciliation
+For a numeric type governed by REQ-3's inexact arithmetic policy, an attribution schema MUST designate one residual bucket. The residual SHALL be derived reconciliation state and SHALL NOT be an independently additive producer coordinate. Construction SHALL preserve finite `realized_total` and all finite non-residual buckets, compute their sum in immutable schema order, and derive the residual as `realized_total - canonical_sum(non_residual_buckets)`. Internal `combine` SHALL add corresponding non-residual buckets and `realized_total`, then derive the result's residual by the same rule without summing child residuals. Arithmetic and the derived residual MUST remain finite and the resulting payload MUST reconcile within tolerance.
 
-#### Scenario: Do not correct during merge
-- **WHEN** two validated attribution payloads are combined at any internal grouping
-- **THEN** every output bucket and total is the deterministic arithmetic sum of corresponding inputs with no new residual assignment
+An exact-arithmetic schema MAY omit the residual bucket. Such construction MUST require exact equality between bucket sum and `realized_total`, and `combine` SHALL use componentwise addition. Inexact combination SHALL follow REQ-3's deterministic reduction and comparison semantics and SHALL NOT branch on accumulated child reconciliation gaps.
 
-#### Scenario: Surface internal numerical drift
-- **WHEN** internal arithmetic causes reconciliation to exceed the configured tolerance
-- **THEN** the tree deterministically rebuilds or returns an explicit error rather than silently changing a residual bucket
+#### Scenario: Derive an inexact leaf residual
+- **WHEN** an external leaf is constructed under an inexact schema with a designated residual bucket
+- **THEN** construction preserves its total and non-residual buckets and derives the residual in schema order
+
+#### Scenario: Canonically derive a combined residual
+- **WHEN** two aligned attribution payloads with residual buckets are combined
+- **THEN** the result adds totals and non-residual buckets and derives its residual without adding child residual values
+
+#### Scenario: Reject non-finite reconciliation arithmetic
+- **WHEN** finite input components overflow during summation or residual assignment would produce a non-finite value
+- **THEN** construction or combination fails with a reconciliation error before publishing a payload
+
+#### Scenario: Reject inexact schema without residual
+- **WHEN** an inexact attribution schema omits its residual bucket
+- **THEN** schema construction fails before accepting any payload
+
+#### Scenario: Permit exact schema without residual
+- **WHEN** an exact-arithmetic schema omits a residual and a leaf's buckets equal its realized total exactly
+- **THEN** construction accepts it and componentwise combination remains exactly reconciled

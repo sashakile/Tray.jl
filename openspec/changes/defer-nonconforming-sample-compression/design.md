@@ -24,7 +24,10 @@ Until a pairing-preserving compressed representation is approved, sample aggrega
 Standard GK merge summarizes stream union. Renaming that operation or adding associativity tests cannot make it preserve aligned pairing. ADR-002 will be marked superseded by this change; a future ADR must define the representation, promotion map, error model, and source requirements together.
 
 ### Exact summaries are derived from the combined vector
-After elementwise addition, count, sum, sum of squares, extrema, and optional moments are recomputed from that resulting vector. Combining the children's marginal summaries is not equivalent because it omits cross terms and doubles the observation count.
+Every positive-length exact payload, including the additive identity's zero vector, derives count, sum, sum of squares, extrema, and optional moments from its stored aligned vector. After elementwise addition, those fields are recomputed from the resulting vector. Combining the children's marginal summaries is not equivalent because it omits cross terms and doubles the observation count. Defining the identity summary from its zero vector also ensures `combine(identity, identity) == identity` after recomputation. This is specifically the `SamplePayload` identity summary, not the standalone `ScalarSummary` identity; identity construction obtains positive sample length `S` and alignment/revision provenance from the schema or prototype.
+
+### Non-conforming compression leaves the public API
+The current compressed types and query functions are removed from exports and normative documentation. Keeping pooled-distribution behavior under a separate public name is deferred to a future proposal so this correction has one unambiguous completion state.
 
 ### Future compression must pass an independent oracle
 Conformance compares a candidate result with compression of the exact elementwise sum. Tests include equal marginal summaries with different pairings, all representation pairings supported by the candidate, identity, and mixed parenthesizations. Associativity without the aligned-sum oracle is insufficient.
@@ -37,15 +40,12 @@ Conformance compares a candidate result with compression of the exact elementwis
 
 ## Risks / Trade-offs
 - Exact vectors retain `O(S)` storage per node; this is already permitted by REQ-44.
-- Removing public experimental APIs can break callers, but preserving a silently incorrect result is worse.
+- Removing public compressed APIs can break callers, but preserving a silently incorrect result is worse. Release notes identify exact operation as the migration path.
 - A future compression proposal may require revising REQ-22's error-composition model.
 
 ## Migration Plan
 1. Mark ADR-002 superseded and amend the active REQ-21/task text to exact-only pending a replacement ADR.
-2. Add failing regression tests for paired-sum counterexamples and exact summary correctness.
-3. Correct the exact path.
-4. Remove or quarantine non-conforming compressed APIs and update documentation.
+2. Add failing regression tests for paired-sum counterexamples, exact summary correctness, and identity coherence.
+3. Correct exact construction, identity, and combination.
+4. Remove non-conforming compressed exports and normative documentation, with an explicit migration note to exact operation.
 5. Re-enable compression only through a separately approved OpenSpec change and ADR.
-
-## Open Questions
-- Should pooled-distribution histogram analytics remain available under a clearly separate experimental capability, or be removed entirely?

@@ -12,11 +12,15 @@ Until an approved pairing-preserving compressed representation exists, sample no
 - **THEN** every node retains its exact aligned vector and sample-derived results use that vector
 
 ### Requirement: Exact sample summary coherence
-Combining two schema-, identifier-, and revision-aligned exact sample payloads SHALL add their vectors elementwise and SHALL derive every cached scalar summary field from the resulting vector. It SHALL NOT combine child summaries as if the two vectors were concatenated observations.
+Every positive-length exact sample payload, including the additive identity's zero vector, SHALL derive every cached scalar summary field from its stored aligned vector. The `SamplePayload` identity summary SHALL describe its length-`S` zero vector and SHALL NOT use the standalone `ScalarSummary` identity; identity construction MUST obtain `S` and alignment/revision provenance from the schema or prototype. Combining two schema-, identifier-, and revision-aligned exact sample payloads SHALL add their vectors elementwise and derive the result's summary from that vector. It SHALL NOT combine child summaries as if the two vectors were concatenated observations.
 
 #### Scenario: Recompute cross-term-sensitive fields
 - **WHEN** two aligned exact sample vectors are combined
 - **THEN** count equals the fixed sample length, sum of squares includes the elementwise cross terms, and extrema and optional moments equal direct calculation from the elementwise sum
+
+#### Scenario: Preserve exact identity coherence
+- **WHEN** the exact sample identity is constructed for positive sample length `S` or combined with itself or another aligned payload
+- **THEN** its summary describes its length-`S` zero vector and both identity laws hold for the complete payload
 
 ### Requirement: Future compressed aligned-sum conformance
 Any future proposal that re-enables compressed sample nodes MUST define a pairing-preserving representation and promotion map and MUST demonstrate `compress(a + b)` equivalence to combining compressed aligned operands under its declared error metric. Conformance SHALL cover identity, every supported exact/compressed operand pairing, mixed parenthesizations, and adversarial inputs with identical marginal distributions but different pairings. Associativity of marginal sketch union alone SHALL NOT establish conformance.
