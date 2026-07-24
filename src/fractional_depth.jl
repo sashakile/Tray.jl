@@ -20,7 +20,8 @@ import ..SampleAnalytics:
     sketch_quantile,
     ApproximateResult
 
-export fractional_depth_query, fractional_depth_quantile, FractionalDepthError
+export fractional_depth_query,
+    fractional_depth_quantile, FractionalDepthError, AffineProjection, projection_contract
 
 # ---------------------------------------------------------------------------
 # Exception
@@ -54,28 +55,60 @@ function _ancestor_at_level(tree::Tree, leaf_idx::Int, lvl::Int)
 end
 
 # ---------------------------------------------------------------------------
+# Affine projection contract (REQ-19)
+# ---------------------------------------------------------------------------
+
+"""
+    AffineProjection{ProjF, InterpF, S}
+
+A declared affine projection contract for payload interpolation (REQ-19).
+
+- `project(payload) -> A` — project a payload into affine space `A`
+- `interpret(value, schema) -> payload` — convert an interpolated value back
+- `space_id` — a unique identifier for the affine space (used for validation)
+
+AffineProjection is used by `fractional_depth_query` to safely interpolate
+between ancestor payloads at non-integer depths.
+"""
+struct AffineProjection{ProjF,InterpF,S}
+    project::ProjF
+    interpret::InterpF
+    space_id::S
+end
+
+"""
+    projection_contract(::Type{P}) -> Union{AffineProjection, Nothing}
+
+Return the default affine projection contract for payload type `P`, or
+`nothing` if the payload does not declare one. Payload authors implement
+this method to opt into projection-based interpolation.
+
+See REQ-19.
+"""
+function projection_contract(::Type{P}) where {P}
+    return nothing
+end
+
+# ---------------------------------------------------------------------------
 # REQ-19: Fractional-depth query (general payloads)
 # ---------------------------------------------------------------------------
 
 """
     fractional_depth_query(tree, focus_leaf::Int, d::Real;
-                           projection = identity) -> Any
+                           projection = nothing) -> Any
 
 Resolve a fractional-depth query for focus leaf `focus_leaf` at depth `d`
 in `[0, max_depth]`.
 
 - `d = 0` → root, `d = max_depth` → leaf level
-- Finds ancestors at `floor(d)` and `ceil(d)`, applies `projection` to each,
-  linearly interpolates the projections by the fractional part of `d`,
-  and returns the interpolated result.
+- Integer `d` returns the exact ancestor payload without projection (REQ-19).
+- Non-integer `d` requires an explicit `projection` (an `AffineProjection` or
+  compatible callable with `project` and `interpret`). Both adjacent ancestors
+  are projected, linearly interpolated in the affine space, and the result is
+  interpreted back.
 
-If `d` is an integer, returns the ancestor payload directly (no interpolation).
-
-The projection function defaults to identity (interpolates raw payloads,
-which is generally incorrect — most callers should supply a meaningful
-affine projection).
-
-Throws `FractionalDepthError` on invalid inputs.
+Throws `FractionalDepthError` on invalid inputs or when no projection is
+provided for a non-integer query.
 
 See REQ-19.
 """
@@ -83,7 +116,7 @@ function fractional_depth_query(
     tree::Tree{P},
     focus_leaf::Int,
     d::Real;
-    projection = identity,
+    projection = nothing,
 ) where {P}
     n = leaf_count(tree)
     1 <= focus_leaf <= n ||
@@ -99,10 +132,21 @@ function fractional_depth_query(
     max_level = length(tree.levels)
 
     if d == floor(d)
-        # Integer depth: return ancestor at that level
+        # Integer depth: return ancestor at that level (exact, no projection)
         lvl = max_level - Int(d)
         lvl >= 1 || throw(FractionalDepthError("internal: invalid level $lvl for depth $d"))
         return _ancestor_at_level(tree, focus_leaf, lvl)
+    end
+
+    # Non-integer depth: require a projection contract
+    if projection === nothing
+        throw(
+            FractionalDepthError(
+                "non-integer fractional_depth_query at depth $d requires a " *
+                "projection contract (AffineProjection); pass `projection=...` " *
+                "or declare a `projection_contract` for payload type $P",
+            ),
+        )
     end
 
     floor_d = Int(floor(d))
@@ -115,11 +159,28 @@ function fractional_depth_query(
     ancestor_floor = _ancestor_at_level(tree, focus_leaf, lvl_floor)
     ancestor_ceil = _ancestor_at_level(tree, focus_leaf, lvl_ceil)
 
-    proj_floor = projection(ancestor_floor)
-    proj_ceil = projection(ancestor_ceil)
+    # Project both ancestors
+    proj_floor = projection.project(ancestor_floor)
+    proj_ceil = projection.project(ancestor_ceil)
+
+    # Validate both projections belong to the same declared affine space
+    space_id = projection.space_id
+    # If space_id is a type, check isinstance; otherwise compare equality
+    if space_id isa Type
+        isa(proj_floor, space_id) && isa(proj_ceil, space_id) || throw(
+            FractionalDepthError(
+                "projection contract space_id=$space_id does not match " *
+                "projected types $(typeof(proj_floor)) and $(typeof(proj_ceil))",
+            ),
+        )
+    end
 
     # Linear interpolation: (1 - t) * floor + t * ceil
-    return proj_floor * (1 - t) + proj_ceil * t
+    interpolated = proj_floor * (1 - t) + proj_ceil * t
+
+    # Apply result interpretation
+    schema = tree.schema
+    return projection.interpret(interpolated, schema)
 end
 
 # ---------------------------------------------------------------------------

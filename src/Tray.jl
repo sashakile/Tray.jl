@@ -10,6 +10,9 @@ include("sample_analytics.jl")
 include("aligned_array.jl")
 include("fractional_depth.jl")
 include("persistence.jl")
+include("snapshot.jl")
+include("dashboard.jl")
+include("financial_risk.jl")
 
 # Export core interface
 export TrayBase
@@ -19,6 +22,8 @@ export AttributionSchema,
 export Tree,
     root,
     leaf_count,
+    leaf_id_at,
+    leaf_index_by_id,
     depth,
     range_query,
     update,
@@ -110,17 +115,9 @@ import .SampleAnalytics:
     dataset_revision,
     AlignedProjectionError,
     MomentQuantileResult,
-    SketchConfig,
-    HistogramSketch,
-    CompressedSamplePayload,
-    compress,
-    sketch_quantile,
-    sketch_tail_mean,
+    advance_window!,
     exact_quantile,
-    exact_tail_mean,
-    ApproximateResult,
-    SketchConfigError,
-    SketchStorageError
+    exact_tail_mean
 export SamplePayload,
     project_samples,
     moment_quantile,
@@ -129,17 +126,9 @@ export SamplePayload,
     dataset_revision,
     AlignedProjectionError,
     MomentQuantileResult,
-    SketchConfig,
-    HistogramSketch,
-    CompressedSamplePayload,
-    compress,
-    sketch_quantile,
-    sketch_tail_mean,
+    advance_window!,
     exact_quantile,
-    exact_tail_mean,
-    ApproximateResult,
-    SketchConfigError,
-    SketchStorageError
+    exact_tail_mean
 
 # Aligned array exports
 import .AlignedArray:
@@ -152,11 +141,24 @@ export AlignedArrayPayload,
 
 # Fractional depth exports
 import .FractionalDepth:
-    fractional_depth_query, fractional_depth_quantile, FractionalDepthError
-export fractional_depth_query, fractional_depth_quantile, FractionalDepthError
+    fractional_depth_query,
+    fractional_depth_quantile,
+    FractionalDepthError,
+    AffineProjection,
+    projection_contract
+export fractional_depth_query,
+    fractional_depth_quantile, FractionalDepthError, AffineProjection, projection_contract
 
 # Persistence exports
 import .Persistence: save_tree, load_tree, TreeSnapshot, format_version
 export save_tree, load_tree, TreeSnapshot, format_version
+
+# Snapshot epoch exports
+import .Snapshot: SnapshotEpoch, revision, publish!, leaf_at, publish_with_rollback
+export SnapshotEpoch, revision, publish!, leaf_at, publish_with_rollback
+
+# Dashboard model exports
+import .Dashboard: DashboardModel, get_field, set_field!, subscribe!, execute_query
+export DashboardModel, get_field, set_field!, subscribe!, execute_query
 
 end # module Tray

@@ -7975,3 +7975,104 @@ end
     @test_throws FractionalDepthError fractional_depth_query(tree, 1, -0.1)
     @test_throws FractionalDepthError fractional_depth_query(tree, 1, 99.5)
 end
+
+## ---------------------------------------------------------------------------
+## Affine projection contract (TRAYS-9r4: REQ-19 projection enforcement)
+## ---------------------------------------------------------------------------
+
+@testitem "fractional_depth_query: non-integer without projection fails (REQ-19)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, fractional_depth_query, FractionalDepthError
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+
+    @test_throws FractionalDepthError fractional_depth_query(tree, 1, 1.5)
+end
+
+@testitem "fractional_depth_query: non-integer with valid projection (REQ-19)" begin
+    using Tray:
+        ScalarSchema,
+        ScalarSummary,
+        Tree,
+        fractional_depth_query,
+        FractionalDepthError,
+        AffineProjection
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+
+    # Projection that extracts .sum, interpolates, returns scalar
+    proj = AffineProjection(s -> s.sum, (v, _) -> v, Float64)
+
+    # depth 1.5: floor(1)=level1 root of (1,2)=sum=3.0, ceil(2)=leaf1=sum=1.0
+    # (3.0)*0.5 + (1.0)*0.5 = 2.0
+    @test fractional_depth_query(tree, 1, 1.5; projection = proj) ≈ 2.0
+
+    # depth 0.5: floor(0)=root=sum=10.0, ceil(1)=level1 root of (1,2)=sum=3.0
+    # (10.0)*0.5 + (3.0)*0.5 = 6.5
+    @test fractional_depth_query(tree, 1, 0.5; projection = proj) ≈ 6.5
+
+    # depth 0.0 (integer) returns exact ancestor without projection
+    @test fractional_depth_query(tree, 1, 0.0).sum == 10.0
+end
+
+@testitem "fractional_depth_query: integer depth ignores projection (REQ-19)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, fractional_depth_query, AffineProjection
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+
+    proj = AffineProjection(s -> s.sum, (v, _) -> v, Float64)
+
+    # Integer depths return exact ancestor, no projection applied
+    @test fractional_depth_query(tree, 1, 0; projection = proj).sum == 10.0
+    @test fractional_depth_query(tree, 1, 2; projection = proj).sum == 1.0
+end
+
+@testitem "fractional_depth_query: interprets result after interpolation (REQ-19)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, fractional_depth_query, AffineProjection
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+
+    # Projection that extracts sum, then interpret wraps back into ScalarSummary
+    interpret_fn(v, sch) = ScalarSummary(;
+        schema = sch,
+        count = 1,
+        sum = v,
+        sumsq = v^2,
+        minimum = v,
+        maximum = v,
+    )
+    proj = AffineProjection(s -> s.sum, interpret_fn, Float64)
+
+    # depth 1.5: (3.0)*0.5 + (1.0)*0.5 = 2.0, interpreted as ScalarSummary
+    result = fractional_depth_query(tree, 1, 1.5; projection = proj)
+    @test result isa ScalarSummary{Float64}
+    @test result.sum ≈ 2.0
+    @test result.count == 1
+end
+
+@testitem "AffineProjection: construction and access" begin
+    using Tray: AffineProjection
+
+    proj = AffineProjection(x -> x, (v, _) -> v, :test_space)
+    @test proj.project(5) == 5
+    @test proj.interpret(3, nothing) == 3
+    @test proj.space_id == :test_space
+end
+
+@testitem "projection_contract: returns nothing by default" begin
+    using Tray: projection_contract, ScalarSummary
+
+    @test projection_contract(ScalarSummary{Float64}) === nothing
+end
