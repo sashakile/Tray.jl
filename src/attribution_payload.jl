@@ -26,8 +26,13 @@ Supported methods:
 struct Allocated <: AttributionConvention
     method::Symbol
     ordered_factor_ids::Vector{Symbol}
+    source_partition_id::Symbol
 
-    function Allocated(method::Symbol, ordered_factor_ids::Vector{Symbol})
+    function Allocated(
+        method::Symbol,
+        ordered_factor_ids::Vector{Symbol},
+        source_partition_id::Symbol = :default,
+    )
         method in (:sequential, :symmetric) || throw(
             ArgumentError(
                 "unsupported allocation method: $method; expected :sequential or :symmetric",
@@ -35,21 +40,28 @@ struct Allocated <: AttributionConvention
         )
         length(ordered_factor_ids) >= 1 ||
             throw(ArgumentError("Allocated: must have at least one factor ID"))
-        return new(method, ordered_factor_ids)
+        source_partition_id !== Symbol("") || throw(
+            ArgumentError(
+                "Allocated: source_partition_id must be non-empty, got empty symbol",
+            ),
+        )
+        return new(method, ordered_factor_ids, source_partition_id)
     end
 end
 
 Base.:(==)(a::Allocated, b::Allocated) =
-    a.method == b.method && a.ordered_factor_ids == b.ordered_factor_ids
+    a.method == b.method &&
+    a.ordered_factor_ids == b.ordered_factor_ids &&
+    a.source_partition_id == b.source_partition_id
 
 function Base.hash(a::Allocated, h::UInt)
-    return hash(a.ordered_factor_ids, hash(a.method, h))
+    return hash(a.source_partition_id, hash(a.ordered_factor_ids, hash(a.method, h)))
 end
 
 Base.show(io::IO, ::Direct) = print(io, "Direct()")
 
 function Base.show(io::IO, a::Allocated)
-    print(io, "Allocated(:$(a.method), $(a.ordered_factor_ids))")
+    print(io, "Allocated(:$(a.method), $(a.ordered_factor_ids), :$(a.source_partition_id))")
 end
 
 """
@@ -81,12 +93,23 @@ struct AttributionSchema{K,T}
             ArgumentError("AttributionSchema: bucket_ids must be unique, got $bucket_ids"),
         )
 
-        # Validate tolerance is positive finite
-        tolerance > zero(T) && isfinite(tolerance) || throw(
+        # Validate tolerance is non-negative finite
+        tolerance >= zero(T) && isfinite(tolerance) || throw(
             ArgumentError(
-                "AttributionSchema: tolerance must be positive finite, got $tolerance",
+                "AttributionSchema: tolerance must be non-negative finite, got $tolerance",
             ),
         )
+
+        # Inexact schemas (tolerance > 0) MUST designate a residual bucket (REQ-46)
+        if tolerance > zero(T) && residual_bucket_id === nothing
+            throw(
+                ArgumentError(
+                    "AttributionSchema: inexact schemas (tolerance > 0) must designate " *
+                    "a residual_bucket_id for canonical residual reconciliation, " *
+                    "got residual_bucket_id=nothing with tolerance=$tolerance",
+                ),
+            )
+        end
 
         # Validate residual_bucket_id is in bucket_ids when present
         if residual_bucket_id !== nothing
@@ -144,6 +167,47 @@ function Base.hash(a::AttributionSchema{K,T}, h::UInt) where {K,T}
 end
 
 """
+    _canonical_residual(schema, buckets, realized_total)
+
+Compute the canonical residual in schema order: sum non-residual buckets in
+schema order, then `residual = realized_total - non_residual_sum`.
+Used by both construction and `combine` to ensure deterministic derivation.
+
+Throws `ArgumentError` if the arithmetic produces a non-finite value.
+"""
+function _canonical_residual(
+    schema::AttributionSchema{K,T},
+    buckets,
+    realized_total::T,
+) where {K,T}
+    if schema.residual_bucket_id === nothing
+        # Exact schema: no residual, bucket sum must equal realized_total
+        return zero(T)  # caller handles mismatch
+    end
+    residual_idx = findfirst(==(schema.residual_bucket_id), schema.bucket_ids)
+    residual_idx === nothing && error(
+        "AttributionPayload: residual_bucket_id=:$(schema.residual_bucket_id) not found in schema.bucket_ids",
+    )
+
+    # Sum non-residual buckets in schema order (REQ-46 canonical order)
+    non_residual_sum = zero(T)
+    for i = 1:K
+        i == residual_idx && continue
+        non_residual_sum = non_residual_sum + buckets[i]
+    end
+
+    # Derive residual; must remain finite
+    residual = realized_total - non_residual_sum
+    isfinite(residual) || throw(
+        ArgumentError(
+            "AttributionPayload: reconciliation arithmetic produced non-finite " *
+            "residual=$residual (realized_total=$realized_total, non_residual_sum=$non_residual_sum)",
+        ),
+    )
+    return residual
+end
+
+"""
     AttributionPayload{K, T}
 
 Bucketed additive attribution payload containing:
@@ -179,24 +243,39 @@ struct AttributionPayload{K,T}
             ),
         )
 
-        # Bucket-sum reconciliation (REQ-46)
-        bucket_sum = sum(buckets)
-        gap = realized_total - bucket_sum
-        if abs(gap) > schema.tolerance
-            if schema.residual_bucket_id !== nothing
-                # Find residual bucket index and assign the gap
-                residual_idx = findfirst(==(schema.residual_bucket_id), schema.bucket_ids)
-                buckets = copy(buckets)
-                buckets[residual_idx] += gap
-            else
-                throw(
-                    ArgumentError(
-                        "AttributionPayload: bucket_sum=$bucket_sum does not reconcile " *
-                        "with realized_total=$realized_total (gap=$gap, tolerance=$(schema.tolerance)); " *
-                        "no residual bucket designated",
-                    ),
-                )
-            end
+        # Take a copy since we may modify
+        buckets = copy(buckets)
+
+        if schema.residual_bucket_id !== nothing
+            # Canonical residual reconciliation (REQ-46): derive residual from
+            # realized_total and non-residual buckets in schema order;
+            # ignore any supplied residual bucket value
+            residual = _canonical_residual(schema, buckets, realized_total)
+            residual_idx = findfirst(==(schema.residual_bucket_id), schema.bucket_ids)
+            buckets[residual_idx] = residual
+
+            # Verify reconciliation within tolerance
+            bucket_sum = sum(buckets)
+            gap = abs(bucket_sum - realized_total)
+            gap <= schema.tolerance || throw(
+                ArgumentError(
+                    "AttributionPayload: after canonical residual derivation, " *
+                    "bucket_sum=$bucket_sum still does not reconcile " *
+                    "with realized_total=$realized_total (gap=$gap, tolerance=$(schema.tolerance))",
+                ),
+            )
+        else
+            # Exact schema: no residual — bucket sum must equal realized_total
+            # within tolerance (which is 0 for exact schemas)
+            bucket_sum = sum(buckets)
+            gap = abs(bucket_sum - realized_total)
+            gap <= schema.tolerance || throw(
+                ArgumentError(
+                    "AttributionPayload: bucket_sum=$bucket_sum does not reconcile " *
+                    "with realized_total=$realized_total (gap=$gap, tolerance=$(schema.tolerance)); " *
+                    "no residual bucket designated",
+                ),
+            )
         end
 
         return new{K,T}(schema, buckets, realized_total)
@@ -242,11 +321,33 @@ function TrayBase.combine(
         ArgumentError("AttributionPayload schema mismatch: $(a.schema) vs $(b.schema)"),
     )
 
-    return AttributionPayload{K,T}(
-        a.schema,
-        a.buckets .+ b.buckets,
-        a.realized_total + b.realized_total,
-    )
+    if a.schema.residual_bucket_id !== nothing
+        # Canonical combine (REQ-46): add non-residual buckets and totals,
+        # then derive residual without summing child residuals
+        residual_idx = findfirst(==(a.schema.residual_bucket_id), a.schema.bucket_ids)
+
+        # Add non-residual buckets elementwise
+        new_buckets = zeros(T, K)
+        for i = 1:K
+            i == residual_idx && continue
+            new_buckets[i] = a.buckets[i] + b.buckets[i]
+        end
+
+        new_total = a.realized_total + b.realized_total
+
+        # Derive residual from the combined non-residual buckets and total
+        residual = _canonical_residual(a.schema, new_buckets, new_total)
+        new_buckets[residual_idx] = residual
+
+        return AttributionPayload{K,T}(a.schema, new_buckets, new_total)
+    else
+        # Exact schema: componentwise addition (residual_bucket_id === nothing)
+        return AttributionPayload{K,T}(
+            a.schema,
+            a.buckets .+ b.buckets,
+            a.realized_total + b.realized_total,
+        )
+    end
 end
 
 # Fallback for mismatched types (different K, different T, or non-AttributionPayload)

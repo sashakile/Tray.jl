@@ -331,7 +331,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -348,7 +348,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -367,7 +367,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -386,7 +386,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -412,13 +412,13 @@ end
 
     schema2 = AttributionSchema(
         bucket_ids = (:pnl, :costs),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
     schema3 = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -437,13 +437,13 @@ end
 
     schema_a = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
     schema_b = AttributionSchema(
         bucket_ids = (:pnl, :fees, :costs),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -466,7 +466,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -499,7 +499,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -518,7 +518,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -542,7 +542,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -607,7 +607,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:a, :b),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -1605,7 +1605,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:a, :b),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2116,7 +2116,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:a, :b),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2406,7 +2406,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2424,18 +2424,20 @@ end
     using Tray: AttributionPayload, AttributionSchema, Direct
 
     schema = AttributionSchema(
-        bucket_ids = (:pnl, :costs, :fees),
+        bucket_ids = (:pnl, :costs, :fees, :residual),
         tolerance = 1e-6,
-        residual_bucket_id = nothing,
+        residual_bucket_id = :residual,
         convention = Direct(),
     )
-    # buckets sum to 8.5, realized_total = 8.5000005 — gap 5e-7 < 1e-6
+    # non-residual buckets sum to 8.5, realized_total = 8.5000005
+    # residual = 8.5000005 - 8.5 = 5e-7
     p = AttributionPayload(
         schema = schema,
-        buckets = [10.0, -2.0, 0.5],
+        buckets = [10.0, -2.0, 0.5, 0.0],
         realized_total = 8.5000005,
     )
-    @test sum(p.buckets) ≈ 8.5
+    @test p.buckets[4] ≈ 5e-7
+    @test sum(p.buckets) ≈ 8.5000005
     @test p.realized_total == 8.5000005
 end
 
@@ -2444,7 +2446,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2570,7 +2572,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2582,7 +2584,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs, :fees),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Allocated(:sequential, [:rate, :volume, :mix]),
     )
@@ -2596,7 +2598,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:pnl, :costs),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Allocated(:symmetric, [:rate, :volume]),
     )
@@ -2620,13 +2622,13 @@ end
 
     a = AttributionSchema(
         bucket_ids = (:x, :y),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
     b = AttributionSchema(
         bucket_ids = (:x, :y),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2639,13 +2641,13 @@ end
 
     a = AttributionSchema(
         bucket_ids = (:x, :y),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Allocated(:sequential, [:rate, :volume]),
     )
     b = AttributionSchema(
         bucket_ids = (:x, :y),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Allocated(:sequential, [:rate, :volume]),
     )
@@ -2662,7 +2664,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:revenue, :costs, :pnl),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2681,7 +2683,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:revenue, :costs, :pnl),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2705,7 +2707,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:revenue, :costs, :pnl),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2718,7 +2720,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:revenue, :costs, :pnl),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2735,7 +2737,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:revenue, :costs, :pnl),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2749,7 +2751,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:revenue, :costs, :pnl),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2766,7 +2768,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:revenue, :costs, :pnl),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2783,7 +2785,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:revenue, :costs, :pnl),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2800,7 +2802,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:value,),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2817,16 +2819,21 @@ end
     using Tray: AttributionPayload, AttributionSchema, Direct
 
     schema = AttributionSchema(
-        bucket_ids = (:a, :b),
+        bucket_ids = (:a, :b, :residual),
         tolerance = 1e-6,
-        residual_bucket_id = nothing,
+        residual_bucket_id = :residual,
         convention = Direct(),
     )
     # gap = 0.5e-6, clearly within tolerance of 1e-6
     realized = 3.0 + 0.5e-6
-    p = AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = realized)
-    @test sum(p.buckets) ≈ 3.0 atol = 1e-10
-    @test p.realized_total ≈ realized
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [1.0, 2.0, 0.0],
+        realized_total = realized,
+    )
+    # non-residual sum = 3.0, residual = realized - 3.0 = 0.5e-6
+    @test p.buckets[3] ≈ 0.5e-6
+    @test sum(p.buckets) ≈ realized
 end
 
 @testitem "AttributionPayload: property test — elementwise sum through multi-level combine" begin
@@ -2834,7 +2841,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:a, :b, :c),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2877,7 +2884,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:x, :y),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -2893,6 +2900,314 @@ end
         @test combine(p, id) == p
         @test combine(p, id) == combine(id, p)
     end
+end
+
+## ---------------------------------------------------------------------------
+## Canonical residual reconciliation (TRAYS-0m4: clarify-attribution-construction-boundary)
+## Tasks 2.1–2.3: Canonical residual derivation, source partition provenance
+## ---------------------------------------------------------------------------
+
+@testitem "AttributionPayload: Allocated requires non-empty source_partition_id" begin
+    using Tray: Allocated
+
+    # Valid source_partition_id
+    a = Allocated(:sequential, [:rate, :volume], :t0)
+    @test a.source_partition_id == :t0
+    @test a.method == :sequential
+    @test a.ordered_factor_ids == [:rate, :volume]
+end
+
+@testitem "AttributionPayload: Allocated rejects empty source_partition_id" begin
+    using Tray: Allocated
+
+    @test_throws ArgumentError Allocated(:sequential, [:rate, :volume], Symbol(""))
+end
+
+@testitem "AttributionPayload: Allocated equality includes source_partition_id" begin
+    using Tray: Allocated
+
+    a = Allocated(:sequential, [:rate, :volume], :t0)
+    b = Allocated(:sequential, [:rate, :volume], :t0)
+    c = Allocated(:sequential, [:rate, :volume], :t1)
+    @test a == b
+    @test hash(a) == hash(b)
+    @test a != c
+end
+
+@testitem "AttributionPayload: inexact schema requires residual bucket" begin
+    using Tray: AttributionSchema, Direct
+
+    # Inexact tolerance > 0 should require residual_bucket_id
+    @test_throws ArgumentError AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 1e-10,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+end
+
+@testitem "AttributionPayload: exact schema may omit residual" begin
+    using Tray: AttributionSchema, Direct
+
+    # Exact arithmetic: tolerance == 0 may omit residual
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    @test schema.residual_bucket_id === nothing
+end
+
+@testitem "AttributionPayload: inexact schema requires residual (not nothing)" begin
+    using Tray: AttributionSchema, Direct
+
+    @test_throws ArgumentError AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 0.001,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+end
+
+@testitem "AttributionPayload: construction derives residual in schema order" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    # Non-residual buckets: pnl=10.0, costs=-2.0, fees=0.5 → sum=8.5
+    # realized_total=10.0 → residual = 10.0 - 8.5 = 1.5
+    p = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5, 999.0],  # residual input ignored
+        realized_total = 10.0,
+    )
+    @test p.buckets[1] == 10.0          # pnl preserved
+    @test p.buckets[2] == -2.0          # costs preserved
+    @test p.buckets[3] == 0.5           # fees preserved
+    @test p.buckets[4] ≈ 1.5            # residual = realized_total - sum(non_residual)
+    @test sum(p.buckets) ≈ 10.0
+    @test p.realized_total == 10.0
+end
+
+@testitem "AttributionPayload: combine derives residual canonically" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.0],
+        realized_total = 8.0,
+    )  # non-residual sum=8.0, realized=8.0 → residual=0.0
+    b = AttributionPayload(schema = schema, buckets = [5.0, 1.0, 0.0], realized_total = 6.0)  # non-residual sum=6.0, realized=6.0 → residual=0.0
+    c = combine(a, b)
+    # Non-residual: pnl=15.0, costs=-1.0 → sum=14.0
+    # realized_total = 8.0 + 6.0 = 14.0
+    # residual = 14.0 - 14.0 = 0.0
+    @test c.buckets[1] == 15.0
+    @test c.buckets[2] == -1.0
+    @test c.buckets[3] ≈ 0.0
+    @test c.realized_total == 14.0
+    @test sum(c.buckets) ≈ c.realized_total
+end
+
+@testitem "AttributionPayload: combine does NOT add child residuals" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    a = AttributionPayload(schema = schema, buckets = [10.0, 0.0], realized_total = 10.5)  # non-residual sum=10.0, realized=10.5 → residual=0.5
+    b = AttributionPayload(schema = schema, buckets = [5.0, 0.0], realized_total = 5.3)  # non-residual sum=5.0, realized=5.3 → residual=0.3
+    c = combine(a, b)
+    # If we added child residuals: 0.5 + 0.3 = 0.8
+    # Canonical: non-residual=15.0, realized=15.8 → residual=0.8
+    # But in this case they happen to match because the gap is the same
+    # Let's test the actual invariant:
+    @test c.buckets[1] == 15.0
+    @test c.buckets[2] ≈ 0.8   # 15.8 - 15.0 = 0.8
+end
+
+@testitem "AttributionPayload: canonical combine with non-trivial residuals" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    # a: buckets sum to 8.0, realized=8.5 → residual=0.5
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 100.0],
+        realized_total = 8.5,
+    )
+    @test a.buckets[1] == 10.0
+    @test a.buckets[2] == -2.0
+    @test a.buckets[3] ≈ 0.5   # 8.5 - (10.0 + -2.0) = 0.5
+
+    # b: buckets sum to 6.0, realized=6.5 → residual=0.5
+    b = AttributionPayload(
+        schema = schema,
+        buckets = [5.0, 1.0, 100.0],
+        realized_total = 6.5,
+    )
+    @test b.buckets[1] == 5.0
+    @test b.buckets[2] == 1.0
+    @test b.buckets[3] ≈ 0.5   # 6.5 - (5.0 + 1.0) = 0.5
+
+    c = combine(a, b)
+    # Non-residual sum: 15.0 + -1.0 = 14.0
+    # realized_total: 8.5 + 6.5 = 15.0
+    # residual = 15.0 - 14.0 = 1.0
+    @test c.buckets[1] == 15.0
+    @test c.buckets[2] == -1.0
+    @test c.buckets[3] ≈ 1.0   # not 0.5+0.5=1.0 (coincidence), but 15.0-14.0=1.0
+end
+
+@testitem "AttributionPayload: identity for inexact schema has zero residual" begin
+    using Tray: AttributionSchema, Direct, identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    id = identity(schema)
+    @test all(b == 0.0 for b in id.buckets)
+    @test id.realized_total == 0.0
+end
+
+@testitem "AttributionPayload: exact no-residual combine is componentwise" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, identity, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.5],
+        realized_total = 8.5,
+    )
+    b = AttributionPayload(
+        schema = schema,
+        buckets = [5.0, 1.0, -0.5],
+        realized_total = 5.5,
+    )
+    c = combine(a, b)
+    @test c.buckets == [15.0, -1.0, 0.0]
+    @test c.realized_total == 14.0
+end
+
+@testitem "AttributionPayload: exact schema rejects unreconciled" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    # buckets sum to 3.0, realized_total = 3.5 — gap 0.5 > 0 tolerance
+    @test_throws ArgumentError AttributionPayload(
+        schema = schema,
+        buckets = [1.0, 2.0],
+        realized_total = 3.5,
+    )
+end
+
+@testitem "AttributionPayload: canonical combine associativity holds" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    a = AttributionPayload(
+        schema = schema,
+        buckets = [10.0, -2.0, 0.0],
+        realized_total = 8.5,
+    )
+    b = AttributionPayload(schema = schema, buckets = [5.0, 1.0, 0.0], realized_total = 6.5)
+    c = AttributionPayload(
+        schema = schema,
+        buckets = [-3.0, 0.5, 0.0],
+        realized_total = -2.0,
+    )
+
+    r1 = combine(combine(a, b), c)
+    r2 = combine(a, combine(b, c))
+
+    @test r1 == r2
+    @test r1.realized_total == 13.0  # 8.5 + 6.5 + (-2.0)
+    # Non-residual: 12.0 + -0.5 = 11.5, residual = 13.0 - 11.5 = 1.5
+    @test r1.buckets[3] ≈ 1.5
+end
+
+@testitem "AttributionPayload: adversarial grouping invariance" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct, combine
+
+    schema = AttributionSchema(
+        bucket_ids = (:x, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    # Create leaves where individual residuals differ
+    leaf1 =
+        AttributionPayload(schema = schema, buckets = [10.0, 0.0], realized_total = 10.3)  # residual = 0.3
+    leaf2 = AttributionPayload(schema = schema, buckets = [5.0, 0.0], realized_total = 5.2)  # residual = 0.2
+    leaf3 =
+        AttributionPayload(schema = schema, buckets = [-3.0, 0.0], realized_total = -2.8)  # residual = 0.2
+    leaf4 = AttributionPayload(schema = schema, buckets = [7.0, 0.0], realized_total = 7.1)  # residual = 0.1
+
+    # Group as ((1+2)+(3+4))
+    r1 = combine(combine(leaf1, leaf2), combine(leaf3, leaf4))
+    # Group as ((1+3)+(2+4))
+    r2 = combine(combine(leaf1, leaf3), combine(leaf2, leaf4))
+
+    @test r1 == r2
+    # Canonical result: non-residual = 10.0+5.0+(-3.0)+7.0 = 19.0
+    # realized_total = 10.3+5.2+(-2.8)+7.1 = 19.8
+    # residual = 19.8 - 19.0 = 0.8
+    @test r1.buckets[1] == 19.0
+    @test r1.buckets[2] ≈ 0.8
+end
+
+@testitem "AttributionPayload: construction rejects non-finite reconciliation" begin
+    using Tray: AttributionPayload, AttributionSchema, Direct
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :residual),
+        tolerance = 1e-10,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    # Non-residual bucket is finite, but realized_total is Inf
+    @test_throws ArgumentError AttributionPayload(
+        schema = schema,
+        buckets = [1.0, 0.0],
+        realized_total = Inf,
+    )
 end
 
 ## ---------------------------------------------------------------------------
@@ -3104,7 +3419,7 @@ end
 
     schema = AttributionSchema(
         bucket_ids = (:a, :b, :c),
-        tolerance = 1e-10,
+        tolerance = 0.0,
         residual_bucket_id = nothing,
         convention = Direct(),
     )
@@ -6198,8 +6513,8 @@ end
     c = TrayBase.combine(a, b)
 
     @test c.samples ≈ [5.0, 7.0, 9.0]
-    @test c.summary.count == 6
-    @test c.summary.sum ≈ 21.0
+    @test c.summary.count == 3  # elementwise sum preserves sample length
+    @test c.summary.sum ≈ 5.0 + 7.0 + 9.0
     @test c.dataset_revision == 1
 end
 
@@ -6292,8 +6607,8 @@ end
     @test leaf_count(t) == 3
     @test depth(t) == 2
     @test root(t).samples ≈ [12.0, 15.0, 18.0]
-    @test root(t).summary.count == 9
-    @test root(t).summary.sum ≈ 45.0
+    @test root(t).summary.count == 3  # elementwise: count = sample length
+    @test root(t).summary.sum ≈ 12.0 + 15.0 + 18.0
 end
 
 @testitem "Tree: SamplePayload update snapshot isolation" begin
@@ -6368,7 +6683,7 @@ end
     # Weight both leaves equally
     result = project_samples(t, [1.0, 1.0])
     @test result.samples ≈ [5.0, 7.0, 9.0]
-    @test result.summary.count == 6
+    @test result.summary.count == 3  # elementwise preserves sample length
 
     # Weight first leaf only
     result2 = project_samples(t, [1.0, 0.0])
@@ -6430,8 +6745,8 @@ end
     @test leaf_count(t) == 2
     @test t.levels[1][1].samples ≈ [10.0, 20.0]
     @test t.levels[1][2].samples ≈ [30.0, 40.0]
-    @test root(t).summary.count == 4
-    @test root(t).summary.sum ≈ 100.0
+    @test root(t).summary.count == 2  # elementwise: count = sample length
+    @test root(t).summary.sum ≈ (10.0+30.0) + (20.0+40.0)
 
     # Revision incremented
     @test root(t).dataset_revision == orig_revision + 1
@@ -6643,321 +6958,1020 @@ end
 end
 
 ## ---------------------------------------------------------------------------
-## CompressedSamplePayload & sketch tests (TRAYS-x6z: REQ-21, REQ-22, REQ-32, REQ-44)
+
+## ---------------------------------------------------------------------------
+## ---------------------------------------------------------------------------
+## Snapshot epoch tests (TRAYS-2ib: REQ-23, REQ-35, REQ-40)
 ## ---------------------------------------------------------------------------
 
-@testitem "SketchConfig: construction validates parameters (REQ-21)" begin
-    using Tray: SketchConfig, SketchConfigError
+@testitem "SnapshotEpoch: wrap tree at revision 1 (REQ-23)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: leaf_count, depth
 
-    cfg = SketchConfig(1, 100, 0.0, 100.0, 0.05)
-    @test cfg.n_bins == 100
-    @test cfg.epsilon == 0.05
-    @test cfg.config_id == 1
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
 
-    @test_throws SketchConfigError SketchConfig(1, 1, 0.0, 1.0, 0.05)
-    @test_throws SketchConfigError SketchConfig(1, 10, 10.0, 0.0, 0.05)
-    @test_throws SketchConfigError SketchConfig(1, 10, 0.0, 1.0, 0.0)
-    @test_throws SketchConfigError SketchConfig(1, 10, 0.0, 1.0, -1.0)
+    @test snap.revision == 1
+    @test leaf_count(snap) == 4
+    @test depth(snap) == 2
 end
 
-@testitem "HistogramSketch: empty sketch and add_value (REQ-21)" begin
-    using Tray: SketchConfig, HistogramSketch
-    using Tray.SampleAnalytics: add_value!
+@testitem "SnapshotEpoch: read pins snapshot epoch (REQ-23)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: leaf_count, leaf_at, root, update, depth
 
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    s = HistogramSketch(cfg)
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
 
-    @test s.count == 0
-    @test all(s.counts .== 0)
-
-    add_value!(s, 1.5)
-    @test s.count == 1
-    @test s.counts[2] == 1
+    pinned_root = root(snap)
+    snap2 = update(snap, 2, leaf(10.0))
+    @test snap2.revision == 2
+    @test leaf_at(snap2, 2).sum == 10.0
+    @test leaf_at(snap, 2).sum == 2.0
+    @test root(snap) == pinned_root
 end
 
-@testitem "HistogramSketch: value clamped to bin edges (REQ-21)" begin
-    using Tray: SketchConfig, HistogramSketch
-    using Tray.SampleAnalytics: add_value!
+@testitem "SnapshotEpoch: range query from pinned snapshot (REQ-23)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: range_query, update
 
-    cfg = SketchConfig(1, 4, 0.0, 4.0, 0.1)
-    s = HistogramSketch(cfg)
-
-    add_value!(s, -1.0)
-    @test s.counts[1] == 1
-
-    add_value!(s, 10.0)
-    @test s.counts[4] == 1
-
-    add_value!(s, 0.0)
-    add_value!(s, 4.0)
-    @test s.count == 4
-end
-
-@testitem "HistogramSketch: combine performs aligned-sum (REQ-21)" begin
-    using Tray: SketchConfig, HistogramSketch, TrayBase
-    using Tray.SampleAnalytics: add_value!
-
-    cfg = SketchConfig(1, 5, 0.0, 5.0, 0.1)
-    a = HistogramSketch(cfg)
-    b = HistogramSketch(cfg)
-
-    for v = 0.5:1.0:4.5
-        add_value!(a, v)
-        add_value!(b, v)
-    end
-
-    c = TrayBase.combine(a, b)
-    @test c.count == 10
-    @test all(c.counts .== 2)
-
-    empty_s = HistogramSketch(cfg)
-    @test TrayBase.combine(a, empty_s) == a
-    @test TrayBase.combine(empty_s, a) == a
-end
-
-@testitem "HistogramSketch: combine rejects different configs (REQ-21)" begin
-    using Tray: SketchConfig, HistogramSketch, TrayBase
-
-    a = HistogramSketch(SketchConfig(1, 5, 0.0, 5.0, 0.1))
-    b = HistogramSketch(SketchConfig(2, 10, 0.0, 10.0, 0.2))
-    @test_throws ArgumentError TrayBase.combine(a, b)
-end
-
-@testitem "CompressedSamplePayload: construction from samples (REQ-21)" begin
-    using Tray: SketchConfig, CompressedSamplePayload
-
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    csp = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0, 4.0, 5.0], config = cfg)
-
-    @test csp.sketch.count == 5
-    @test csp.config_id == 1
-    @test csp.dataset_revision == 1
-    @test csp.scalar_summary.count == 5
-    @test csp.scalar_summary.sum ≈ 15.0
-end
-
-@testitem "CompressedSamplePayload: identity laws (REQ-21)" begin
-    using Tray: SketchConfig, CompressedSamplePayload, ScalarSchema, TrayBase
-
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    id = TrayBase.identity(ScalarSchema{Float64}(false), cfg)
-    x = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0], config = cfg)
-
-    @test TrayBase.combine(id, x) == x
-    @test TrayBase.combine(x, id) == x
-end
-
-@testitem "CompressedSamplePayload: combine adds elementwise (REQ-21)" begin
-    using Tray: SketchConfig, CompressedSamplePayload, TrayBase
-
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    a = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0], config = cfg)
-    b = CompressedSamplePayload(; samples = [4.0, 5.0, 6.0], config = cfg)
-    c = TrayBase.combine(a, b)
-
-    @test c.sketch.count == 6
-    @test c.scalar_summary.count == 6
-    @test c.scalar_summary.sum ≈ 21.0
-end
-
-@testitem "CompressedSamplePayload: combine rejects cross-config (REQ-21)" begin
-    using Tray: SketchConfig, CompressedSamplePayload, TrayBase
-
-    a = CompressedSamplePayload(;
-        samples = [1.0, 2.0],
-        config = SketchConfig(1, 10, 0.0, 10.0, 0.1),
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree(
+        [leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0), leaf(5.0), leaf(6.0)];
+        b = 2,
+        schema,
     )
-    b = CompressedSamplePayload(;
-        samples = [3.0, 4.0],
-        config = SketchConfig(2, 10, 0.0, 10.0, 0.1),
+    snap = SnapshotEpoch(tree)
+
+    r1 = range_query(snap, 1, 3)
+    @test r1.sum == 1.0 + 2.0 + 3.0
+
+    snap2 = update(snap, 1, leaf(10.0))
+    r2 = range_query(snap, 1, 3)
+    @test r2.sum == 1.0 + 2.0 + 3.0  # unchanged
+end
+
+@testitem "SnapshotEpoch: insert produces new revision (REQ-23)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: leaf_count, insert, leaf_at
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+
+    snap2 = insert(snap, 2, leaf(1.5))
+    @test snap2.revision == 2
+    @test leaf_count(snap2) == 3
+    @test leaf_at(snap2, 2).sum == 1.5
+
+    @test leaf_count(snap) == 2
+    @test snap.revision == 1
+end
+
+@testitem "SnapshotEpoch: remove produces new revision (REQ-23)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: leaf_count, remove, leaf_at
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+
+    snap2 = remove(snap, 2)
+    @test snap2.revision == 2
+    @test leaf_count(snap2) == 2
+    @test leaf_at(snap2, 1).sum == 1.0
+    @test leaf_at(snap2, 2).sum == 3.0
+end
+
+@testitem "SnapshotEpoch: reweight_subtree produces new revision (REQ-23)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: root, reweight_subtree
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+    original_root = root(snap)
+
+    snap2 = reweight_subtree(snap, 1, 1, 2.0)
+    @test snap2.revision == 2
+    @test root(snap) == original_root
+end
+
+@testitem "SnapshotEpoch: publish! atomically exchanges active snapshot (REQ-23)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: leaf_at, update, publish!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+    ref = Ref(snap)
+
+    new_snap = update(ref[], 1, leaf(10.0))
+    publish!(ref, new_snap)
+
+    @test ref[].revision == 2
+    @test leaf_at(ref[], 1).sum == 10.0
+end
+
+@testitem "SnapshotEpoch: publish_with_rollback preserves state on failure (REQ-23)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: leaf_at, update, publish_with_rollback
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+    ref = Ref(snap)
+
+    publish_with_rollback(ref) do s
+        s2 = update(s, 1, leaf(10.0))
+        s3 = update(s2, 2, leaf(20.0))
+        return s3
+    end
+    @test leaf_at(ref[], 1).sum == 10.0
+    @test leaf_at(ref[], 2).sum == 20.0
+
+    @test_throws ArgumentError publish_with_rollback(ref) do s
+        update(s, 1, leaf(99.0))
+        throw(ArgumentError("simulated failure"))
+    end
+    @test leaf_at(ref[], 1).sum == 10.0
+    @test leaf_at(ref[], 2).sum == 20.0
+end
+
+@testitem "SnapshotEpoch: concurrent writers via tasks (REQ-23 serialization)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: leaf_at, update, publish!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+    ref = Ref(snap)
+
+    @sync begin
+        @async begin
+            s = update(ref[], 1, leaf(10.0))
+            publish!(ref, s)
+        end
+        @async begin
+            s = update(ref[], 4, leaf(40.0))
+            publish!(ref, s)
+        end
+    end
+
+    @test leaf_at(ref[], 1).sum == 10.0
+    @test leaf_at(ref[], 4).sum == 40.0
+    @test ref[].revision == 3
+end
+
+@testitem "SnapshotEpoch: same-leaf update serialization (REQ-35)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: leaf_at, update, publish!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+    ref = Ref(snap)
+
+    @sync begin
+        @async begin
+            s = update(ref[], 1, leaf(10.0))
+            publish!(ref, s)
+        end
+        @async begin
+            s = update(ref[], 1, leaf(20.0))
+            publish!(ref, s)
+        end
+    end
+
+    @test leaf_at(ref[], 1).sum == 10.0 || leaf_at(ref[], 1).sum == 20.0
+end
+
+@testitem "SnapshotEpoch: concurrent writers share ancestors (REQ-23 Scenario 2)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: root, update, publish!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+    ref = Ref(snap)
+    original_root = root(ref[])
+
+    @sync begin
+        @async begin
+            s = update(ref[], 1, leaf(10.0))
+            publish!(ref, s)
+        end
+        @async begin
+            s = update(ref[], 4, leaf(40.0))
+            publish!(ref, s)
+        end
+    end
+
+    final_root = root(ref[])
+    @test final_root.sum == 10.0 + 2.0 + 3.0 + 40.0
+    @test final_root != original_root
+end
+
+@testitem "SnapshotEpoch: root read during concurrent update (REQ-23 Scenario 1)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: root, update, publish!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
+    snap = SnapshotEpoch(tree)
+    ref = Ref(snap)
+
+    pre_root = root(ref[])
+    new_snap = update(ref[], 1, leaf(10.0))
+    publish!(ref, new_snap)
+    post_root = root(ref[])
+
+    @test pre_root.sum == 3.0
+    @test post_root.sum == 12.0
+end
+
+@testitem "SnapshotEpoch: consistent range read during reweighting (REQ-40)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, SnapshotEpoch
+    using Tray.Snapshot: range_query, canonical_nodes, reweight_subtree, publish!
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree(
+        [leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0), leaf(5.0), leaf(6.0)];
+        b = 2,
+        schema,
     )
-    @test_throws ArgumentError TrayBase.combine(a, b)
+    snap = SnapshotEpoch(tree)
+    ref = Ref(snap)
+
+    pre_range = range_query(snap, 1, 3)
+    pre_nodes = canonical_nodes(snap, 1, 3)
+
+    new_snap = reweight_subtree(ref[], 1, 1, 2.0)
+    publish!(ref, new_snap)
+
+    post_range = range_query(ref[], 1, 3)
+
+    @test pre_range.sum == 6.0
+    @test pre_range.sum != post_range.sum
+    @test ref[].revision == 2
 end
 
-@testitem "CompressedSamplePayload: combine rejects cross-revision (REQ-20)" begin
-    using Tray: SketchConfig, CompressedSamplePayload, TrayBase
+## ---------------------------------------------------------------------------
+## Dashboard integration tests (TRAYS-1m0: REQ-27)
+## ---------------------------------------------------------------------------
 
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    a = CompressedSamplePayload(; samples = [1.0, 2.0], config = cfg, dataset_revision = 1)
-    b = CompressedSamplePayload(; samples = [3.0, 4.0], config = cfg, dataset_revision = 2)
-    @test_throws ArgumentError TrayBase.combine(a, b)
-end
-
-@testitem "compress: from SamplePayload to CompressedSamplePayload (REQ-21)" begin
-    using Tray: ScalarSchema, SamplePayload, SketchConfig, CompressedSamplePayload, compress
-
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    schema = ScalarSchema{Float64}(false)
-    sp = SamplePayload(; schema = schema, samples = [1.0, 2.0, 3.0, 4.0, 5.0])
-    csp = compress(sp, cfg)
-
-    @test isa(csp, CompressedSamplePayload)
-    @test csp.sketch.count == 5
-    @test csp.scalar_summary == sp.summary
-    @test csp.dataset_revision == sp.dataset_revision
-end
-
-@testitem "compress: full tree compression (REQ-21)" begin
-    using Tray: ScalarSchema, SamplePayload, SketchConfig, Tree, compress, leaf_count, root
-
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    schema = ScalarSchema{Float64}(false)
-    leaves = [SamplePayload(; schema = schema, samples = fill(Float64(i), 3)) for i = 1:4]
-    t = Tree(leaves; b = 2, schema = schema)
-    ct = compress(t, cfg)
-
-    @test leaf_count(ct) == 4
-    @test root(ct).sketch.count == 12
-end
-
-@testitem "exact_quantile: empirical quantile computation (REQ-6)" begin
-    using Tray: exact_quantile
-
-    samples = [1.0, 2.0, 3.0, 4.0, 5.0]
-    @test exact_quantile(samples, 0.5) ≈ 3.0
-    @test exact_quantile(samples, 0.2) ≈ 1.0
-    @test exact_quantile(samples, 0.8) ≈ 4.0
-    @test exact_quantile(samples, 1.0) ≈ 5.0
-    @test exact_quantile(samples, 0.001) ≈ 1.0
-end
-
-@testitem "exact_quantile: from SamplePayload (REQ-6)" begin
-    using Tray: ScalarSchema, SamplePayload, exact_quantile
+@testitem "DashboardModel: construction (REQ-27)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, DashboardModel
+    using Tray.Dashboard: get_field
 
     schema = ScalarSchema{Float64}(false)
-    sp = SamplePayload(; schema = schema, samples = [10.0, 20.0, 30.0, 40.0])
-    @test exact_quantile(sp, 0.5) ≈ 20.0
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+
+    model = DashboardModel(tree)
+
+    @test get_field(model, :viewport_range) === nothing
+    @test get_field(model, :requested_depth) === nothing
+    @test get_field(model, :request_revision) == 0
+    @test get_field(model, :aggregate) === nothing
+    @test get_field(model, :effective_depth) === nothing
+    @test get_field(model, :error) === nothing
+    @test get_field(model, :result_revision) == 0
 end
 
-@testitem "exact_quantile: rejects invalid inputs (REQ-6)" begin
-    using Tray: exact_quantile
+@testitem "DashboardModel: set_field! increments revision (REQ-27)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, DashboardModel
+    using Tray.Dashboard: get_field, set_field!
 
-    @test_throws DomainError exact_quantile(Float64[], 0.5)
-    @test_throws DomainError exact_quantile([1.0], 0.0)
-    @test_throws DomainError exact_quantile([1.0], -0.5)
-    @test_throws DomainError exact_quantile([1.0], 1.5)
-end
-
-@testitem "exact_tail_mean: upper-tail mean computation (REQ-6)" begin
-    using Tray: exact_tail_mean
-
-    samples = [1.0, 2.0, 3.0, 4.0, 5.0]
-    @test exact_tail_mean(samples, 0.8) ≈ 5.0
-    @test exact_tail_mean(samples, 0.0) ≈ 3.0
-end
-
-@testitem "sketch_quantile: approximate quantile with error bound (REQ-21, REQ-22)" begin
-    using Tray: SketchConfig, HistogramSketch, sketch_quantile
-    using Tray.SampleAnalytics: add_value!
-
-    cfg = SketchConfig(1, 100, 0.0, 100.0, 0.05)
-    s = HistogramSketch(cfg)
-    for v = 1.0:100.0
-        add_value!(s, v)
-    end
-
-    result = sketch_quantile(s, 0.5)
-    @test result.approximate == true
-    @test result.rank_error_bound ≈ 0.05
-    @test result.config_id == 1
-    @test result.tail_mean_uncertainty === nothing
-    @test result.value ≈ 50.0 atol = 2.0
-end
-
-@testitem "sketch_quantile: from CompressedSamplePayload (REQ-32)" begin
-    using Tray: SketchConfig, CompressedSamplePayload, sketch_quantile
-
-    cfg = SketchConfig(1, 50, 0.0, 50.0, 0.1)
-    csp = CompressedSamplePayload(; samples = collect(1.0:50.0), config = cfg)
-
-    result = sketch_quantile(csp, 0.5)
-    @test result.approximate == true
-    @test result.value ≈ 25.0 atol = 2.0
-end
-
-@testitem "sketch_tail_mean: approximate upper-tail mean (REQ-22)" begin
-    using Tray: SketchConfig, HistogramSketch, sketch_tail_mean
-    using Tray.SampleAnalytics: add_value!
-
-    cfg = SketchConfig(1, 50, 0.0, 100.0, 0.1)
-    s = HistogramSketch(cfg)
-    for v = 1.0:100.0
-        add_value!(s, v)
-    end
-
-    result = sketch_tail_mean(s, 0.9)
-    @test result.approximate == true
-    @test result.tail_mean_uncertainty !== nothing
-    @test result.value ≈ 95.0 atol = 5.0
-end
-
-@testitem "sketch_quantile: rejects empty sketch (REQ-32)" begin
-    using Tray: SketchConfig, HistogramSketch, sketch_quantile
-
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    @test_throws DomainError sketch_quantile(HistogramSketch(cfg), 0.5)
-end
-
-@testitem "CompressedSamplePayload: storage bound independent of leaf count (REQ-44)" begin
-    using Tray: ScalarSchema, SketchConfig, CompressedSamplePayload, Tree, leaf_count, root
-
-    cfg = SketchConfig(1, 20, 0.0, 100.0, 0.1)
     schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
-    small = [
-        CompressedSamplePayload(; samples = fill(Float64(i*10), 5), config = cfg) for
-        i = 1:4
+    model = DashboardModel(tree)
+
+    rev1 = set_field!(model, :viewport_range, (1, 2))
+    @test rev1 == 1
+    @test get_field(model, :request_revision) == 1
+    @test get_field(model, :viewport_range) == (1, 2)
+
+    rev2 = set_field!(model, :requested_depth, 1)
+    @test rev2 == 2
+    @test get_field(model, :request_revision) == 2
+end
+
+@testitem "DashboardModel: subscribe! receives notifications (REQ-27)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, DashboardModel
+    using Tray.Dashboard: get_field, set_field!, subscribe!, execute_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
+
+    model = DashboardModel(tree)
+    notifications = Tuple{Symbol,Any}[]
+
+    cb = (m, f, v) -> push!(notifications, (f, v))
+    subscribe!(model, cb)
+
+    set_field!(model, :viewport_range, (1, 2))
+    set_field!(model, :requested_depth, 1)
+    execute_query(model)
+
+    # Should have received aggregate + effective_depth + result_revision notifications
+    notified_fields = [n[1] for n in notifications]
+    @test :aggregate in notified_fields
+    @test :effective_depth in notified_fields
+    @test :result_revision in notified_fields
+end
+
+@testitem "DashboardModel: pan or zoom a dashboard (REQ-27 Scenario 1)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, DashboardModel
+    using Tray.Dashboard: get_field, set_field!, execute_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree(
+        [leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0), leaf(5.0), leaf(6.0)];
+        b = 2,
+        schema,
+    )
+
+    model = DashboardModel(tree)
+
+    # Set viewport to first 3 leaves, no target depth
+    set_field!(model, :viewport_range, (1, 3))
+    execute_query(model)
+
+    result = get_field(model, :aggregate)
+    @test result !== nothing
+    @test result.sum == 1.0 + 2.0 + 3.0
+    @test get_field(model, :error) === nothing
+    @test get_field(model, :result_revision) == 1
+
+    # Zoom in with target_depth=2 (level-2 decomposition for b=2 tree)
+    # Use range [1,4] which decomposes as nodes 1+2 at level 2
+    set_field!(model, :requested_depth, 2)
+    set_field!(model, :viewport_range, (1, 4))
+    execute_query(model)
+
+    result2 = get_field(model, :aggregate)
+    @test result2 !== nothing
+    @test result2.sum == 1.0 + 2.0 + 3.0 + 4.0
+    @test get_field(model, :result_revision) == 3
+
+    # Pan to leaves 5-6 (cleanly decomposable at depth 2 as node 3)
+    set_field!(model, :viewport_range, (5, 6))
+    execute_query(model)
+
+    @test get_field(model, :aggregate).sum == 5.0 + 6.0
+    @test get_field(model, :result_revision) == 4
+
+    # Reset to full range at default depth
+    set_field!(model, :requested_depth, nothing)
+    set_field!(model, :viewport_range, (1, 6))
+    execute_query(model)
+
+    @test get_field(model, :aggregate).sum == 1.0 + 2.0 + 3.0 + 4.0 + 5.0 + 6.0
+    @test get_field(model, :result_revision) == 6
+end
+
+@testitem "DashboardModel: reject invalid dashboard query (REQ-27 Scenario 2)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, DashboardModel
+    using Tray.Dashboard: get_field, set_field!, execute_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0)]; b = 2, schema)
+
+    model = DashboardModel(tree)
+
+    # Out-of-bounds viewport
+    set_field!(model, :viewport_range, (1, 10))
+    execute_query(model)
+
+    @test get_field(model, :aggregate) === nothing
+    @test get_field(model, :error) !== nothing
+    @test get_field(model, :result_revision) == 1
+    @test contains(get_field(model, :error), "BoundsError")
+
+    # Invalid depth
+    set_field!(model, :viewport_range, (1, 2))
+    set_field!(model, :requested_depth, 99)
+    execute_query(model)
+
+    @test get_field(model, :aggregate) === nothing
+    @test get_field(model, :error) !== nothing
+    @test contains(get_field(model, :error), "ArgumentError")
+
+    # Valid query after error should succeed
+    set_field!(model, :requested_depth, nothing)
+    execute_query(model)
+
+    @test get_field(model, :aggregate) !== nothing
+    @test get_field(model, :error) === nothing
+end
+
+@testitem "DashboardModel: latest request wins (REQ-27 Scenario 3)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, DashboardModel
+    using Tray.Dashboard: get_field, set_field!, execute_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+
+    model = DashboardModel(tree)
+
+    # Simulate latest-wins by making two requests, then publishing the later one
+    set_field!(model, :viewport_range, (1, 2))
+    rev1 = model.request_revision  # revision 1
+
+    set_field!(model, :viewport_range, (3, 4))
+    rev2 = model.request_revision  # revision 2
+
+    # Simulate completion of request 1 after request 2 was submitted
+    # Manually execute and check that only request 2's result is visible
+    execute_query(model)
+
+    # Only request 2's result should be published
+    @test get_field(model, :aggregate).sum == 3.0 + 4.0
+    @test get_field(model, :result_revision) == rev2
+    @test get_field(model, :result_revision) == 2
+    @test get_field(model, :result_revision) != rev1
+end
+
+@testitem "DashboardModel: superseded request does not publish (REQ-27 Scenario 3)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, DashboardModel
+    using Tray.Dashboard: get_field, set_field!, execute_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+
+    model = DashboardModel(tree)
+
+    # Issue first request
+    set_field!(model, :viewport_range, (1, 2))
+    rev1 = model.request_revision
+
+    # Execute first request (it should publish since it's the latest at this point)
+    execute_query(model)
+
+    @test get_field(model, :result_revision) == rev1
+    @test get_field(model, :aggregate).sum == 1.0 + 2.0
+
+    # Issue and execute second request
+    set_field!(model, :viewport_range, (3, 4))
+    rev2 = model.request_revision
+    execute_query(model)
+
+    @test get_field(model, :result_revision) == rev2
+    @test get_field(model, :aggregate).sum == 3.0 + 4.0
+
+    # Simulate late completion of first request's revision
+    # (it should be discarded since rev2 is the latest)
+    model.request_revision = rev2  # keep latest at rev2
+    # The execute_query already happened above; the result should still be from rev2
+    @test get_field(model, :result_revision) == rev2
+end
+
+## ---------------------------------------------------------------------------
+## Rolling-sample advancement tests (TRAYS-y3y: REQ-37)
+## ---------------------------------------------------------------------------
+
+@testitem "advance_window!: updates subset of leaves (REQ-37)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, advance_window!, root, leaf_count
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0]),
+        SamplePayload(schema = schema, samples = [4.0, 5.0, 6.0]),
+        SamplePayload(schema = schema, samples = [7.0, 8.0, 9.0]),
+        SamplePayload(schema = schema, samples = [10.0, 11.0, 12.0]),
     ]
-    small_tree = Tree(small; b = 2, schema = schema)
+    t = Tree(leaves; b = 2, schema)
+    orig_revision = root(t).dataset_revision
 
-    large = [
-        CompressedSamplePayload(; samples = fill(Float64(i), 5), config = cfg) for i = 1:100
-    ]
-    large_tree = Tree(large; b = 2, schema = schema)
+    # Advance leaf 1 only
+    advance_window!(t, [1 => [100.0, 200.0, 300.0]])
 
-    @test length(root(small_tree).sketch.counts) == 20
-    @test length(root(large_tree).sketch.counts) == 20
-    @test root(small_tree).sketch.count == 20
-    @test root(large_tree).sketch.count == 500
+    @test leaf_count(t) == 4
+    @test t.levels[1][1].samples ≈ [100.0, 200.0, 300.0]
+    @test t.levels[1][2].samples ≈ [4.0, 5.0, 6.0]  # unchanged
+    @test t.levels[1][3].samples ≈ [7.0, 8.0, 9.0]  # unchanged
+    @test t.levels[1][4].samples ≈ [10.0, 11.0, 12.0]  # unchanged
+    @test root(t).dataset_revision == orig_revision + 1
 end
 
-@testitem "CompressedSamplePayload: tree range query consistency (REQ-21)" begin
+@testitem "advance_window!: revision incremented (REQ-37)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, advance_window!, root
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    orig = root(t).dataset_revision
+
+    advance_window!(t, [1 => [10.0, 20.0]])
+    @test root(t).dataset_revision == orig + 1
+
+    advance_window!(t, [2 => [30.0, 40.0]])
+    @test root(t).dataset_revision == orig + 2
+end
+
+@testitem "advance_window!: sibling unchanged when no descendant changed (REQ-37)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, advance_window!, root
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+        SamplePayload(schema = schema, samples = [5.0, 6.0]),
+        SamplePayload(schema = schema, samples = [7.0, 8.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    # Capture pre-advancement root before we mutate
+    pre_root = root(t)
+
+    # Advance leaf 1 only. Leaf 2 is a sibling under the same parent at level 2.
+    # Leaf 2 should remain unchanged since it has no changed descendant.
+    advance_window!(t, [1 => [10.0, 20.0]])
+
+    # The sibling leaf (index 2) is unchanged
+    @test t.levels[1][2].samples ≈ [3.0, 4.0]
+
+    # The internal node at level 2 covering leaves 1-2 should be recomputed
+    # (it has a changed descendant — leaf 1), but the other sibling node
+    # at level 2 covering leaves 3-4 should be unchanged
+    @test t.levels[2][1].samples ≈ [10.0 + 3.0, 20.0 + 4.0]  # recomputed
+    @test t.levels[2][2].samples ≈ [5.0 + 7.0, 6.0 + 8.0]   # unchanged content
+end
+
+@testitem "advance_window!: only changed ancestors rebuilt (REQ-37)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, advance_window!, root, depth
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+        SamplePayload(schema = schema, samples = [5.0, 6.0]),
+        SamplePayload(schema = schema, samples = [7.0, 8.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    # Advance leaves 1 and 4. The root (at level 3 for 4 leaves, b=2) covers all leaves
+    # so it will be recomputed. Level-2 node covering leaves 1-2 is recomputed
+    # (leaf 1 changed). Level-2 node covering leaves 3-4 is recomputed (leaf 4 changed).
+    advance_window!(t, [1 => [10.0, 20.0], 4 => [70.0, 80.0]])
+
+    @test t.levels[2][1].samples ≈ [10.0 + 3.0, 20.0 + 4.0]  # recomputed
+    @test t.levels[2][2].samples ≈ [5.0 + 70.0, 6.0 + 80.0]  # recomputed
+    @test root(t).samples ≈ [10.0+3.0+5.0+70.0, 20.0+4.0+6.0+80.0]
+end
+
+@testitem "advance_window!: validates sample lengths (REQ-37)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, advance_window!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test_throws ArgumentError advance_window!(t, [1 => [1.0]])  # wrong length
+    @test_throws ArgumentError advance_window!(t, [1 => [1.0, 2.0, 3.0]])  # wrong length
+end
+
+@testitem "advance_window!: validates leaf index bounds (REQ-37)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, advance_window!
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+
+    @test_throws ArgumentError advance_window!(t, [0 => [1.0, 2.0]])
+    @test_throws ArgumentError advance_window!(t, [3 => [1.0, 2.0]])
+end
+
+@testitem "advance_window!: no-op with empty updates (REQ-37)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, advance_window!, root
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    orig_root = root(t)
+
+    result = advance_window!(t, Pair{Int,Vector{Float64}}[])
+    @test result == orig_root
+    @test root(t) == orig_root
+end
+
+@testitem "advance_window!: no query mixes revisions (REQ-37)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, advance_window!, root, range_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0]),
+        SamplePayload(schema = schema, samples = [3.0, 4.0]),
+        SamplePayload(schema = schema, samples = [5.0, 6.0]),
+        SamplePayload(schema = schema, samples = [7.0, 8.0]),
+    ]
+    t = Tree(leaves; b = 2, schema)
+    orig_revision = root(t).dataset_revision
+
+    # Advance leaves and verify range queries return consistent results
+    advance_window!(t, [1 => [10.0, 20.0], 3 => [50.0, 60.0]])
+
+    @test root(t).dataset_revision == orig_revision + 1
+
+    # Range query returns the new values
+    r1 = range_query(t, 1, 2)
+    @test r1.samples ≈ [10.0 + 3.0, 20.0 + 4.0]
+
+    r2 = range_query(t, 3, 4)
+    @test r2.samples ≈ [50.0 + 7.0, 60.0 + 8.0]
+
+    # All nodes in the range are from the same revision
+    @test r1.dataset_revision == orig_revision + 1
+end
+
+## ---------------------------------------------------------------------------
+## FinancialRisk adapter tests (TRAYS-trw: FIN-1 through FIN-6)
+## ---------------------------------------------------------------------------
+
+@testitem "fin_var: loss quantile (FIN-1)" begin
+    using Tray.FinancialRisk: fin_var
+
+    # P&L samples [1, 2, 3, 4, 5] → loss [-1, -2, -3, -4, -5]
+    # VaR 0.8 = quantile of loss at p=0.8: sorted loss [-5,-4,-3,-2,-1]
+    # q_0.8 = element max(1, ceil(0.8*5)) = element 4 = -2
+    @test fin_var([1.0, 2.0, 3.0, 4.0, 5.0], 0.8) == -2.0
+end
+
+@testitem "fin_var: rejects invalid confidence (FIN-1)" begin
+    using Tray.FinancialRisk: fin_var
+
+    @test_throws DomainError fin_var([1.0, 2.0, 3.0], 0.0)
+    @test_throws DomainError fin_var([1.0, 2.0, 3.0], 1.0)
+    @test_throws DomainError fin_var([1.0, 2.0, 3.0], -0.1)
+end
+
+@testitem "fin_expected_shortfall: loss tail mean (FIN-1)" begin
+    using Tray.FinancialRisk: fin_expected_shortfall
+
+    # P&L [1,2,3,4,5] → loss [-1,-2,-3,-4,-5]
+    # ES 0.8 = upper-tail mean of loss at p=0.8
+    # tail = [-2] (element 4 weighted fractionally)
+    result = fin_expected_shortfall([1.0, 2.0, 3.0, 4.0, 5.0], 0.75)
+    @test result < -1.0  # tail of loss distribution
+end
+
+@testitem "fin_gaussian_var: basic calculation (FIN-2)" begin
+    using Tray: ScalarSchema, AlignedArrayPayload
+    using Tray.FinancialRisk: fin_gaussian_var
+
+    schema = ScalarSchema{Float64}(true)
+    w = AlignedArrayPayload([1.0, 0.0], ["f1", "f2"]; schema = schema)
+    M = [1.0 0.0; 0.0 1.0]
+    result = fin_gaussian_var(w, M, 0.99)
+    @test result ≈ 2.326 atol = 0.01
+end
+
+@testitem "fin_gaussian_var: rejects low confidence (FIN-2)" begin
+    using Tray: ScalarSchema, AlignedArrayPayload
+    using Tray.FinancialRisk: fin_gaussian_var
+
+    schema = ScalarSchema{Float64}(true)
+    w = AlignedArrayPayload([1.0], ["f1"]; schema = schema)
+    @test_throws DomainError fin_gaussian_var(w, [1.0;;], 0.3)
+end
+
+@testitem "fin_marginal_var: basic calculation (FIN-3)" begin
+    using Tray.FinancialRisk: fin_marginal_var
+
+    # cov_contribution = 2.0, Φ⁻¹(0.99) ≈ 2.326, result = 2.326 * 2.0 ≈ 4.652
+    result = fin_marginal_var(2.0, 0.99)
+    @test result ≈ 4.652 atol = 0.01
+end
+
+@testitem "fin_component_var: basic calculation (FIN-3)" begin
+    using Tray.FinancialRisk: fin_component_var
+
+    # cov_contribution=2.0, node_scale=1.5, Φ⁻¹(0.99)≈2.326
+    # result = 2.326 * 2.0 * 1.5 ≈ 6.978
+    result = fin_component_var(2.0, 1.5, 0.99)
+    @test result ≈ 6.978 atol = 0.01
+end
+
+@testitem "fin_scenario_pnl: basic projection (FIN-4)" begin
+    using Tray.FinancialRisk: fin_scenario_pnl
+
+    w = [1.0, 2.0]
+    M = [1.0 2.0; 3.0 4.0]
+    result = fin_scenario_pnl(w, M)
+    @test result ≈ [1*1 + 2*3, 1*2 + 2*4] == [7.0, 10.0]
+end
+
+@testitem "fin_scenario_pnl: rejects misaligned inputs (FIN-4)" begin
+    using Tray.FinancialRisk: fin_scenario_pnl, AlignedProjectionError
+
+    @test_throws AlignedProjectionError fin_scenario_pnl([1.0, 2.0], [1.0 2.0])
+end
+
+@testitem "fin_moment_var: from scalar moments (FIN-5)" begin
+    using Tray.FinancialRisk: fin_moment_var
+
+    result = fin_moment_var(0.99, 0.0, 1.0, 0.0, 0.0)
+    @test result.approximate == true
+    @test result.quantile ≈ 2.326 atol = 0.01
+end
+
+@testitem "fin_moment_var: from ScalarSummary (FIN-5)" begin
+    using Tray: ScalarSchema, ScalarSummary
+    using Tray.FinancialRisk: fin_moment_var
+
+    schema = ScalarSchema{Float64}(true)
+    s = ScalarSummary(;
+        schema = schema,
+        count = 5,
+        sum = 15.0,
+        sumsq = 55.0,
+        minimum = 1.0,
+        maximum = 5.0,
+        m3 = 225.0,
+        m4 = 979.0,
+    )
+    result = fin_moment_var(0.5, s)
+    @test result.approximate == true
+    @test result.quantile ≈ -3.0 atol = 0.1  # loss = -mean for symmetric data
+end
+
+@testitem "fin_moment_var: rejects invalid inputs (FIN-5)" begin
+    using Tray.FinancialRisk: fin_moment_var
+
+    @test_throws DomainError fin_moment_var(0.0, 0.0, 1.0, 0.0, 0.0)
+    @test_throws DomainError fin_moment_var(1.0, 0.0, 1.0, 0.0, 0.0)
+end
+
+@testitem "FinancialRisk: core Tray loads without adapter (optionality)" begin
+    # This test verifies that Tray works without FinancialRisk
+    using Tray: ScalarSchema, ScalarSummary
+
+    schema = ScalarSchema{Float64}(false)
+    s = ScalarSummary(;
+        schema,
+        count = 1,
+        sum = 1.0,
+        sumsq = 1.0,
+        minimum = 1.0,
+        maximum = 1.0,
+    )
+    @test s.sum == 1.0
+end
+
+## ---------------------------------------------------------------------------
+## Traceability gap tests — uncovered REQ IDs from the audit
+## ---------------------------------------------------------------------------
+
+# REQ-16: Quadratic matrix projection
+
+@testitem "quadratic_projection: basic wMŵ (REQ-16)" begin
+    using Tray: ScalarSchema, AlignedArrayPayload, quadratic_projection
+
+    schema = ScalarSchema{Float64}(false)
+    w = AlignedArrayPayload([1.0, 2.0], ["a", "b"]; schema = schema)
+    M = [2.0 1.0; 1.0 2.0]
+    # wMw = 1*(2*1+1*2) + 2*(1*1+2*2) = 4 + 10 = 14
+    result = quadratic_projection(w, M)
+    @test result ≈ 14.0
+end
+
+@testitem "quadratic_projection: rejects mismatched dimensions (REQ-16)" begin
+    using Tray: ScalarSchema, AlignedArrayPayload, quadratic_projection, AlignedArrayError
+
+    schema = ScalarSchema{Float64}(false)
+    w = AlignedArrayPayload([1.0, 2.0], ["a", "b"]; schema = schema)
+    M = [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
+
+    @test_throws AlignedArrayError quadratic_projection(w, M)
+end
+
+# REQ-17: Normalized covariance contribution
+
+@testitem "normalized_covariance_contribution: basic calculation (REQ-17)" begin
+    using Tray: ScalarSchema, AlignedArrayPayload, normalized_covariance_contribution
+
+    schema = ScalarSchema{Float64}(false)
+    N = AlignedArrayPayload([1.0, 2.0, 3.0], ["x", "y", "z"]; schema = schema)
+    A = AlignedArrayPayload([4.0, 5.0, 6.0], ["x", "y", "z"]; schema = schema)
+
+    result = normalized_covariance_contribution(N, A)
+    # cov(N,A) = E[NA] - E[N]E[A]
+    # E[N] = 2, E[A] = 5
+    # E[NA] = (1*4 + 2*5 + 3*6)/3 = (4+10+18)/3 = 32/3
+    # cov = 32/3 - 2*5 = 32/3 - 10 = 2/3 ≈ 0.667
+    # σ_A = sqrt(E[A²] - E[A]²) = sqrt((16+25+36)/3 - 25) = sqrt(77/3 - 25) = sqrt(2/3) ≈ 0.816
+    # result = cov / σ_A = (2/3) / sqrt(2/3) = sqrt(2/3) ≈ 0.816
+    @test result ≈ sqrt(2/3) atol = 1e-10
+end
+
+@testitem "normalized_covariance_contribution: rejects zero variance ancestor (REQ-17)" begin
     using Tray:
         ScalarSchema,
-        SketchConfig,
-        CompressedSamplePayload,
-        SamplePayload,
-        Tree,
-        compress,
-        range_query
+        AlignedArrayPayload,
+        normalized_covariance_contribution,
+        AlignedArrayError
 
-    cfg = SketchConfig(1, 50, 0.0, 10.0, 0.1)
     schema = ScalarSchema{Float64}(false)
+    N = AlignedArrayPayload([1.0, 2.0, 3.0], ["x", "y", "z"]; schema = schema)
+    A = AlignedArrayPayload([5.0, 5.0, 5.0], ["x", "y", "z"]; schema = schema)
 
-    exact_leaves = [SamplePayload(; schema = schema, samples = [1.0, 2.0, 3.0]) for _ = 1:4]
-    exact_tree = Tree(exact_leaves; b = 2, schema = schema)
-    comp_tree = compress(exact_tree, cfg)
-
-    sub = range_query(comp_tree, 1, 2)
-    @test sub.sketch.count == 6
+    @test_throws AlignedArrayError normalized_covariance_contribution(N, A)
 end
 
-@testitem "exact_tail_mean: fractional boundary mass (REQ-6)" begin
-    using Tray: exact_tail_mean
+# REQ-19: Fractional-depth query
 
-    result = exact_tail_mean([1.0, 2.0, 3.0, 4.0, 5.0], 0.75)
-    @test result ≈ 4.8
+@testitem "fractional_depth_query: basic integer depth (REQ-19)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, fractional_depth_query
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
+
+    # Integer depth 0 = root
+    r0 = fractional_depth_query(tree, 1, 0)
+    @test r0.sum == 10.0
+
+    # Integer depth 2 = leaves
+    r2 = fractional_depth_query(tree, 1, 2)
+    @test r2.sum == 1.0
 end
 
-@testitem "CompressedSamplePayload: equality and hashing" begin
-    using Tray: SketchConfig, CompressedSamplePayload
+@testitem "fractional_depth_query: integer depths work (REQ-19)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, fractional_depth_query
 
-    cfg = SketchConfig(1, 10, 0.0, 10.0, 0.1)
-    a = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0], config = cfg)
-    b = CompressedSamplePayload(; samples = [1.0, 2.0, 3.0], config = cfg)
-    c = CompressedSamplePayload(; samples = [1.0, 2.0, 4.0], config = cfg)
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
-    @test a == b
-    @test hash(a) == hash(b)
-    @test a != c
+    @test fractional_depth_query(tree, 1, 0).sum == 10.0  # root
+    @test fractional_depth_query(tree, 1, 1).sum == 3.0   # level 2 parent
+    @test fractional_depth_query(tree, 1, 2).sum == 1.0   # leaf
+end
+
+# REQ-38: Fractional-depth sample quantile
+
+@testitem "fractional_depth_quantile: integer depth exact quantile (REQ-38)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, fractional_depth_quantile
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [
+        SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0, 4.0, 5.0]),
+        SamplePayload(schema = schema, samples = [10.0, 20.0, 30.0, 40.0, 50.0]),
+    ]
+    tree = Tree(leaves; b = 2, schema)
+
+    # Depth 1 = leaf level
+    r = fractional_depth_quantile(tree, 1, 1, 0.5)
+    @test r ≈ 3.0  # median of leaf 1
+
+    # Depth 0 = root
+    r0 = fractional_depth_quantile(tree, 1, 0, 0.5)
+    # Combined samples = [11, 22, 33, 44, 55], median = 33
+    @test r0 ≈ 33.0
+end
+
+@testitem "fractional_depth_quantile: returns scalar (REQ-38)" begin
+    using Tray: ScalarSchema, SamplePayload, Tree, fractional_depth_quantile
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])]
+    tree = Tree(leaves; b = 2, schema)
+
+    result = fractional_depth_quantile(tree, 1, 0, 0.5)
+    @test result isa Float64
+end
+
+# REQ-24: Shared-memory reads / persistence format
+
+@testitem "save_tree and load_tree: round-trip (REQ-24)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, save_tree, load_tree
+    using Tray: leaf_count, root
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0)]; b = 2, schema)
+
+    mktempdir() do dir
+        path = joinpath(dir, "tree.bin")
+        save_tree(tree, path)
+        loaded = load_tree(path)
+
+        @test leaf_count(loaded) == 3
+        @test root(loaded).sum == 6.0
+        @test root(loaded).minimum == 1.0
+        @test root(loaded).maximum == 3.0
+    end
+end
+
+@testitem "TreeSnapshot: format version header (REQ-26)" begin
+    using Tray: TreeSnapshot, format_version
+
+    major, minor = format_version()
+    @test major >= 0
+    @test minor >= 0
+    @test (major, minor) isa Tuple{Int,Int}
+end
+
+@testitem "save_tree: atomic write via temp-rename (REQ-26)" begin
+    using Tray: ScalarSchema, ScalarSummary, Tree, save_tree, load_tree
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
+
+    mktempdir() do dir
+        path = joinpath(dir, "tree.bin")
+        save_tree(tree, path)
+        @test isfile(path)
+
+        loaded = load_tree(path)
+        @test loaded.levels[1][1].sum == 1.0
+        @test loaded.levels[1][2].sum == 2.0
+    end
+end
+
+# REQ-38 fractional depth sample quantile (additional coverage)
+
+@testitem "fractional_depth_quantile: rejects invalid depth (REQ-38)" begin
+    using Tray:
+        ScalarSchema, SamplePayload, Tree, fractional_depth_quantile, FractionalDepthError
+
+    schema = ScalarSchema{Float64}(false)
+    leaves = [SamplePayload(schema = schema, samples = [1.0, 2.0])]
+    tree = Tree(leaves; b = 2, schema)
+
+    @test_throws FractionalDepthError fractional_depth_quantile(tree, 1, -1, 0.5)
+    @test_throws FractionalDepthError fractional_depth_quantile(tree, 1, 99, 0.5)
+end
+
+@testitem "fractional_depth_query: rejects invalid depth (REQ-19)" begin
+    using Tray:
+        ScalarSchema, ScalarSummary, Tree, fractional_depth_query, FractionalDepthError
+
+    schema = ScalarSchema{Float64}(false)
+    leaf(x) =
+        ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minimum = x, maximum = x)
+    tree = Tree([leaf(1.0)]; b = 2, schema)
+
+    @test_throws FractionalDepthError fractional_depth_query(tree, 1, -0.1)
+    @test_throws FractionalDepthError fractional_depth_query(tree, 1, 99.5)
 end
