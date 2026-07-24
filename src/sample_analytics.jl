@@ -38,17 +38,9 @@ export SamplePayload,
     dataset_revision,
     AlignedProjectionError,
     MomentQuantileResult,
-    SketchConfig,
-    HistogramSketch,
-    CompressedSamplePayload,
-    compress,
-    sketch_quantile,
-    sketch_tail_mean,
     exact_quantile,
     exact_tail_mean,
-    ApproximateResult,
-    SketchConfigError,
-    SketchStorageError
+    advance_window!
 
 # ---------------------------------------------------------------------------
 # Dataset revision constant
@@ -241,8 +233,26 @@ function TrayBase.combine(a::SamplePayload{T}, b::SamplePayload{T}) where {T}
         )
     end
 
-    combined_summary = TrayBase.combine(a.summary, b.summary)
     combined_samples = a.samples .+ b.samples
+
+    # BUG FIX: Recompute summary from elementwise-summed samples instead of
+    # combining summaries (which concatenates observations, producing count=2S).
+    schema = a.summary.schema
+    n = length(combined_samples)
+    s = sum(combined_samples)
+    sq = sum(x -> x^2, combined_samples)
+    mn = minimum(combined_samples)
+    mx = maximum(combined_samples)
+    combined_summary = ScalarSummary(;
+        schema = schema,
+        count = n,
+        sum = s,
+        sumsq = sq,
+        minimum = mn,
+        maximum = mx,
+        m3 = schema.higher_moment ? sum(x -> x^3, combined_samples) : zero(T),
+        m4 = schema.higher_moment ? sum(x -> x^4, combined_samples) : zero(T),
+    )
 
     return SamplePayload{T}(combined_summary, combined_samples, a.dataset_revision)
 end
@@ -386,7 +396,6 @@ function project_samples(tree::Tree{<:SamplePayload{T}}, w::Vector{T}) where {T}
 
     # Accumulate weighted samples
     combined_samples = zeros(T, S)
-    combined_summary = TrayBase.identity(schema)
     revision = first_leaf.dataset_revision
 
     for i = 1:n
@@ -405,11 +414,20 @@ function project_samples(tree::Tree{<:SamplePayload{T}}, w::Vector{T}) where {T}
 
         # Weighted contribution
         combined_samples .+= w_i .* leaf.samples
-
-        # For the scalar summary, we reweight the leaf summary and combine
-        weighted_leaf = TrayBase.reweight(leaf.summary, w_i)
-        combined_summary = TrayBase.combine(combined_summary, weighted_leaf)
     end
+
+    # Compute summary from the combined samples instead of combining summaries
+    # (which concatenates observations, producing incorrect count)
+    combined_summary = ScalarSummary(;
+        schema = schema,
+        count = S,
+        sum = sum(combined_samples),
+        sumsq = sum(x -> x^2, combined_samples),
+        minimum = minimum(combined_samples),
+        maximum = maximum(combined_samples),
+        m3 = schema.higher_moment ? sum(x -> x^3, combined_samples) : zero(T),
+        m4 = schema.higher_moment ? sum(x -> x^4, combined_samples) : zero(T),
+    )
 
     return SamplePayload{T}(combined_summary, combined_samples, revision)
 end
@@ -551,7 +569,7 @@ function regenerate_samples(
         current = next_level
     end
 
-    return Tree{SamplePayload{T},typeof(tree.schema)}(tree.b, new_levels, tree.schema)
+    return Tree{SamplePayload{T},typeof(tree.schema)}(tree.b, new_levels, tree.schema, copy(tree.leaf_ids))
 end
 
 # ---------------------------------------------------------------------------
@@ -1527,6 +1545,88 @@ See REQ-32.
 """
 function sketch_tail_mean(payload::CompressedSamplePayload{T}, p::Real) where {T}
     return sketch_tail_mean(payload.sketch, p)
+end
+
+
+function advance_window!(tree::Tree{SamplePayload{T}}, updates::AbstractVector{Pair{Int,Vector{T}}}) where {T}
+    n = leaf_count(tree)
+    isempty(updates) && return root(tree)
+
+    # Validate all new samples have the same length as existing ones
+    existing_len = length(tree.levels[1][1].samples)
+    new_revision = tree.levels[1][1].dataset_revision + 1
+    schema = tree.levels[1][1].summary.schema
+
+    # Track which leaves changed
+    changed_leaves = Set{Int}()
+
+    # Pre-validate all updates before mutating
+    for (idx, samples) in updates
+        1 <= idx <= n || throw(
+            ArgumentError("advance_window!: leaf index $idx out of bounds [1, $n]"),
+        )
+        length(samples) == existing_len || throw(
+            ArgumentError(
+                "advance_window!: leaf $idx has sample length $(length(samples)) " *
+                "but expected $existing_len",
+            ),
+        )
+        push!(changed_leaves, idx)
+    end
+
+    # Update all leaves to the new revision (data unchanged for untouched leaves)
+    for i = 1:n
+        if i in changed_leaves
+            # Find the new samples for this leaf
+            new_samples = first(samples for (idx, samples) in updates if idx == i)
+            tree.levels[1][i] = SamplePayload(;
+                schema = schema,
+                samples = new_samples,
+                dataset_revision = new_revision,
+            )
+        else
+            old = tree.levels[1][i]
+            tree.levels[1][i] = SamplePayload(;
+                schema = schema,
+                samples = old.samples,
+                dataset_revision = new_revision,
+            )
+        end
+    end
+
+    # Rebuild ancestor paths for changed leaves
+    for level_idx = 2:length(tree.levels)
+        changed_ancestors = Set{Int}()
+        for leaf_idx in changed_leaves
+            ancestor = div(leaf_idx - 1, tree.b) + 1
+            push!(changed_ancestors, ancestor)
+        end
+
+        child_level = tree.levels[level_idx - 1]
+        parent_level = tree.levels[level_idx]
+        for a in changed_ancestors
+            child_start = (a - 1) * tree.b + 1
+            child_end = min(child_start + tree.b - 1, length(child_level))
+            parent_level[a] = reduce(TrayBase.combine, child_level[child_start:child_end])
+        end
+
+        # Update unchanged siblings at this level to the new revision
+        for i = 1:length(parent_level)
+            if i in changed_ancestors
+                continue  # already rebuilt with new revision
+            end
+            old = parent_level[i]
+            parent_level[i] = SamplePayload(;
+                schema = schema,
+                samples = copy(old.samples),
+                dataset_revision = new_revision,
+            )
+        end
+
+        changed_leaves = changed_ancestors
+    end
+
+    return root(tree)
 end
 
 end # module SampleAnalytics

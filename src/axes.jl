@@ -233,23 +233,28 @@ function intersect_axes(
         push!(leaf_sets, leaf_ids)
     end
 
-    # Compute exact set intersection
+    # Compute exact set intersection of stable leaf IDs
     intersection = leaf_sets[1]
     for s in leaf_sets[2:end]
         intersection = intersect(intersection, s)
     end
 
-    # Sort by current array order
-    sorted_ids = sort!(collect(intersection))
+    # Convert stable IDs to current array ranks using the tree's leaf_id mapping
+    current_ranks = Int[]
+    for id in intersection
+        rank = leaf_index_by_id(mas.tree, id)
+        rank > 0 && push!(current_ranks, rank)
+    end
+    sort!(current_ranks)
 
     # Coalesce consecutive indices into maximal ranges
     ranges = Tuple{Int,Int}[]
     i = 1
-    while i <= length(sorted_ids)
-        start_id = sorted_ids[i]
+    while i <= length(current_ranks)
+        start_id = current_ranks[i]
         end_id = start_id
-        while i < length(sorted_ids) && sorted_ids[i+1] == end_id + 1
-            end_id = sorted_ids[i+1]
+        while i < length(current_ranks) && current_ranks[i+1] == end_id + 1
+            end_id = current_ranks[i+1]
             i += 1
         end
         push!(ranges, (start_id, end_id))

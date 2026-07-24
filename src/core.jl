@@ -18,10 +18,16 @@ struct Tree{P,S}
     b::Int
     levels::Vector{Vector{P}}
     schema::S
+    leaf_ids::Vector{Int}  # immutable stable leaf IDs, indexed by current rank
 
-    function Tree{P,S}(b::Int, levels::Vector{Vector{P}}, schema::S) where {P,S}
+    function Tree{P,S}(
+        b::Int,
+        levels::Vector{Vector{P}},
+        schema::S,
+        leaf_ids::Vector{Int},
+    ) where {P,S}
         b >= 2 || throw(ArgumentError("branching factor b must be ≥ 2, got $b"))
-        return new{P,S}(b, levels, schema)
+        return new{P,S}(b, levels, schema, leaf_ids)
     end
 end
 
@@ -69,7 +75,7 @@ function Tree(leaves::Vector{P}; b::Int = 2, schema) where {P}
         current = next_level
     end
 
-    return Tree{P,typeof(schema)}(b, levels, schema)
+    return Tree{P,typeof(schema)}(b, levels, schema, collect(1:length(leaves)))
 end
 
 """
@@ -258,6 +264,26 @@ root(tray::Tree{P}) where {P} = tray.levels[end][1]
 leaf_count(tray::Tree) = length(tray.levels[1])
 
 """
+    leaf_id_at(tree::Tree, index::Int) -> Int
+
+Return the immutable stable leaf ID at the given current rank (1-based).
+"""
+leaf_id_at(tree::Tree, index::Int) = tree.leaf_ids[index]
+
+"""
+    leaf_index_by_id(tree::Tree, id::Int) -> Int
+
+Find the current 1-based rank of a leaf by its immutable stable ID.
+Returns 0 if the ID is not found.
+"""
+function leaf_index_by_id(tree::Tree, id::Int)
+    for (i, lid) in enumerate(tree.leaf_ids)
+        lid == id && return i
+    end
+    return 0
+end
+
+"""
     depth(tray::Tree) -> Int
 
 Edge distance from root (depth 0) to leaves.
@@ -384,7 +410,7 @@ function update(tree::Tree{P}, index::Int, value::P) where {P}
         push!(new_levels, new_internal)
     end
 
-    return Tree{P,typeof(tree.schema)}(tree.b, new_levels, tree.schema)
+    return Tree{P,typeof(tree.schema)}(tree.b, new_levels, tree.schema, copy(tree.leaf_ids))
 end
 
 # ---- Leaf insertion (REQ-14) ----
@@ -408,6 +434,10 @@ function insert!(tray::Tree{P}, index::Int, value::P) where {P}
 
     # Insert into leaf level (must explicitly call Base.insert! on Vector)
     Base.insert!(tray.levels[1], index, value)
+
+    # Assign a new stable leaf ID (never reused)
+    new_id = isempty(tray.leaf_ids) ? 1 : maximum(tray.leaf_ids) + 1
+    Base.insert!(tray.leaf_ids, index, new_id)
 
     # Rebuild all internal levels from scratch (level arrays may have grown)
     while length(tray.levels) > 1
@@ -469,6 +499,7 @@ function remove!(tray::Tree{P}, index::Int) where {P}
 
     # Remove from leaf level (must explicitly call Base.deleteat! on Vector)
     Base.deleteat!(tray.levels[1], index)
+    Base.deleteat!(tray.leaf_ids, index)
 
     # Rebuild all internal levels from scratch (level arrays may need compaction)
     while length(tray.levels) > 1
@@ -589,7 +620,7 @@ function reweight_subtree(tree::Tree{P}, level::Int, node_idx::Int, weight) wher
         push!(new_levels, copy(tree.levels[lvl]))
     end
 
-    return Tree{P,typeof(tree.schema)}(tree.b, new_levels, tree.schema)
+    return Tree{P,typeof(tree.schema)}(tree.b, new_levels, tree.schema, copy(tree.leaf_ids))
 end
 
 # ---- Lazy tag infrastructure (REQ-29) ----
