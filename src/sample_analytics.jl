@@ -569,7 +569,12 @@ function regenerate_samples(
         current = next_level
     end
 
-    return Tree{SamplePayload{T},typeof(tree.schema)}(tree.b, new_levels, tree.schema, copy(tree.leaf_ids))
+    return Tree{SamplePayload{T},typeof(tree.schema)}(
+        tree.b,
+        new_levels,
+        tree.schema,
+        copy(tree.leaf_ids),
+    )
 end
 
 # ---------------------------------------------------------------------------
@@ -1548,7 +1553,10 @@ function sketch_tail_mean(payload::CompressedSamplePayload{T}, p::Real) where {T
 end
 
 
-function advance_window!(tree::Tree{SamplePayload{T}}, updates::AbstractVector{Pair{Int,Vector{T}}}) where {T}
+function advance_window!(
+    tree::Tree{SamplePayload{T}},
+    updates::AbstractVector{Pair{Int,Vector{T}}},
+) where {T}
     n = leaf_count(tree)
     isempty(updates) && return root(tree)
 
@@ -1562,9 +1570,8 @@ function advance_window!(tree::Tree{SamplePayload{T}}, updates::AbstractVector{P
 
     # Pre-validate all updates before mutating
     for (idx, samples) in updates
-        1 <= idx <= n || throw(
-            ArgumentError("advance_window!: leaf index $idx out of bounds [1, $n]"),
-        )
+        1 <= idx <= n ||
+            throw(ArgumentError("advance_window!: leaf index $idx out of bounds [1, $n]"))
         length(samples) == existing_len || throw(
             ArgumentError(
                 "advance_window!: leaf $idx has sample length $(length(samples)) " *
@@ -1602,7 +1609,7 @@ function advance_window!(tree::Tree{SamplePayload{T}}, updates::AbstractVector{P
             push!(changed_ancestors, ancestor)
         end
 
-        child_level = tree.levels[level_idx - 1]
+        child_level = tree.levels[level_idx-1]
         parent_level = tree.levels[level_idx]
         for a in changed_ancestors
             child_start = (a - 1) * tree.b + 1

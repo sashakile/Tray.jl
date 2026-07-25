@@ -2075,7 +2075,12 @@ function update_with_boundary_detection(
     end
 
     # Phase 2: Atomically publish by constructing the final Tree object
-    return Tree{P,typeof(tree.schema)}(tree.b, private_levels, tree.schema, copy(tree.leaf_ids))
+    return Tree{P,typeof(tree.schema)}(
+        tree.b,
+        private_levels,
+        tree.schema,
+        copy(tree.leaf_ids),
+    )
 end
 
 # ---------------------------------------------------------------------------
