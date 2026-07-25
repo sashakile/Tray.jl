@@ -30,11 +30,12 @@ pre-push:
       run: julia --project=. -e 'using Pkg; Pkg.test()'
 
     ci-format:
-      glob: "*.jl"
+      # Match CI: check every source file, not just push_files
+      # Catches formatting drift in unstaged/untracked files before push
       run: >-
-        bash -c 'for f in {push_files}; do
-        julia --project=. -e "using JuliaFormatter; exit(format(ARGS[1]; verbose=true, check=true) ? 0 : 1)" "$f" || exit;
-        done'
+        julia --project=. -e
+        'using JuliaFormatter;
+        all(format(p; verbose=true, check=true) for p in ("src", "test", "docs/make.jl")) || exit(1)'
 
     ci-spell:
       glob: "*.{jl,md,toml,yml,yaml,txt}"
