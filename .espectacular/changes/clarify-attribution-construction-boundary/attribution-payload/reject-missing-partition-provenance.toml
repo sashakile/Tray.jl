@@ -1,0 +1,6 @@
+id = "reject-missing-partition-provenance"
+description = "Schema construction fails when allocated convention omits or supplies empty source partition ID"
+archetype = "rejection"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

@@ -1,0 +1,6 @@
+id = "build-from-domain-payloads"
+description = "Tree validates and folds schema-valid payloads without invoking source-to-payload conversion"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

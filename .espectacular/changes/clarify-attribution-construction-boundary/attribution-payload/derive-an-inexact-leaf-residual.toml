@@ -1,0 +1,6 @@
+id = "derive-an-inexact-leaf-residual"
+description = "Construction preserves total and non-residual buckets, derives residual in schema order"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

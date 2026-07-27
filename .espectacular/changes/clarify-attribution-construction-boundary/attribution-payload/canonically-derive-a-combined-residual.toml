@@ -1,0 +1,6 @@
+id = "canonically-derive-a-combined-residual"
+description = "Combine adds totals and non-residual buckets, derives residual without adding child residuals"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

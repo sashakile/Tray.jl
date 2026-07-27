@@ -1,0 +1,9 @@
+id = "reject-misaligned-attribution-buckets"
+description = "Mismatched bucket count or differing ordered bucket identifiers raise alignment error"
+archetype = "rejection"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: combine with (different bucket count|mismatched bucket ID)\""

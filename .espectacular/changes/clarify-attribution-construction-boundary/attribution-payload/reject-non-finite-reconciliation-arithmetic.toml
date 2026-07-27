@@ -1,0 +1,6 @@
+id = "reject-non-finite-reconciliation-arithmetic"
+description = "Construction or combination fails when overflow or non-finite result would occur"
+archetype = "rejection"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

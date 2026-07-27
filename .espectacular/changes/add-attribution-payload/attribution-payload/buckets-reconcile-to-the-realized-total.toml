@@ -1,0 +1,9 @@
+id = "buckets-reconcile-to-the-realized-total"
+description = "Sum of buckets including any residual equals realized total within tolerance"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"(AttributionPayload|Attribution conformance):.*(residual|reconcile|exact reconcile)\""

@@ -1,0 +1,6 @@
+id = "request-allocation-at-another-partition"
+description = "Nonlinear allocation recomputed over different partition requires new schema and revision"
+archetype = "policy"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

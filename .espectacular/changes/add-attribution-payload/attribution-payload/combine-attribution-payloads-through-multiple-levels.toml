@@ -1,0 +1,9 @@
+id = "combine-attribution-payloads-through-multiple-levels"
+description = "Aligned attribution payloads combined in any valid tree grouping equal direct summation of leaf fields"
+archetype = "homomorphism"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"(AttributionPayload: combine|Attribution conformance)\""

@@ -1,0 +1,9 @@
+id = "derive-a-margin-ratio-at-an-arbitrary-cut"
+description = "Ratio computed from additive numerator/denominator at node, not stored merged ratio"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: derive (margin ratio|ratio across|ratio with default)\""

@@ -1,0 +1,15 @@
+id = "reject-an-undeclared-convention"
+description = "Construction fails when attribution buckets supplied without declared convention"
+archetype = "rejection"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: Allocated rejects\""
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: convention equality\""
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: Allocated rejects empty source_partition_id\""

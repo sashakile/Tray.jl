@@ -1,0 +1,9 @@
+id = "reject-an-unreconciled-attribution-payload"
+description = "Construction fails with informative error when buckets don't reconcile and no residual bucket"
+archetype = "rejection"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: (rejects unreconciled|exact schema rejects unreconciled)\""

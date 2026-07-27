@@ -34,8 +34,9 @@ JuliaLocalPreferences.toml
 *.db
 .beads-credential-key
 
-# espectacular local state
-.espectacular/
+# espectacular local state (contracts are tracked; ignore runner caches)
+.espectacular/*.log
+.espectacular/runners/
 
 # testaruda local state
 .testaruda/

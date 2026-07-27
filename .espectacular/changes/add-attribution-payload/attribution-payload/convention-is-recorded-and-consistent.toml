@@ -1,0 +1,15 @@
+id = "convention-is-recorded-and-consistent"
+description = "Declared direct or allocated convention is retrievable from schema and applies to every payload"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: (Direct|Allocated) convention\""
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: convention equality\""
+
+[[tests.shell]]
+command = "just test-file \"Attribution conformance: register_axis\""

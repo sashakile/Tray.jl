@@ -1,0 +1,6 @@
+id = "permit-exact-schema-without-residual"
+description = "Exact-arithmetic schema without residual accepts payloads where bucket sum equals total exactly"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

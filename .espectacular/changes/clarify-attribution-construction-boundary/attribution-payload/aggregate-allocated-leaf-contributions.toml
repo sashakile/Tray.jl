@@ -1,0 +1,6 @@
+id = "aggregate-allocated-leaf-contributions"
+description = "Internal nodes add allocated leaf buckets elementwise, never recompute allocation from aggregate drivers"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

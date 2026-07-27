@@ -1,0 +1,6 @@
+id = "reweight-a-payload-subtree"
+description = "Reweight applies to subtree payload leaves under declared payload action, not raw source records"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

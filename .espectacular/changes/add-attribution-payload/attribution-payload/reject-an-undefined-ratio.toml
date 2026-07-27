@@ -1,0 +1,9 @@
+id = "reject-an-undefined-ratio"
+description = "Query fails with domain error when denominator is zero at queried node"
+archetype = "rejection"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"AttributionPayload: derive ratio (zero denominator|unknown bucket|with default).*(invalid|zero)\""

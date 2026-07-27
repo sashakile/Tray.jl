@@ -1,0 +1,6 @@
+id = "reject-inexact-schema-without-residual"
+description = "Inexact attribution schema without designated residual bucket fails construction"
+archetype = "rejection"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
