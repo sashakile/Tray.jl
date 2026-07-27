@@ -13,8 +13,11 @@ test-verbose:
     {{ julia }} --project=. -e 'using Pkg; Pkg.test(; test_args=["verbose"])'
 
 # Run a specific test file
+# Run focused @testitem blocks by name regex (e.g., just test-file "Attribution conformance")
+# Delegates to Pkg.test() for proper test environment (test deps), then
+# test/runtests.jl filters @testitem blocks by the pattern via ARGS[1].
 test-file f:
-    {{ julia }} --project=. -e 'using ReTestItems; retest("{{ f }}")'
+    {{ julia }} --project=. -e 'import Pkg; Pkg.test(; test_args=["{{ f }}"])'
 
 # ── Format ──────────────────────────────────────────────────────────────────
 

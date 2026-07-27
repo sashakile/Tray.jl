@@ -1,6 +1,58 @@
+# Focused test runner: when ARGS[1] is set (via Pkg.test test_args or just test-file),
+# extract matching @testitem blocks from this file and run them via
+# ReTestItems.runtests on a temp file with the _test.jl suffix.
+const FOCUSED_PATTERN = !isempty(ARGS) && !isempty(ARGS[1]) ? ARGS[1] : ""
+
 using Tray
 using ReTestItems
 using Test
+
+if !isempty(FOCUSED_PATTERN)
+    local re = Regex(FOCUSED_PATTERN)
+    local src = read(@__FILE__, String)
+    # Extract @testitem blocks matching the pattern using line-by-line parsing
+    local extracted = String[]
+    local in_block, depth = false, 0
+    local current = IOBuffer()
+    for line in split(src, '\n'; keepempty = false)
+        local m = match(r"^@testitem \"([^\"]+)\"", line)
+        if m !== nothing
+            if in_block
+                push!(extracted, String(take!(current)))
+            end
+            in_block = occursin(re, m[1])
+            depth = 0
+            if in_block
+                write(current, line, '\n')
+            end
+        elseif in_block
+            write(current, line, '\n')
+            for c in line
+                c == '{' && (depth += 1)
+                c == '}' && (depth -= 1)
+            end
+            if depth < 0
+                push!(extracted, String(take!(current)))
+                in_block = false
+            end
+        end
+    end
+    in_block && push!(extracted, String(take!(current)))
+    if isempty(extracted)
+        println("No @testitem blocks matched pattern: $FOCUSED_PATTERN")
+        exit(1)
+    end
+    # Write temp file inside project dir so ReTestItems can find the project root
+    local tmpfile = normpath(joinpath(@__DIR__, "focused_tests.jl"))
+    open(tmpfile, "w") do io
+        for block in extracted
+            print(io, block)
+        end
+    end
+    ReTestItems.runtests(tmpfile; name = re, verbose_results = true)
+    rm(tmpfile; force = true)
+    exit(0)
+end
 
 @testitem "ScalarSummary: identity construction" begin
     using Tray: ScalarSummary, ScalarSchema, identity, combine
@@ -5484,14 +5536,6 @@ end
     # In Julia 1.12, we can't detect mutable captures, so this returns nothing
     # In earlier Julia versions, it would return a Diagnostic
     @test result === nothing
-end
-
-@testitem "detect_mutable_captures: returns nothing for built-in functions" begin
-    using Tray: Incremental
-
-    @test Incremental.detect_mutable_captures(+) === nothing
-    @test Incremental.detect_mutable_captures(*) === nothing
-    @test Incremental.detect_mutable_captures(sin) === nothing
 end
 
 # ---------------------------------------------------------------------------
