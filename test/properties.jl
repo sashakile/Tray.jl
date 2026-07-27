@@ -122,3 +122,39 @@ end
         Tray.depth(t) == exact_depth_oracle(n, b)
     end
 end
+
+# ── Persistent-update equivalence and isolation (TRAYS-nyc.4) ───────────────
+#
+# Independent oracle: manually rebuild the tree with the replaced leaf and
+# compare b, schema, and levels. Snapshot original levels to verify isolation.
+
+@testset "Persistent update equivalence (TRAYS-nyc.4)" begin
+    # Property: for any n ∈ [1, 32], b ∈ [2, 8], and valid index, a persistent
+    # update produces a tree with equal b, schema, and levels to an independent
+    # rebuild, while the original tree's levels remain unchanged.
+    @check rng = MersenneTwister(42) max_examples = 100 db = false function persistent_update_equals_rebuild(
+        n = Data.Integers(1, 32),
+        b = Data.Integers(2, 8),
+        idx = Data.Integers(1, 32),
+    )
+        idx = min(idx, n)
+        schema = TokenSchema()
+        id = Tray.TrayBase.identity(schema)
+        leaves = [id for _ = 1:n]
+        tree = Tray.Tree(leaves; b = b, schema = schema)
+        original_levels = deepcopy(tree.levels)
+        replacement = TokenPayload{Int}([999])
+
+        updated_tree = Tray.update(tree, idx, replacement)
+
+        # Rebuild independently
+        rebuilt_leaves = [id for _ = 1:n]
+        rebuilt_leaves[idx] = replacement
+        rebuilt_tree = Tray.Tree(rebuilt_leaves; b = b, schema = schema)
+
+        updated_tree.b == rebuilt_tree.b &&
+            updated_tree.schema == rebuilt_tree.schema &&
+            updated_tree.levels == rebuilt_tree.levels &&
+            tree.levels == original_levels
+    end
+end
