@@ -91,3 +91,34 @@ end
         Tray.range_query(t, lo, hi).tokens == tokens[lo:hi]
     end
 end
+
+# ── Exact depth integer recurrence (TRAYS-nyc.3) ────────────────────────────
+#
+# Independent oracle: repeated cld(remaining, b) until one leaf remains.
+# This is exact — no floating logarithms, no ±1 tolerance.
+
+function exact_depth_oracle(n::Int, b::Int)
+    remaining = n
+    steps = 0
+    while remaining > 1
+        remaining = cld(remaining, b)
+        steps += 1
+    end
+    return steps
+end
+
+@testset "Exact tree depth (TRAYS-nyc.3)" begin
+    # Property: for any n ∈ [1, 32] and b ∈ [2, 8], a tree's depth equals the
+    # number of repeated cld(remaining, b) steps needed to reduce n to 1.
+    # This covers all n, not just powers of b (stronger than existing O(log_b n) test).
+    @check rng = MersenneTwister(42) max_examples = 100 db = false function exact_depth_property(
+        n = Data.Integers(1, 32),
+        b = Data.Integers(2, 8),
+    )
+        schema = Tray.ScalarSchema{Float64}(false)
+        id = Tray.TrayBase.identity(schema)
+        leaves = [id for _ = 1:n]
+        t = Tray.Tree(leaves; b = b, schema = schema)
+        Tray.depth(t) == exact_depth_oracle(n, b)
+    end
+end
