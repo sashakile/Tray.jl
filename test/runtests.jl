@@ -8076,3 +8076,9 @@ end
 
     @test projection_contract(ScalarSummary{Float64}) === nothing
 end
+
+## ── Property-based tests (Supposition) ──────────────────────────────────────
+# Ordinary Test.@testset (not inside @testitem) so Supposition failures
+# propagate correctly through Pkg.test(). See test/properties.jl for details.
+
+include("properties.jl")
