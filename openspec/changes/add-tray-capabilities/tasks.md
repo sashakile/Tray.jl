@@ -14,7 +14,7 @@
     - Tickets: `TRAYS-a0n` (canonical range and depth queries)
 - [x] 2.3 Implement point updates, balanced insertion/removal, ordered lazy/reweight actions and mandatory flush barriers.
     - Tickets: `TRAYS-ck3` (atomic point updates), `TRAYS-ebb` (structural/deferred mutations)
-- [ ] 2.4 Add property tests comparing tree results with direct folds and verify stated complexity bounds with instrumentation or benchmarks.
+- [x] 2.4 Add property tests comparing tree results with direct folds and verify stated complexity bounds with instrumentation or benchmarks.
     - Tickets: `TRAYS-nyc` epic (Supposition property testing adoption)
 
 ## 3. Sample analytics
