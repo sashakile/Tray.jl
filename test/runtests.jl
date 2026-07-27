@@ -561,6 +561,558 @@ end
 end
 
 ## ---------------------------------------------------------------------------
+## Attribution conformance through Tree and Axis operations (TRAYS-93x)
+## REQ-45, REQ-46: Tree, axis, and intersection results equal reference attribution
+## folds and retain identical schema/convention provenance.
+## ---------------------------------------------------------------------------
+
+@testitem "Attribution conformance: tree root equals reference leaf fold (exact schema)" begin
+    using Tray: AttributionSchema, AttributionPayload, Direct, Tree, root, combine, identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(
+            schema = schema,
+            buckets = [10.0, -2.0, 0.5],
+            realized_total = 8.5,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [5.0, 1.0, -0.5],
+            realized_total = 5.5,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [-3.0, 0.5, 0.0],
+            realized_total = -2.5,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [2.0, -0.5, 1.5],
+            realized_total = 3.0,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [0.0, 0.0, 0.0],
+            realized_total = 0.0,
+        ),
+    ]
+
+    for b in [2, 3, 5]
+        t = Tree(leaves; b = b, schema = schema)
+        @test root(t) == reduce(combine, leaves)
+        @test root(t).schema === schema
+    end
+end
+
+@testitem "Attribution conformance: tree root equals reference leaf fold (residual schema)" begin
+    using Tray: AttributionSchema, AttributionPayload, Direct, Tree, root, combine, identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :residual),
+        tolerance = 1e-6,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(
+            schema = schema,
+            buckets = [10.0, -2.0, 0.0],
+            realized_total = 8.5,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [5.0, 1.0, 0.0],
+            realized_total = 5.5,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [-3.0, 0.5, 0.0],
+            realized_total = -2.5,
+        ),
+    ]
+
+    t = Tree(leaves; b = 2, schema = schema)
+    expected = reduce(combine, leaves)
+    @test root(t) == expected
+    # Verify residual bucket is correctly derived after tree fold
+    @test root(t).buckets[findfirst(==(:residual), schema.bucket_ids)] ≈ 0.0 atol = 1e-10
+    @test root(t).schema === schema
+end
+
+@testitem "Attribution conformance: range_query equals direct leaf fold" begin
+    using Tray:
+        AttributionSchema, AttributionPayload, Direct, Tree, range_query, combine, identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0),
+        AttributionPayload(schema = schema, buckets = [7.0, 8.0], realized_total = 15.0),
+    ]
+
+    t = Tree(leaves; b = 2, schema = schema)
+
+    # Every possible range
+    for lo = 1:4
+        for hi = lo:4
+            result = range_query(t, lo, hi)
+            expected = reduce(combine, leaves[lo:hi])
+            @test result == expected
+            @test result.schema === schema
+        end
+    end
+end
+
+@testitem "Attribution conformance: range_query with target_depth preserves algebra" begin
+    using Tray:
+        AttributionSchema,
+        AttributionPayload,
+        Direct,
+        Tree,
+        range_query,
+        combine,
+        identity,
+        leaf_count,
+        depth
+
+    schema = AttributionSchema(
+        bucket_ids = (:x, :y),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0),
+        AttributionPayload(schema = schema, buckets = [7.0, 8.0], realized_total = 15.0),
+    ]
+
+    t = Tree(leaves; b = 2, schema = schema)
+    d = depth(t)
+
+    # Full-range at depth 0 (root) equals direct fold
+    @test range_query(t, 1, 4; target_depth = 0) == reduce(combine, leaves)
+
+    # Partial range at depth 1
+    n = leaf_count(t)
+    for lo = 1:2:n
+        hi = min(lo + 1, n)
+        result = range_query(t, lo, hi; target_depth = 1)
+        @test result == reduce(combine, leaves[lo:hi])
+        @test result.schema === schema
+    end
+end
+
+@testitem "Attribution conformance: update! preserves root equality" begin
+    using Tray:
+        AttributionSchema,
+        AttributionPayload,
+        Direct,
+        Tree,
+        root,
+        update!,
+        combine,
+        identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0),
+    ]
+
+    t = Tree(leaves; b = 2, schema = schema)
+
+    # Update a leaf and verify root still equals direct fold
+    new_leaf = AttributionPayload(
+        schema = schema,
+        buckets = [100.0, 200.0],
+        realized_total = 300.0,
+    )
+    new_root = update!(t, 2, new_leaf)
+
+    # Manually compute expected
+    expected_leaves = copy(leaves)
+    expected_leaves[2] = new_leaf
+    @test root(t) == reduce(combine, expected_leaves)
+    @test root(t) == new_root
+    @test root(t).schema === schema
+end
+
+@testitem "Attribution conformance: update (immutable) preserves algebra in both trees" begin
+    using Tray:
+        AttributionSchema, AttributionPayload, Direct, Tree, root, update, combine, identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0),
+    ]
+
+    original = Tree(leaves; b = 2, schema = schema)
+
+    new_leaf =
+        AttributionPayload(schema = schema, buckets = [10.0, 20.0], realized_total = 30.0)
+    new_tree = update(original, 1, new_leaf)
+
+    # Original tree unchanged
+    @test root(original) == reduce(combine, leaves)
+
+    # New tree reflects update
+    expected_leaves = copy(leaves)
+    expected_leaves[1] = new_leaf
+    @test root(new_tree) == reduce(combine, expected_leaves)
+    @test root(new_tree).schema === schema
+end
+
+@testitem "Attribution conformance: insert preserves root equality" begin
+    using Tray:
+        AttributionSchema, AttributionPayload, Direct, Tree, root, insert, combine, identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+    ]
+
+    t = Tree(leaves; b = 2, schema = schema)
+
+    new_leaf =
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0)
+    t2 = insert(t, 2, new_leaf)
+
+    expected = [leaves[1], new_leaf, leaves[2]]
+    @test root(t2) == reduce(combine, expected)
+    @test root(t2).schema === schema
+end
+
+@testitem "Attribution conformance: remove! preserves root equality" begin
+    using Tray:
+        AttributionSchema,
+        AttributionPayload,
+        Direct,
+        Tree,
+        root,
+        leaf_count,
+        remove!,
+        combine,
+        identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0),
+    ]
+
+    t = Tree(leaves; b = 2, schema = schema)
+    remove!(t, 2)
+
+    expected = [leaves[1], leaves[3]]
+    @test leaf_count(t) == 2
+    @test root(t) == reduce(combine, expected)
+    @test root(t).schema === schema
+end
+
+@testitem "Attribution conformance: remove (immutable) preserves algebra in both trees" begin
+    using Tray:
+        AttributionSchema,
+        AttributionPayload,
+        Direct,
+        Tree,
+        root,
+        leaf_count,
+        remove,
+        combine,
+        identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:a, :b),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0),
+    ]
+
+    original = Tree(leaves; b = 2, schema = schema)
+    t2 = remove(original, 2)
+
+    # Original unchanged
+    @test leaf_count(original) == 3
+    @test root(original) == reduce(combine, leaves)
+
+    # New tree reflects removal
+    expected = [leaves[1], leaves[3]]
+    @test leaf_count(t2) == 2
+    @test root(t2) == reduce(combine, expected)
+    @test root(t2).schema === schema
+end
+
+@testitem "Attribution conformance: register_axis! and axis tree root equals reference fold" begin
+    using Tray:
+        AttributionSchema,
+        AttributionPayload,
+        Direct,
+        Tree,
+        root,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        combine,
+        identity,
+        leaf_count
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0),
+    ]
+    t = Tree(leaves; b = 2, schema = schema)
+    mas = MultiAxisSet(t)
+
+    axis_map = AxisMap(Dict("group1" => [1, 3], "group2" => [2]))
+    axis_idx = register_axis!(mas, "category", axis_map)
+
+    # Axis tree root should equal fold of leaves in axis order [leaf1, leaf3, leaf2]
+    axis_order = [leaves[1], leaves[3], leaves[2]]
+    @test axis_idx.tree.levels[1] == axis_order
+    @test root(axis_idx.tree) == reduce(combine, axis_order)
+    @test root(axis_idx.tree).schema === schema
+end
+
+@testitem "Attribution conformance: intersect_axes preserves attribution algebra (exact schema)" begin
+    using Tray:
+        AttributionSchema,
+        AttributionPayload,
+        Direct,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        intersect_axes,
+        combine,
+        identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(schema = schema, buckets = [1.0, 2.0], realized_total = 3.0),
+        AttributionPayload(schema = schema, buckets = [3.0, 4.0], realized_total = 7.0),
+        AttributionPayload(schema = schema, buckets = [5.0, 6.0], realized_total = 11.0),
+        AttributionPayload(schema = schema, buckets = [7.0, 8.0], realized_total = 15.0),
+    ]
+    t = Tree(leaves; b = 2, schema = schema)
+    mas = MultiAxisSet(t)
+
+    # Category axis: cat1 = leaves 1,2; cat2 = leaves 3,4
+    cat_map = AxisMap(Dict("cat1" => [1, 2], "cat2" => [3, 4]))
+    register_axis!(mas, "category", cat_map)
+
+    # Region axis: east = leaves 1,3; west = leaves 2,4
+    region_map = AxisMap(Dict("east" => [1, 3], "west" => [2, 4]))
+    register_axis!(mas, "region", region_map)
+
+    # Intersection: category=cat1 ∩ region=east → leaves {1}
+    result = intersect_axes(mas, [("category", "cat1"), ("region", "east")])
+    @test result == leaves[1]
+    @test result.schema === schema
+
+    # Intersection: category=cat2 ∩ region=west → leaves {4}
+    result = intersect_axes(mas, [("category", "cat2"), ("region", "west")])
+    @test result == leaves[4]
+    @test result.schema === schema
+
+    # Intersection: category=cat1 ∩ region=west → leaves {2}
+    result = intersect_axes(mas, [("category", "cat1"), ("region", "west")])
+    @test result == leaves[2]
+    @test result.schema === schema
+
+    # Intersection: category=cat2 ∩ region=east → leaves {3}
+    result = intersect_axes(mas, [("category", "cat2"), ("region", "east")])
+    @test result == leaves[3]
+    @test result.schema === schema
+end
+
+@testitem "Attribution conformance: intersect_axes with multi-leaf ranges" begin
+    using Tray:
+        AttributionSchema,
+        AttributionPayload,
+        Direct,
+        Tree,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        intersect_axes,
+        combine,
+        identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:pnl, :costs, :fees),
+        tolerance = 0.0,
+        residual_bucket_id = nothing,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(
+            schema = schema,
+            buckets = [1.0, 2.0, 0.5],
+            realized_total = 3.5,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [3.0, 4.0, 1.0],
+            realized_total = 8.0,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [5.0, 6.0, 1.5],
+            realized_total = 12.5,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [7.0, 8.0, 2.0],
+            realized_total = 17.0,
+        ),
+    ]
+    t = Tree(leaves; b = 2, schema = schema)
+    mas = MultiAxisSet(t)
+
+    # Axis A: group1 = {1,2,3}, group2 = {4}
+    axis_a = AxisMap(Dict("group1" => [1, 2, 3], "group2" => [4]))
+    register_axis!(mas, "A", axis_a)
+
+    # Axis B: subset1 = {1,4}, subset2 = {2,3}
+    axis_b = AxisMap(Dict("subset1" => [1, 4], "subset2" => [2, 3]))
+    register_axis!(mas, "B", axis_b)
+
+    # Intersection A=group1 ∩ B=subset2 → {2,3}
+    result = intersect_axes(mas, [("A", "group1"), ("B", "subset2")])
+    expected = combine(leaves[2], leaves[3])
+    @test result == expected
+    @test result.schema === schema
+
+    # Intersection A=group1 ∩ B=subset1 → {1}
+    result = intersect_axes(mas, [("A", "group1"), ("B", "subset1")])
+    @test result == leaves[1]
+    @test result.schema === schema
+
+    # Intersection A=group2 ∩ B=subset1 → {4}
+    result = intersect_axes(mas, [("A", "group2"), ("B", "subset1")])
+    @test result == leaves[4]
+    @test result.schema === schema
+end
+
+@testitem "Attribution conformance: residual schema through tree and intersection" begin
+    using Tray:
+        AttributionSchema,
+        AttributionPayload,
+        Direct,
+        Tree,
+        root,
+        range_query,
+        MultiAxisSet,
+        AxisMap,
+        register_axis!,
+        intersect_axes,
+        combine,
+        identity
+
+    schema = AttributionSchema(
+        bucket_ids = (:sales, :costs, :residual),
+        tolerance = 1e-8,
+        residual_bucket_id = :residual,
+        convention = Direct(),
+    )
+    leaves = [
+        AttributionPayload(
+            schema = schema,
+            buckets = [100.0, -60.0, 0.0],
+            realized_total = 40.0,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [200.0, -150.0, 0.0],
+            realized_total = 50.0,
+        ),
+        AttributionPayload(
+            schema = schema,
+            buckets = [300.0, -250.0, 0.0],
+            realized_total = 50.0,
+        ),
+    ]
+
+    t = Tree(leaves; b = 2, schema = schema)
+
+    # Root residual must reconcile
+    r = root(t)
+    @test abs(sum(r.buckets) - r.realized_total) <= schema.tolerance
+    @test r == reduce(combine, leaves)
+
+    # Range query residual must reconcile
+    rq = range_query(t, 1, 2)
+    @test abs(sum(rq.buckets) - rq.realized_total) <= schema.tolerance
+    @test rq == combine(leaves[1], leaves[2])
+
+    # Multi-axis intersection with residual schema
+    mas = MultiAxisSet(t)
+    ax = AxisMap(Dict("early" => [1], "late" => [2, 3]))
+    register_axis!(mas, "time", ax)
+
+    result = intersect_axes(mas, [("time", "late")])
+    @test abs(sum(result.buckets) - result.realized_total) <= schema.tolerance
+    @test result == combine(leaves[2], leaves[3])
+    @test result.schema === schema
+end
+
+## ---------------------------------------------------------------------------
 ## Tree focused tests (TRAYS-ogt: REQ-1–3, REQ-31, REQ-42)
 ## ---------------------------------------------------------------------------
 
