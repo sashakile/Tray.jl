@@ -1,4 +1,4 @@
-# ── Supposition property-based test integration (TRAYS-nyc.1, TRAYS-nyc.2) ────
+# ── Supposition property-based test integration (TRAYS-nyc) ──────────────────
 #
 # This file is intentionally NOT named *_test.jl or *_tests.jl so that
 # ReTestItems does not discover it as a worker file. It is explicitly included
@@ -6,58 +6,35 @@
 #
 # See docs/src/dev/testing.md for placement rules and future-runner migration
 # guidance.
+#
+# Conventions for splitting (when this file exceeds ~200 lines or 10 properties):
+# - Create test/properties/<topic>.jl for each group of related properties.
+# - Include the new file from this file, inside the same outer @testset.
+# - Keep shared generator types in test/helpers/. Currently TestTokenPayload
+#   lives in test/helpers/TokenPayload.jl.
 
 using Random: MersenneTwister
 using Supposition
 using Test
 
+include("helpers/TokenPayload.jl")
+using .TestTokenPayload: TokenSchema, TokenPayload
+
 @testset "Supposition integration smoke" begin
-    # Deterministic, bounded smoke property: commutativity of addition for
-    # small integers.
-    @check rng = MersenneTwister(42) max_examples = 100 db = false function smoke_addition_is_commutative(
+    # Deterministic, bounded smoke property: verifies that Supposition is
+    # available, that @check works inside an ordinary @testset, and that
+    # Tray APIs are accessible from the property file.
+    @check rng = MersenneTwister(42) max_examples = 100 db = false function smoke_tray_integration(
         x = Data.Integers(1, 100),
-        y = Data.Integers(1, 100),
     )
-        x + y == y + x
+        Tray.TrayBase.identity(Tray.ScalarSchema{Float64}(false)).count == 0 && x > 0
     end
 end
 
 # ── Noncommutative TokenPayload for tree ordering tests (TRAYS-nyc.2) ─────────
 #
-# A simple position-distinct payload: each leaf carries a unique integer token.
-# combine concatenates tokens in order (noncommutative), so the root's token
-# sequence equals the original leaf token vector — an independent oracle.
-
-struct TokenSchema end
-
-struct TokenPayload{T}
-    tokens::Vector{T}
-end
-
-Base.:(==)(a::TokenPayload, b::TokenPayload) = a.tokens == b.tokens
-Base.hash(a::TokenPayload, h::UInt) = hash(a.tokens, h)
-
-function Tray.TrayBase.identity(::TokenSchema)
-    return TokenPayload{Int}(Int[])
-end
-
-function Tray.TrayBase.combine(a::TokenPayload{Int}, b::TokenPayload{Int})
-    return TokenPayload{Int}(vcat(a.tokens, b.tokens))
-end
-
-function Tray.TrayBase.identity(
-    ::TokenSchema,
-    ::Type{TokenPayload{Int}},
-    prototype::TokenPayload{Int},
-)
-    return Tray.TrayBase.identity(TokenSchema())
-end
-
-# ── Generators (Task 2.1) ────────────────────────────────────────────────────
-#
-# Bounded scenario generators that construct valid dependent tree sizes,
-# branching factors, ranges, and position-distinct token payloads without
-# rejection-heavy filtering.
+# TokenSchema, TokenPayload, and their TrayBase method implementations live
+# in test/helpers/TokenPayload.jl (TestTokenPayload module).
 
 @testset "Root token ordering (TRAYS-nyc.2)" begin
     # Property: for any n ∈ [1, 32] and b ∈ [2, 8], a tree with position-distinct
@@ -111,6 +88,7 @@ end
     # Property: for any n ∈ [1, 32] and b ∈ [2, 8], a tree's depth equals the
     # number of repeated cld(remaining, b) steps needed to reduce n to 1.
     # This covers all n, not just powers of b (stronger than existing O(log_b n) test).
+    # Worst-case depth: b=2, n=32 → depth=5.
     @check rng = MersenneTwister(42) max_examples = 100 db = false function exact_depth_property(
         n = Data.Integers(1, 32),
         b = Data.Integers(2, 8),
@@ -132,25 +110,27 @@ end
     # Property: for any n ∈ [1, 32], b ∈ [2, 8], and valid index, a persistent
     # update produces a tree with equal b, schema, and levels to an independent
     # rebuild, while the original tree's levels remain unchanged.
+    # Uses distinct token values for each leaf so that ancestor-path recomputation
+    # is exercised (not just identity-leaf replacement).
     @check rng = MersenneTwister(42) max_examples = 100 db = false function persistent_update_equals_rebuild(
         n = Data.Integers(1, 32),
         b = Data.Integers(2, 8),
         idx = Data.Integers(1, 32),
     )
+        # Clamp idx to valid range (generator is independent of n)
         idx = min(idx, n)
-        schema = TokenSchema()
-        id = Tray.TrayBase.identity(schema)
-        leaves = [id for _ = 1:n]
-        tree = Tray.Tree(leaves; b = b, schema = schema)
+        tokens = collect(1:n)
+        leaves = [TokenPayload{Int}([t]) for t in tokens]
+        tree = Tray.Tree(leaves; b = b, schema = TokenSchema())
         original_levels = deepcopy(tree.levels)
         replacement = TokenPayload{Int}([999])
 
         updated_tree = Tray.update(tree, idx, replacement)
 
         # Rebuild independently
-        rebuilt_leaves = [id for _ = 1:n]
+        rebuilt_leaves = [TokenPayload{Int}([t]) for t in tokens]
         rebuilt_leaves[idx] = replacement
-        rebuilt_tree = Tray.Tree(rebuilt_leaves; b = b, schema = schema)
+        rebuilt_tree = Tray.Tree(rebuilt_leaves; b = b, schema = TokenSchema())
 
         updated_tree.b == rebuilt_tree.b &&
             updated_tree.schema == rebuilt_tree.schema &&

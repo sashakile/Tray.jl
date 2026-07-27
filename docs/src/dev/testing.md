@@ -26,6 +26,10 @@ Tray uses [Supposition.jl](https://github.com/Seelengrab/Supposition.jl) 0.3.x
   because those patterns cause ReTestItems worker discovery.
   The current file is `test/properties.jl`, explicitly included from
   `test/runtests.jl`.
+- When splitting into multiple property files, create them under
+  `test/properties/` and include them from the main `test/properties.jl`
+  inside the same outer `Test.@testset`. Keep shared generator types in
+  `test/helpers/`.
 
 ### Why not inside @testitem?
 
@@ -71,7 +75,7 @@ Every `@check` in the pilot uses:
   shrinking. A failed property reports the minimal reproducing example.
 - To reproduce a CI failure: copy the property name, seed, and shrunk
   arguments from the CI log.
-- Every useful shrunk counterexample SHOULD be promoted to an ordinary
+- Every useful shrunk counterexample MUST be promoted to an ordinary
   focused regression test (a new `@testitem` in `test/runtests.jl`)
   while retaining the property that discovered it.
 
@@ -94,7 +98,7 @@ failures still gate CI.
 
 If property tests are later moved into ReTestItems-scanned worker files, a
 separate ordinary-`Test` execution path MUST be preserved, or support for
-custom `Test.@testset` types in ReTestItems must first be verified. The
+custom `Test.@testset` types in ReTestItems MUST first be verified. The
 integration smoke property in `test/properties.jl` acts as a canary — if it
 stops running or stops propagating failures, the runner boundary has broken.
 
