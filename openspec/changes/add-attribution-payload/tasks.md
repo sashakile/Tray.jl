@@ -22,4 +22,4 @@
 - [x] 5.2 Property tests for elementwise summation through multi-level tree grouping.
 - [x] 5.3 Tests for direct and allocated convention configuration and provenance.
 - [x] 5.4 Tests for read-time ratio derivation and zero-denominator domain errors.
-- [ ] 5.5 Run `ah check --changes add-attribution-payload` and `openspec validate add-attribution-payload --strict`.
+- [x] 5.5 Run `ah check --changes add-attribution-payload` and `openspec validate add-attribution-payload --strict`.

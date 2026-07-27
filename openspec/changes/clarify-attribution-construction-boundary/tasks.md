@@ -14,6 +14,6 @@
 - [x] 3.3 Update attribution documentation to distinguish provenance from executable allocation.
 
 ## 4. Validate
-- [ ] 4.1 Create Espectacular contracts for the new scenarios, then run focused attribution and tree tests plus the complete package test suite.
-- [ ] 4.2 Run the required Rule of 5 implementation review and fix findings.
-- [ ] 4.3 Run `ah check --changes clarify-attribution-construction-boundary`, `openspec validate clarify-attribution-construction-boundary --strict`, and `git diff --check`.
+- [x] 4.1 Create Espectacular contracts for the new scenarios, then run focused attribution and tree tests plus the complete package test suite.
+- [x] 4.2 Run the required Rule of 5 implementation review and fix findings.
+- [x] 4.3 Run `ah check --changes clarify-attribution-construction-boundary`, `openspec validate clarify-attribution-construction-boundary --strict`, and `git diff --check`.
