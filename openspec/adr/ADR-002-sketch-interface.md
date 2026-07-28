@@ -1,8 +1,10 @@
 # ADR-002: Compressed-Sample Algorithm Interface and Greenwald-Khanna Sketch
 
-**Status:** Approved
+**Status:** Superseded
 **Author:** sasha
 **Date:** 2026-07-20
+**Superseded-By:** `defer-nonconforming-sample-compression`
+**Superseded-Date:** 2026-07-27
 **Tickets:** TRAYS-a7f, TRAYS-x6z
 **Requirements:** REQ-21, REQ-22, REQ-32, REQ-44
 
@@ -100,6 +102,49 @@ Configuration is stored in the schema as a tuple
 - `(:tdigest, 0.01, 65536)` — same budget, different algorithm
 
 The algorithm ID selects the concrete implementation at construction time.
+
+## Consequences
+
+**Accepted trade-offs:**
+- Pluggable interface adds a level of indirection but means algorithm swaps
+  never touch tree code.
+- GK is not the most space-efficient sketch (KLL is), but it is the simplest
+  correct implementation and can be swapped later.
+- ε=0.01 gives 1% rank error with ~38 KB storage — acceptable for the POC.
+
+## Supersession
+
+This ADR is superseded by the `defer-nonconforming-sample-compression` change
+because the Greenwald-Khanna merge operation (and any marginal-distribution
+union) **cannot preserve aligned pairing** — a fundamental requirement of
+REQ-21.
+
+### Paired-Sum Indistinguishability Counterexample
+
+Consider two aligned sample vectors of length 2:
+
+```
+a  = [0, 2]
+b₁ = [0, 2]   → a + b₁ = [0, 4]
+b₂ = [2, 0]   → a + b₂ = [2, 2]
+```
+
+Both `b₁` and `b₂` have identical marginal histograms `{0:1, 2:1}` and
+identical GK summaries. A GK merge (or any marginal histogram union) of `a`
+with either produces the same result — but the elementwise sums `[0, 4]` and
+`[2, 2]` have different distributions (different quantiles, different
+variance).
+
+No merge that receives only the marginal summaries of `a` and `b` can
+distinguish these cases. Therefore, any sketch that operates on marginal
+summaries alone **cannot** conform to REQ-21's aligned-sum contract.
+
+### Path Forward
+
+REQ-21 remains exact-only until an approved replacement ADR defines a
+pairing-preserving compressed representation, promotion map, error model, and
+source requirements together. See the `defer-nonconforming-sample-compression`
+change for the adversarial conformance oracle any future proposal must pass.
 
 ## Consequences
 
