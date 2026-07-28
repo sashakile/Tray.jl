@@ -80,10 +80,20 @@ clean:
     rm -rf docs/build docs/site
     rm -f *.jl.cov *.jl.*.cov *.jl.mem
 
+# ── Epistemic Grounding (dont) ────────────────────────────────────────────
+
+# Check all dont claims are grounded (verified)
+dont-check:
+    dont check
+
+# List all dont claims
+dont-list:
+    dont list --plain
+
 # ── CI-like full check ──────────────────────────────────────────────────────
 
 # Run the full CI pipeline locally
-ci: fmt-check test spell-check doc-check
+ci: fmt-check test spell-check doc-check dont-check
 
 # ── Project Status ──────────────────────────────────────────────────────────
 

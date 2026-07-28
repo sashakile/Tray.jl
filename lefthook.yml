@@ -51,3 +51,6 @@ pre-push:
         julia --project=docs -e "using Pkg; Pkg.develop(Pkg.PackageSpec(path=pwd())); Pkg.instantiate()"
         julia --project=docs docs/make.jl
         '
+
+    dont-check:
+      run: just dont-check
