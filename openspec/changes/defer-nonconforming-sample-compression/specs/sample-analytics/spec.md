@@ -11,6 +11,7 @@ Until an approved pairing-preserving compressed representation exists, sample no
 - **WHEN** callers build and query a sample tree without a conforming compression configuration
 - **THEN** every node retains its exact aligned vector and sample-derived results use that vector
 
+
 ### Requirement: Exact sample summary coherence
 Every positive-length exact sample payload, including the additive identity's zero vector, SHALL derive every cached scalar summary field from its stored aligned vector. The `SamplePayload` identity summary SHALL describe its length-`S` zero vector and SHALL NOT use the standalone `ScalarSummary` identity; identity construction MUST obtain `S` and alignment/revision provenance from the schema or prototype. Combining two schema-, identifier-, and revision-aligned exact sample payloads SHALL add their vectors elementwise and derive the result's summary from that vector. It SHALL NOT combine child summaries as if the two vectors were concatenated observations.
 

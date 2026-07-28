@@ -1,6 +1,0 @@
-id = "combine-uses-elementwise-sum-statistics"
-description = "SamplePayload combine derives summary from elementwise-summed vector, not concatenated child statistics"
-archetype = "invariant"
-status = "active"
-superseded_by = ""
-authored_with = "0.2.2"

@@ -1,0 +1,9 @@
+id = "distinguish-equal-marginals-with-different-pairings"
+description = "Two right operands with equal marginal summaries but different elementwise sums with the same left operand must be distinguishable; a marginal-distribution merge cannot, so it is rejected as non-conforming"
+archetype = "counterexample"
+status = "active"
+superseded_by = ""
+authored_with = "0.3.0"
+
+[[tests.shell]]
+command = "just test-file \"SamplePayload: adversarial re-pairing counterexample\""

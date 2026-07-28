@@ -1,0 +1,9 @@
+id = "reject-marginal-distribution-compression"
+description = "Compression that discards the sample-ID/value association before combining child vectors is rejected explicitly, not published as REQ-21 conforming"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.3.0"
+
+[[tests.shell]]
+command = "just test-file \"SamplePayload: adversarial re-pairing counterexample\""

@@ -1,0 +1,9 @@
+id = "recompute-cross-term-sensitive-fields"
+description = "Combining two aligned exact sample vectors adds them elementwise and derives count, sum of squares (including cross terms), extrema, and moments from the elementwise sum rather than from concatenated child summaries"
+archetype = "homomorphism"
+status = "active"
+superseded_by = ""
+authored_with = "0.3.0"
+
+[[tests.shell]]
+command = "just test-file \"SamplePayload: combine uses elementwise-sum statistics\""

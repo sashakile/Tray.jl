@@ -1,0 +1,9 @@
+id = "preserve-exact-operation-while-compression-is-deferred"
+description = "Without a conforming compression configuration, every sample node retains its exact aligned vector and sample-derived results use that vector"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.3.0"
+
+[[tests.shell]]
+command = "just test-file \"SamplePayload: combine adds elementwise\""
