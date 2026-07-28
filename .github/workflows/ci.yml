@@ -84,3 +84,9 @@ jobs:
         uses: crate-ci/typos@master
         with:
           config: _typos.toml
+
+      - name: Install pretender
+        run: cargo install pretender --locked
+
+      - name: Pretender check
+        run: pretender check src/ test/
