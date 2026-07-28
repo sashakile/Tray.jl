@@ -750,7 +750,13 @@ function moment_quantile(
 
     q = _cornish_fisher_quantile((μ, sqrt(σ²)), _normal_quantile(p_f), γ₁, γ₂)
     return MomentQuantileResult{T}(
-        q, true, p_f, μ, σ², γ₁, γ₂,
+        q,
+        true,
+        p_f,
+        μ,
+        σ²,
+        γ₁,
+        γ₂,
         "Cornish-Fisher expansion assuming near-Gaussian distribution; " *
         "accuracy depends on how close the true distribution is to normal",
     )

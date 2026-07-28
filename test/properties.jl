@@ -123,7 +123,9 @@ end
         updated_tree = Tray.update(tree, idx, TokenPayload{Int}([999]))
         rebuilt = Tray.Tree(
             [i == idx ? TokenPayload{Int}([999]) : leaves[i] for i = 1:n];
-            b = b, schema = TokenSchema())
+            b = b,
+            schema = TokenSchema(),
+        )
         return updated_tree.levels == rebuilt.levels
     end
 end

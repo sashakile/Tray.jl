@@ -138,7 +138,12 @@ Return the unique identity `ScalarSummary` for the given schema.
 function TrayBase.identity(schema::ScalarSchema{T}) where {T}
     inf_pos = T(Inf)
     inf_neg = T(-Inf)
-    return ScalarSummary{T}(schema, 0, (zero(T), zero(T), zero(T), zero(T)), (inf_pos, inf_neg))
+    return ScalarSummary{T}(
+        schema,
+        0,
+        (zero(T), zero(T), zero(T), zero(T)),
+        (inf_pos, inf_neg),
+    )
 end
 
 """

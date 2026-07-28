@@ -4676,7 +4676,7 @@ end
     inc = Incremental
 
     schema = ScalarSchema{Float64}(false)
-    s = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0),(1.0, 9.0))
+    s = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0), (1.0, 9.0))
 
     Δ1 = inc.ScalarSummaryChange{Float64}(
         count = 5,
@@ -4718,8 +4718,8 @@ end
     f(x, y) = combine(x, y)
     artifact = inc.generate_recompute_artifact(f, 2)
 
-    s1 = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0),(1.0, 9.0))
-    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0),(1.0, 11.0))
+    s1 = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0), (1.0, 9.0))
+    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0), (1.0, 11.0))
 
     old_result = f(s1, s2)
     Δ1 = inc.change_between(s1, s1)  # zero change
@@ -4745,13 +4745,13 @@ end
     f(x, y) = combine(x, y)
     artifact = inc.generate_recompute_artifact(f, 2)
 
-    s1 = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0),(1.0, 9.0))
-    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0),(1.0, 11.0))
+    s1 = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0), (1.0, 9.0))
+    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0), (1.0, 11.0))
 
     old_result = f(s1, s2)
 
     # s1 loses 3 observations, gains 10 in sum
-    s1_new = ScalarSummary{Float64}(schema, 7, (60.0, 300.0, 0.0, 0.0),(1.0, 9.0))
+    s1_new = ScalarSummary{Float64}(schema, 7, (60.0, 300.0, 0.0, 0.0), (1.0, 9.0))
     Δ1 = inc.change_between(s1, s1_new)
     Δ2 = inc.change_between(s2, s2)  # s2 unchanged
 
@@ -4820,7 +4820,7 @@ end
     # ScalarSummary round-trip
     using Tray: ScalarSummary, ScalarSchema
     schema = ScalarSchema{Float64}(false)
-    s = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0),(1.0, 9.0))
+    s = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0), (1.0, 9.0))
     Δ = inc.change_between(s, s)  # same value
     result = inc.apply_change(s, Δ)
     @test result.count == s.count
@@ -4830,7 +4830,7 @@ end
     # change_between produces a delta that preserves old extrema on apply_change.
     # Round-trip is guaranteed only for non-narrowing changes.
     # Widening case (max 9→11): round-trips correctly.
-    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0),(1.0, 11.0))
+    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0), (1.0, 11.0))
     Δ2 = inc.change_between(s, s2)
     result2 = inc.apply_change(s, Δ2)
     @test result2.count == s2.count
@@ -4839,7 +4839,7 @@ end
     @test result2.maximum == s2.maximum
 
     # Narrowing case (max 11→9): apply_change keeps old max (11), not new (9).
-    s3 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0),(1.0, 9.0))
+    s3 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0), (1.0, 9.0))
     Δ3 = inc.change_between(s2, s3)
     result3 = inc.apply_change(s2, Δ3)
     @test result3.count == s3.count
@@ -5711,7 +5711,8 @@ end
     function wrong_df(::Any, ::Any, ::Any)
         return ScalarSummaryChange{Float64}(
             count = 999,
-            sum_sumsq = (999.0, 999.0),
+            sum = 999.0,
+            sumsq = 999.0,
             minimum = 0.0,
             maximum = 999.0,
         )
@@ -5904,7 +5905,8 @@ end
     function wrong_df(::Any, ::Any, ::Any)
         return ScalarSummaryChange{Float64}(
             count = 999,
-            sum_sumsq = (999.0, 999.0),
+            sum = 999.0,
+            sumsq = 999.0,
             minimum = 0.0,
             maximum = 999.0,
         )
@@ -6067,7 +6069,8 @@ end
     function wrong_df(::Any, ::Any, ::Any)
         return ScalarSummaryChange{Float64}(
             count = 999,
-            sum_sumsq = (999.0, 999.0),
+            sum = 999.0,
+            sumsq = 999.0,
             minimum = 0.0,
             maximum = 999.0,
         )
