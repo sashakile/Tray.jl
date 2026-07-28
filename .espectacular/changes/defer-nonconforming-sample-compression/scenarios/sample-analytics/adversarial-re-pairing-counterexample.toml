@@ -1,0 +1,6 @@
+id = "adversarial-re-pairing-counterexample"
+description = "Inputs with equal marginal histograms but different pairings produce different elementwise sums, proving marginal-only compression cannot conform to REQ-21"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

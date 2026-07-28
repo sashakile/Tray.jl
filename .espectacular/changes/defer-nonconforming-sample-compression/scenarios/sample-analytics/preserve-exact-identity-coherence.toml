@@ -1,0 +1,6 @@
+id = "preserve-exact-identity-coherence"
+description = "SamplePayload identity summary derives from its zero vector (count=S); combine(id, id) == id"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

@@ -1,0 +1,6 @@
+id = "preserve-exact-sample-operation"
+description = "Exact SamplePayload construction, combine, and quantile operations work without compression"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"

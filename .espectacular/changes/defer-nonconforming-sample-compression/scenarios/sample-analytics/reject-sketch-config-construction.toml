@@ -1,0 +1,6 @@
+id = "reject-sketch-config-construction"
+description = "Constructing a SketchConfig throws an error indicating compression is deferred"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
