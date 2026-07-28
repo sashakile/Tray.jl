@@ -7148,6 +7148,43 @@ end
     @test r1.samples ≈ [9.0, 12.0]
 end
 
+@testitem "SamplePayload: adversarial re-pairing counterexample (TRAYS-5hc)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+
+    # Three vectors: a, b₁, b₂
+    # b₁ and b₂ have the SAME marginal histogram {0:1, 2:1}
+    # but produce DIFFERENT elementwise sums with a
+    a = SamplePayload(schema = schema, samples = [0.0, 2.0])
+    b₁ = SamplePayload(schema = schema, samples = [0.0, 2.0])
+    b₂ = SamplePayload(schema = schema, samples = [2.0, 0.0])
+
+    # Marginal histograms of b₁ and b₂ are identical: {0:1, 2:1}
+    # (both have one 0 and one 2)
+    @test sort(b₁.samples) == sort(b₂.samples)
+
+    # But elementwise sums differ:
+    # a + b₁ = [0+0, 2+2] = [0, 4]
+    # a + b₂ = [0+2, 2+0] = [2, 2]
+    r1 = TrayBase.combine(a, b₁)
+    r2 = TrayBase.combine(a, b₂)
+
+    @test r1.samples ≈ [0.0, 4.0]
+    @test r2.samples ≈ [2.0, 2.0]
+
+    # Different distributions: different quantiles, different variance
+    @test r1.summary.sumsq ≈ 16.0   # 0² + 4²
+    @test r2.summary.sumsq ≈ 8.0    # 2² + 2²
+    @test r1.summary.maximum ≈ 4.0
+    @test r2.summary.maximum ≈ 2.0
+
+    # No marginal-distribution merge can distinguish these cases
+    # because it receives only b₁'s and b₂'s identical marginal histograms.
+    # This proves the fundamental limitation that motivates deferring
+    # non-conforming compression (see defer-nonconforming-sample-compression).
+end
+
 @testitem "SamplePayload: combine rejects cross-revision (REQ-20)" begin
     using Tray: ScalarSchema, SamplePayload, TrayBase
 
