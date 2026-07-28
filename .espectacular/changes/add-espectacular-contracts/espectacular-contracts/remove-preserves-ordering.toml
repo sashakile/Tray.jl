@@ -1,0 +1,9 @@
+id = "remove-preserves-ordering"
+description = "Removing a leaf preserves the relative ordering of remaining leaves"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"Tree: remove leaf from end (REQ-15)\""

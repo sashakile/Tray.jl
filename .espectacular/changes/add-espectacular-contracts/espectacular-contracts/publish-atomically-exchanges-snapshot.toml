@@ -1,0 +1,9 @@
+id = "publish-atomically-exchanges-snapshot"
+description = "publish! atomically exchanges the active snapshot in SnapshotEpoch"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"SnapshotEpoch: publish! atomically exchanges active snapshot\""

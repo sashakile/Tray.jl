@@ -1,0 +1,9 @@
+id = "identity-law"
+description = "combine(identity(ScalarSchema), x) == x for any ScalarSummary"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"ScalarSummary: identity law\""

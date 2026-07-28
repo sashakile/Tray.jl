@@ -1,0 +1,9 @@
+id = "insert-preserves-existing-values"
+description = "Inserting a new leaf preserves the values of all other leaves in the tree"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"Tree: insert leaf at end (REQ-14)\""

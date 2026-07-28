@@ -1,0 +1,9 @@
+id = "range-query-computes-same-as-fold"
+description = "Tree range_query on [lo, hi] returns the same result as folding combine across leaves in that range"
+archetype = "homomorphism"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"Tree: range_query uses canonical decomposition\""

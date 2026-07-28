@@ -1,0 +1,9 @@
+id = "combine-uses-elementwise-sum-statistics"
+description = "SamplePayload combine uses elementwise sum of sample statistics"
+archetype = "homomorphism"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"SamplePayload: combine uses elementwise sum\""

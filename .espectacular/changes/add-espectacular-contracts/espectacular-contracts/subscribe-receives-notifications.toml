@@ -1,0 +1,9 @@
+id = "subscribe-receives-notifications"
+description = "DashboardModel subscribe! receives notifications on field changes"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"DashboardModel: subscribe! receives notifications\""

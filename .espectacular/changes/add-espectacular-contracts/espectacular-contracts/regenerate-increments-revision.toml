@@ -1,0 +1,9 @@
+id = "regenerate-increments-revision"
+description = "regenerate_samples! replaces samples and increments revision"
+archetype = "invariant"
+status = "active"
+superseded_by = ""
+authored_with = "0.2.2"
+
+[[tests.shell]]
+command = "just test-file \"regenerate_samples!: replaces samples and increments revision\""
