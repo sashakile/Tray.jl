@@ -7076,7 +7076,11 @@ end
 
     @test length(id.samples) == 3
     @test all(s == 0.0 for s in id.samples)
-    @test id.summary.count == 0
+    @test id.summary.count == 3  # derived from zero vector (length 3)
+    @test id.summary.sum ≈ 0.0
+    @test id.summary.sumsq ≈ 0.0
+    @test id.summary.minimum ≈ 0.0
+    @test id.summary.maximum ≈ 0.0
     @test id.dataset_revision == 1
 end
 
@@ -7122,7 +7126,7 @@ end
 
     # After 3.1, id.summary should also derive from its zero vector (count=3),
     # making this equality hold. Currently fails because id has count=0.
-    # @test result == id  # uncomment after 3.1
+    @test result == id  # identity law holds: combine(id, id) == id
 end
 
 @testitem "SamplePayload: identity associativity (TRAYS-8zs)" begin

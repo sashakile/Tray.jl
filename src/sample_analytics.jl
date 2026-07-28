@@ -169,7 +169,8 @@ dataset_revision(tree::Tree{<:SamplePayload}) = dataset_revision(root(tree))
     identity(schema::ScalarSchema{T}, sample_length::Int) -> SamplePayload{T}
 
 Return the identity SamplePayload for the given schema and sample length.
-The identity has zero summary and zero-valued samples.
+The identity has zero-valued samples and a summary derived from the zero
+vector (count=S, sum=0, sumsq=0, min=0, max=0).
 """
 function TrayBase.identity(schema::ScalarSchema{T}, sample_length::Int) where {T}
     sample_length >= 0 ||
@@ -179,8 +180,18 @@ function TrayBase.identity(schema::ScalarSchema{T}, sample_length::Int) where {T
         summary = TrayBase.identity(schema)
         return SamplePayload{T}(summary, T[], INITIAL_REVISION)
     end
-    summary = TrayBase.identity(schema)
     samples = zeros(T, sample_length)
+    # Derive summary from the zero vector, not from the standalone ScalarSummary identity
+    summary = ScalarSummary(;
+        schema = schema,
+        count = sample_length,
+        sum = zero(T),
+        sumsq = zero(T),
+        minimum = zero(T),
+        maximum = zero(T),
+        m3 = schema.higher_moment ? zero(T) : zero(T),
+        m4 = schema.higher_moment ? zero(T) : zero(T),
+    )
     return SamplePayload{T}(summary, samples, INITIAL_REVISION)
 end
 
@@ -195,8 +206,19 @@ function TrayBase.identity(
     ::Type{SamplePayload{T}},
     prototype::SamplePayload{T},
 ) where {T}
-    summary = TrayBase.identity(schema)
     samples = zeros(T, length(prototype.samples))
+    sample_length = length(prototype.samples)
+    # Derive summary from the zero vector
+    summary = ScalarSummary(;
+        schema = schema,
+        count = sample_length,
+        sum = zero(T),
+        sumsq = zero(T),
+        minimum = zero(T),
+        maximum = zero(T),
+        m3 = schema.higher_moment ? zero(T) : zero(T),
+        m4 = schema.higher_moment ? zero(T) : zero(T),
+    )
     return SamplePayload{T}(summary, samples, prototype.dataset_revision)
 end
 
