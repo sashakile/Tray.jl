@@ -507,20 +507,35 @@
           "kind": "Function",
           "start_line": 181,
           "metrics": {
-            "cyclomatic": 5,
-            "cognitive": 4,
+            "cyclomatic": 2,
+            "cognitive": 1,
             "assertions": 0,
-            "function_lines": 11,
+            "function_lines": 8,
             "params": 3,
             "nesting_max": 0,
-            "abc": 7.280109889280518
+            "abc": 5.0990195135927845
+          },
+          "violations": []
+        },
+        {
+          "name": "_validate_viewport",
+          "kind": "Function",
+          "start_line": 190,
+          "metrics": {
+            "cyclomatic": 2,
+            "cognitive": 1,
+            "assertions": 0,
+            "function_lines": 4,
+            "params": 3,
+            "nesting_max": 0,
+            "abc": 3.1622776601683795
           },
           "violations": []
         },
         {
           "name": "_compute_range_query",
           "kind": "Function",
-          "start_line": 193,
+          "start_line": 195,
           "metrics": {
             "cyclomatic": 4,
             "cognitive": 3,
@@ -535,7 +550,7 @@
         {
           "name": "_publish_query_result",
           "kind": "Function",
-          "start_line": 210,
+          "start_line": 212,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -864,7 +879,7 @@
             "cyclomatic": 2,
             "cognitive": 1,
             "assertions": 0,
-            "function_lines": 10,
+            "function_lines": 22,
             "params": 1,
             "nesting_max": 0,
             "abc": 3.1622776601683795
@@ -874,7 +889,7 @@
         {
           "name": "Diagnostic",
           "kind": "Function",
-          "start_line": 650,
+          "start_line": 662,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -889,7 +904,7 @@
         {
           "name": "Diagnostic",
           "kind": "Function",
-          "start_line": 663,
+          "start_line": 675,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -904,12 +919,12 @@
         {
           "name": "current_artifact_binding",
           "kind": "Function",
-          "start_line": 848,
+          "start_line": 860,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
             "assertions": 0,
-            "function_lines": 11,
+            "function_lines": 19,
             "params": 1,
             "nesting_max": 0,
             "abc": 6.164414002968976
@@ -919,22 +934,22 @@
         {
           "name": "_closure_capture_type",
           "kind": "Function",
-          "start_line": 871,
+          "start_line": 891,
           "metrics": {
-            "cyclomatic": 5,
-            "cognitive": 4,
+            "cyclomatic": 4,
+            "cognitive": 3,
             "assertions": 0,
-            "function_lines": 12,
+            "function_lines": 6,
             "params": 1,
             "nesting_max": 0,
-            "abc": 7.483314773547883
+            "abc": 5.916079783099616
           },
           "violations": []
         },
         {
           "name": "detect_mutable_captures",
           "kind": "Function",
-          "start_line": 903,
+          "start_line": 917,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 2,
@@ -949,7 +964,7 @@
         {
           "name": "_is_closure",
           "kind": "Function",
-          "start_line": 912,
+          "start_line": 926,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -964,7 +979,7 @@
         {
           "name": "_check_closure_fields",
           "kind": "Function",
-          "start_line": 918,
+          "start_line": 932,
           "metrics": {
             "cyclomatic": 4,
             "cognitive": 3,
@@ -979,7 +994,7 @@
         {
           "name": "classify_operation",
           "kind": "Function",
-          "start_line": 1024,
+          "start_line": 1038,
           "metrics": {
             "cyclomatic": 4,
             "cognitive": 3,
@@ -994,7 +1009,7 @@
         {
           "name": "_resolve_callee",
           "kind": "Function",
-          "start_line": 1060,
+          "start_line": 1074,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -1009,7 +1024,7 @@
         {
           "name": "_rule_ambiguous_diag",
           "kind": "Function",
-          "start_line": 1071,
+          "start_line": 1085,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1024,7 +1039,7 @@
         {
           "name": "_rule_missing_diag",
           "kind": "Function",
-          "start_line": 1084,
+          "start_line": 1098,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1039,22 +1054,37 @@
         {
           "name": "check_call_coverage",
           "kind": "Function",
-          "start_line": 1097,
+          "start_line": 1111,
           "metrics": {
-            "cyclomatic": 5,
-            "cognitive": 3,
+            "cyclomatic": 3,
+            "cognitive": 1,
             "assertions": 0,
-            "function_lines": 11,
+            "function_lines": 6,
             "params": 2,
             "nesting_max": 0,
-            "abc": 6.708203932499369
+            "abc": 4.58257569495584
+          },
+          "violations": []
+        },
+        {
+          "name": "_registry_call_coverage",
+          "kind": "Function",
+          "start_line": 1118,
+          "metrics": {
+            "cyclomatic": 3,
+            "cognitive": 1,
+            "assertions": 0,
+            "function_lines": 6,
+            "params": 2,
+            "nesting_max": 0,
+            "abc": 4.58257569495584
           },
           "violations": []
         },
         {
           "name": "is_pure_call",
           "kind": "Function",
-          "start_line": 1121,
+          "start_line": 1137,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -1069,12 +1099,12 @@
         {
           "name": "analyze_statement",
           "kind": "Function",
-          "start_line": 1151,
+          "start_line": 1167,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 1,
             "assertions": 0,
-            "function_lines": 9,
+            "function_lines": 13,
             "params": 3,
             "nesting_max": 0,
             "abc": 7.211102550927978
@@ -1084,7 +1114,7 @@
         {
           "name": "_boundary_msg",
           "kind": "Function",
-          "start_line": 1161,
+          "start_line": 1181,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -1099,7 +1129,7 @@
         {
           "name": "_rejected_unknown",
           "kind": "Function",
-          "start_line": 1169,
+          "start_line": 1189,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1114,7 +1144,7 @@
         {
           "name": "_analyze_call",
           "kind": "Function",
-          "start_line": 1183,
+          "start_line": 1203,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -1129,7 +1159,7 @@
         {
           "name": "_boundary_controlflow",
           "kind": "Function",
-          "start_line": 1205,
+          "start_line": 1225,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1144,7 +1174,7 @@
         {
           "name": "_rejected_unhandled",
           "kind": "Function",
-          "start_line": 1218,
+          "start_line": 1238,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1159,7 +1189,7 @@
         {
           "name": "_extract_callee",
           "kind": "Function",
-          "start_line": 1240,
+          "start_line": 1260,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -1174,7 +1204,7 @@
         {
           "name": "_callee_of",
           "kind": "Function",
-          "start_line": 1246,
+          "start_line": 1266,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 4,
@@ -1189,7 +1219,7 @@
         {
           "name": "_extract_rhs_callee",
           "kind": "Function",
-          "start_line": 1256,
+          "start_line": 1276,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 1,
@@ -1204,7 +1234,7 @@
         {
           "name": "_is_call_or_invoke",
           "kind": "Function",
-          "start_line": 1265,
+          "start_line": 1285,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -1219,7 +1249,7 @@
         {
           "name": "analyze_ir",
           "kind": "Function",
-          "start_line": 1292,
+          "start_line": 1312,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -1234,7 +1264,7 @@
         {
           "name": "_analyze_ir_stmt!",
           "kind": "Function",
-          "start_line": 1302,
+          "start_line": 1322,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -1249,7 +1279,7 @@
         {
           "name": "_get_ir_statements",
           "kind": "Function",
-          "start_line": 1319,
+          "start_line": 1339,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 4,
@@ -1264,7 +1294,7 @@
         {
           "name": "classify_ir_without_provider",
           "kind": "Function",
-          "start_line": 1352,
+          "start_line": 1372,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1279,7 +1309,7 @@
         {
           "name": "generate_recompute_artifact",
           "kind": "Function",
-          "start_line": 1419,
+          "start_line": 1439,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1294,7 +1324,7 @@
         {
           "name": "generate_from_ir",
           "kind": "Function",
-          "start_line": 1444,
+          "start_line": 1464,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -1309,7 +1339,7 @@
         {
           "name": "_ir_unavailable",
           "kind": "Function",
-          "start_line": 1490,
+          "start_line": 1510,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1324,7 +1354,7 @@
         {
           "name": "_derive_body",
           "kind": "Function",
-          "start_line": 1505,
+          "start_line": 1525,
           "metrics": {
             "cyclomatic": 4,
             "cognitive": 3,
@@ -1339,7 +1369,7 @@
         {
           "name": "derive",
           "kind": "Function",
-          "start_line": 1521,
+          "start_line": 1541,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -1495,7 +1525,7 @@
             "cyclomatic": 1,
             "cognitive": 0,
             "assertions": 0,
-            "function_lines": 7,
+            "function_lines": 21,
             "params": 0,
             "nesting_max": 0,
             "abc": 7.615773105863909
@@ -1505,7 +1535,7 @@
         {
           "name": "_coerce_moments",
           "kind": "Function",
-          "start_line": 723,
+          "start_line": 737,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1520,12 +1550,12 @@
         {
           "name": "_check_moments",
           "kind": "Function",
-          "start_line": 730,
+          "start_line": 744,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 1,
             "assertions": 0,
-            "function_lines": 6,
+            "function_lines": 7,
             "params": 4,
             "nesting_max": 0,
             "abc": 11.704699910719626
@@ -1721,7 +1751,7 @@
             "cyclomatic": 2,
             "cognitive": 1,
             "assertions": 0,
-            "function_lines": 5,
+            "function_lines": 7,
             "params": 3,
             "nesting_max": 0,
             "abc": 5.0990195135927845
@@ -1731,7 +1761,7 @@
         {
           "name": "persistent_update_equals_rebuild",
           "kind": "Function",
-          "start_line": 124,
+          "start_line": 126,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,

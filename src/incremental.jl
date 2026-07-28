@@ -889,16 +889,10 @@ Detects closures by checking if the type name starts with '#' (Julia's
 internal naming convention for closures, consistent across Julia 1.6–1.12).
 """
 function _closure_capture_type(f)
-    if !isa(f, Function) || isa(f, Core.Builtin)
-        return nothing
-    end
+    isa(f, Function) || return nothing
+    isa(f, Core.Builtin) && return nothing
     T = typeof(f)
-    type_name = string(T.name.name)
-    # Julia closures have auto-generated type names like #...#
-    if !isempty(type_name) && first(type_name) == '#'
-        return T
-    end
-    return nothing
+    return _is_closure(T) ? T : nothing
 end
 
 """
@@ -1117,12 +1111,14 @@ end
 function check_call_coverage(f, argtypes, registry::Union{RuleRegistry,Nothing})
     callee = _resolve_callee(f)
     callee in _PURE_BUILTINS && return (CovCovered, nothing)
+    registry === nothing && return _rule_missing_diag(callee)
+    return _registry_call_coverage(registry, callee)
+end
 
-    if registry !== nothing
-        status, rule = lookup_classified(registry, callee, ())
-        status == :found && return (CovCovered, nothing)
-        status == :ambiguous && return _rule_ambiguous_diag(callee)
-    end
+function _registry_call_coverage(registry, callee)
+    status, _ = lookup_classified(registry, callee, ())
+    status == :found && return (CovCovered, nothing)
+    status == :ambiguous && return _rule_ambiguous_diag(callee)
     return _rule_missing_diag(callee)
 end
 

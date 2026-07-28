@@ -179,15 +179,17 @@ end
 # ── execute_query helpers ───────────────────────────────────────────────────
 
 function _run_query(model, lo, hi)
-    n = leaf_count(model.tree)
     try
-        if lo < 1 || hi > n || lo > hi
-            throw(BoundsError("viewport_range ($lo, $hi) out of bounds [1, $n]"))
-        end
+        _validate_viewport(lo, hi, leaf_count(model.tree))
         return _compute_range_query(model, lo, hi)
     catch e
         return (nothing, nothing, sprint(showerror, e))
     end
+end
+
+function _validate_viewport(lo, hi, n)
+    1 <= lo <= hi <= n ||
+        throw(BoundsError("viewport_range ($lo, $hi) out of bounds [1, $n]"))
 end
 
 function _compute_range_query(model, lo, hi)
