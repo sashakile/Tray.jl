@@ -114,30 +114,30 @@ end
 
 # Recursive helper: visit a node at (level, idx) and collect canonical nodes
 # covering context range. Node bounds are computed internally.
+function _visit_overlapping_children(ctx, tree, level, idx)
+    child_level = level - 1
+    child_start = (idx - 1) * tree.b + 1
+    child_end = min(idx * tree.b, length(tree.levels[child_level]))
+    for child_idx = child_start:child_end
+        _canonical_visit(ctx, child_level, child_idx)
+    end
+    return
+end
+
 function _canonical_visit(ctx::_CanonicalCtx, level, idx)
     tree = ctx.tree
-    lo = ctx.lo
-    hi = ctx.hi
-    nodes = ctx.nodes
     n = leaf_count(tree)
     chunk_size = tree.b^(level - 1)
     node_lo = (idx - 1) * chunk_size + 1
     node_hi = min(idx * chunk_size, n)
 
-    if lo <= node_lo && node_hi <= hi
-        push!(nodes, (level, idx))
+    if ctx.lo <= node_lo && node_hi <= ctx.hi
+        push!(ctx.nodes, (level, idx))
         return
     end
-    if hi < node_lo || lo > node_hi
-        return
-    end
-    child_level = level - 1
-    if child_level >= 1
-        child_start = (idx - 1) * tree.b + 1
-        child_end = min(idx * tree.b, length(tree.levels[child_level]))
-        for child_idx = child_start:child_end
-            _canonical_visit(ctx, child_level, child_idx)
-        end
+    has_overlap = node_lo <= ctx.hi && node_hi >= ctx.lo
+    if level > 1 && has_overlap
+        _visit_overlapping_children(ctx, tree, level, idx)
     end
     return
 end

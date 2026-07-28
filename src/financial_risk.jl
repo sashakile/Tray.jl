@@ -36,44 +36,50 @@ export fin_var,
 # Utility: normal inverse CDF
 # ---------------------------------------------------------------------------
 
-function _norminv(c::Real)
-    0 < c < 1 || throw(DomainError(c, "confidence must be in (0, 1)"))
-    p = Float64(c)
-
+function _norminv_central(q::Float64)
     # Central region coefficients (Acklam rational approximation)
-    a = [
+    a = (
         -39.69683088665369,
         220.9460984245205,
         -275.9285104469687,
         138.3577518672690,
         -30.66479806614716,
         2.506628277459239,
-    ]
-    b = [
+    )
+    b = (
         -54.47609879822406,
         161.5858368580409,
         -155.6989798598866,
         66.80131188771972,
         -13.28068155288572,
         1.0,
-    ]
+    )
+    r = q * q
+    num = (((((a[1]*r + a[2])*r + a[3])*r + a[4])*r + a[5])*r + a[6])*q
+    den = (((((b[1]*r + b[2])*r + b[3])*r + b[4])*r + b[5])*r + b[6])
+    return Float64(num / den)
+end
 
+function _norminv_tail(q::Float64, sign::Float64)
     # Tail region coefficients (Abramowitz & Stegun 26.2.23)
     c0, c1, c2 = 2.515517, 0.802853, 0.010328
     d0, d1, d2 = 1.432788, 0.189269, 0.001308
+    return sign * (q - (c0 + c1*q + c2*q^2) / (1 + d0*q + d1*q^2 + d2*q^3))
+end
+
+function _norminv(c::Real)
+    0 < c < 1 || throw(DomainError(c, "confidence must be in (0, 1)"))
+    p = Float64(c)
 
     if p < 0.02425
         q = sqrt(-2.0 * log(p))
-        return Float64(-(q - (c0 + c1*q + c2*q^2) / (1 + d0*q + d1*q^2 + d2*q^3)))
+        return Float64(-_norminv_tail(q, 1.0))
     elseif p < 0.97575
         q = p - 0.5
-        r = q * q
-        num = (((((a[1]*r + a[2])*r + a[3])*r + a[4])*r + a[5])*r + a[6])*q
-        den = (((((b[1]*r + b[2])*r + b[3])*r + b[4])*r + b[5])*r + b[6])
-        return Float64(num / den)
+        return _norminv_central(q)
     else
         q = sqrt(-2.0 * log(1.0 - p))
-        return Float64(q - (c0 + c1*q + c2*q^2) / (1 + d0*q + d1*q^2 + d2*q^3))
+        return Float64(_norminv_tail(q, 1.0))
     end
 end
 

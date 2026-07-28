@@ -111,20 +111,17 @@ end
 Parse a binary snapshot, validate header, and return a TreeSnapshot.
 Throws on invalid magic, unsupported version, or checksum mismatch.
 """
-function _decode(bytes::Vector{UInt8})
-    # Minimum size: 12 bytes header (6 magic + 1 major + 1 minor + 4 checksum)
+function _parse_header(bytes::Vector{UInt8})
     length(bytes) < 12 && throw(ErrorException("TreeSnapshot: data too short"))
 
-    # Parse header
-    magic = bytes[1:6]
-    magic == MAGIC || throw(
-        ErrorException("TreeSnapshot: invalid magic bytes: expected $(MAGIC), got $magic"),
+    bytes[1:6] == MAGIC || throw(
+        ErrorException(
+            "TreeSnapshot: invalid magic bytes: expected $(MAGIC), got $(bytes[1:6])",
+        ),
     )
 
     format_major = Int(bytes[7])
     format_minor = Int(bytes[8])
-
-    # Version check: must match major
     format_major == FORMAT_MAJOR || throw(
         ErrorException(
             "TreeSnapshot: unsupported format version $format_major.$format_minor; " *
@@ -132,22 +129,20 @@ function _decode(bytes::Vector{UInt8})
         ),
     )
 
-    # Parse checksum (little-endian UInt32)
-    cs_bytes = bytes[9:12]
-    stored_checksum = reinterpret(UInt32, cs_bytes)[1]
+    return (format_major, format_minor, reinterpret(UInt32, bytes[9:12])[1])
+end
 
-    # Payload is everything after the 12-byte header
+function _decode(bytes::Vector{UInt8})
+    format_major, format_minor, stored_checksum = _parse_header(bytes)
+
     payload = bytes[13:end]
-
-    # Verify checksum
-    computed_cs = _xor_checksum(payload)
-    stored_checksum == computed_cs || throw(
+    _xor_checksum(payload) == stored_checksum || throw(
         ErrorException(
-            "TreeSnapshot: checksum mismatch: stored $stored_checksum, computed $computed_cs",
+            "TreeSnapshot: checksum mismatch: stored $stored_checksum, computed $(_xor_checksum(payload))",
         ),
     )
 
-    return TreeSnapshot(magic, format_major, format_minor, stored_checksum, payload)
+    return TreeSnapshot(bytes[1:6], format_major, format_minor, stored_checksum, payload)
 end
 
 # ---------------------------------------------------------------------------

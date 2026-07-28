@@ -162,8 +162,7 @@ function apply_change(old::ScalarSummary{T}, Δ::ScalarSummaryChange{T}) where {
         return ScalarSummary(
             schema = schema,
             count = new_count,
-            sum = new_sum,
-            sumsq = new_sumsq,
+            sum_sumsq = (new_sum, new_sumsq),
             minmax = (new_min, new_max),
             m3 = old.m3,
             m4 = old.m4,
@@ -172,8 +171,7 @@ function apply_change(old::ScalarSummary{T}, Δ::ScalarSummaryChange{T}) where {
         return ScalarSummary(
             schema = schema,
             count = new_count,
-            sum = new_sum,
-            sumsq = new_sumsq,
+            sum_sumsq = (new_sum, new_sumsq),
             minmax = (new_min, new_max),
         )
     end
@@ -363,34 +361,8 @@ function remove!(reg::RuleRegistry, ::Type{F}, ::Type{A}) where {F,A}
 end
 
 function lookup(reg::RuleRegistry, f, argtypes::Tuple)
-    ftype = typeof(f)
-
-    applicable = Tuple{Type,Type,Any,Int}[]
-    for ((rf, ra), rule) in reg.current.rules
-        if isapplicable(rf, ra, ftype, argtypes)
-            push!(applicable, (rf, ra, rule, length(applicable)))
-        end
-    end
-
-    isempty(applicable) && return nothing
-    length(applicable) == 1 && return applicable[1][3]
-
-    candidate = applicable[1]
-    for i = 2:length(applicable)
-        cmp = compare_specificity(
-            candidate[1],
-            candidate[2],
-            applicable[i][1],
-            applicable[i][2],
-        )
-        if cmp == :incomparable
-            return nothing
-        elseif cmp == :second_more_specific
-            candidate = applicable[i]
-        end
-    end
-
-    return candidate[3]
+    status, rule = lookup_classified(reg, f, argtypes)
+    return status == :found ? rule : nothing
 end
 
 """
@@ -405,19 +377,17 @@ or `(:ambiguous, nothing)`.
 
 See REQ-A4, REQ-A11.
 """
-function lookup_classified(reg::RuleRegistry, f, argtypes::Tuple)
-    ftype = typeof(f)
-
+function _find_applicable_rules(reg, ftype, argtypes)
     applicable = Tuple{Type,Type,Any,Int}[]
     for ((rf, ra), rule) in reg.current.rules
         if isapplicable(rf, ra, ftype, argtypes)
             push!(applicable, (rf, ra, rule, length(applicable)))
         end
     end
+    return applicable
+end
 
-    isempty(applicable) && return (:missing, nothing)
-    length(applicable) == 1 && return (:found, applicable[1][3])
-
+function _resolve_most_specific(applicable)
     candidate = applicable[1]
     for i = 2:length(applicable)
         cmp = compare_specificity(
@@ -427,13 +397,25 @@ function lookup_classified(reg::RuleRegistry, f, argtypes::Tuple)
             applicable[i][2],
         )
         if cmp == :incomparable
-            return (:ambiguous, nothing)
+            return nothing
         elseif cmp == :second_more_specific
             candidate = applicable[i]
         end
     end
+    return candidate
+end
 
-    return (:found, candidate[3])
+function lookup_classified(reg::RuleRegistry, f, argtypes::Tuple)
+    applicable = _find_applicable_rules(reg, typeof(f), argtypes)
+
+    isempty(applicable) && return (:missing, nothing)
+    length(applicable) == 1 && return (:found, applicable[1][3])
+
+    result = _resolve_most_specific(applicable)
+    if result === nothing
+        return (:ambiguous, nothing)
+    end
+    return (:found, result[3])
 end
 
 function isapplicable(rf::Type, ra::Type, ftype::Type, argtypes::Tuple)
@@ -463,19 +445,17 @@ function compare_specificity(rf1::Type, ra1::Type, rf2::Type, ra2::Type)
     end
 end
 
-function is_more_specific(rf_a::Type, ra_a::Type, rf_b::Type, ra_b::Type)
-    rf_more = (rf_a <: rf_b) && (rf_a != rf_b)
-    rf_equal = (rf_a == rf_b)
-    ra_more = type_tuple_more_specific(ra_a, ra_b)
-    ra_equal = (ra_a == ra_b)
+function _specificity_decision(rf_more, rf_equal, ra_more, ra_equal)
+    return (rf_more && (ra_equal || ra_more)) || (ra_more && (rf_equal || rf_more))
+end
 
-    if rf_more && (ra_equal || ra_more)
-        return true
-    end
-    if ra_more && (rf_equal || rf_more)
-        return true
-    end
-    return false
+function is_more_specific(rf_a::Type, ra_a::Type, rf_b::Type, ra_b::Type)
+    return _specificity_decision(
+        (rf_a <: rf_b) && (rf_a != rf_b),
+        rf_a == rf_b,
+        type_tuple_more_specific(ra_a, ra_b),
+        ra_a == ra_b,
+    )
 end
 
 function type_tuple_more_specific(ta::Type, tb::Type)
@@ -1112,55 +1092,63 @@ Distinguishes between:
 
 See REQ-A4, REQ-A11.
 """
-function check_call_coverage(f, argtypes, registry::Union{RuleRegistry,Nothing})
-    # Resolve Symbol to function reference (e.g., :+ -> +)
-    callee = if f isa Symbol
+# Known pure built-ins that are always covered for incrementalization
+const _PURE_BUILTINS =
+    Set{Any}([+, *, sin, min, max, isless, ==, <, >, <=, >=, abs, zero, one])
+
+"""
+    _resolve_callee(f)
+
+Resolve a Symbol to a function reference (e.g., :+ -> +).
+If the symbol cannot be resolved, returns the input unchanged.
+"""
+function _resolve_callee(f)
+    if f isa Symbol
         try
-            getfield(Base, f)
+            return getfield(Base, f)
         catch
-            f
-        end
-    else
-        f
-    end
-
-    # Known pure built-ins are always covered
-    if callee in (+, *, sin, min, max, isless, ==, <, >, <=, >=, abs, zero, one)
-        return (CovCovered, nothing)
-    end
-
-    # Check registry if available
-    if registry !== nothing
-        status, rule = lookup_classified(registry, callee, ())
-        if status == :found
-            return (CovCovered, nothing)
-        elseif status == :ambiguous
-            return (
-                CovBoundary,
-                Diagnostic(
-                    "RuleAmbiguous",
-                    "Ambiguous rule lookup for $(callee). Multiple applicable " *
-                    "rules exist with incomparable specificity.",
-                    "analysis";
-                    callable = callee,
-                    remediation = "Add a more specific rule or remove the ambiguous rules",
-                ),
-            )
+            return f
         end
     end
+    return f
+end
 
-    # No rule found
+function _rule_ambiguous_diag(callee)
+    return (
+        CovBoundary,
+        Diagnostic(
+            "RuleAmbiguous",
+            "Ambiguous rule lookup for $(callee).",
+            "analysis";
+            callable = callee,
+            remediation = "Add a more specific rule or remove the ambiguous rules",
+        ),
+    )
+end
+
+function _rule_missing_diag(callee)
     return (
         CovBoundary,
         Diagnostic(
             "RuleMissing",
-            "No rule available for call to $(callee). Register a rule or " *
-            "simplify the function.",
+            "No rule available for call to $(callee).",
             "analysis";
             callable = callee,
             remediation = "Register a rule for $(callee) or use a built-in",
         ),
     )
+end
+
+function check_call_coverage(f, argtypes, registry::Union{RuleRegistry,Nothing})
+    callee = _resolve_callee(f)
+    callee in _PURE_BUILTINS && return (CovCovered, nothing)
+
+    if registry !== nothing
+        status, rule = lookup_classified(registry, callee, ())
+        status == :found && return (CovCovered, nothing)
+        status == :ambiguous && return _rule_ambiguous_diag(callee)
+    end
+    return _rule_missing_diag(callee)
 end
 
 """
@@ -1176,25 +1164,13 @@ For v1, we conservatively check:
 See REQ-A8.
 """
 function is_pure_call(f, argtypes, registry::Union{RuleRegistry,Nothing})
-    # Resolve Symbol to function reference (e.g., :+ -> +)
-    callee = if f isa Symbol
-        try
-            getfield(Base, f)
-        catch
-            f
-        end
-    else
-        f
-    end
+    callee = _resolve_callee(f)
 
     # Known pure built-ins are always covered
-    if callee in (+, *, sin, min, max, isless, ==, <, >, <=, >=, abs, zero, one)
-        return true
-    end
+    callee in _PURE_BUILTINS && return true
 
     # Check registry if available
     if registry !== nothing
-        # For registry lookup, use a sample tuple instance
         rule = lookup(registry, callee, ())
         return rule !== nothing
     end
@@ -1223,32 +1199,24 @@ function analyze_statement(
     if kind in (OpReturn, OpGoto, OpConstant, OpExpr, OpIsA, OpNew)
         return (CovCovered, nothing)
     end
-
     if kind == OpUnknown
         return _rejected_unknown(stmt, f)
     end
-
     if kind in (OpCall, OpInvoke)
-        return _analyze_call(stmt, kind, f, argtypes, registry)
+        return _analyze_call(stmt, f, argtypes, registry)
     end
-
     if kind == OpGotoIfNot
         return _boundary_controlflow(
-            "Conditional branch detected in IR. Branch-stable code is supported " *
-            "but requires all branches to be covered. This is a boundary in v1 " *
-            "unless explicitly unrolled.",
+            "Conditional branch detected in IR (v1 boundary unless unrolled).",
             f,
         )
     end
-
     if kind == OpPhi
         return _boundary_controlflow(
-            "Phi node (value merge) detected in IR. Multiple incoming values " *
-            "from different branches cannot be merged in v1.",
+            "Phi node (value merge) detected in IR (cannot merge in v1).",
             f,
         )
     end
-
     return _rejected_unhandled(kind, f)
 end
 
@@ -1268,8 +1236,8 @@ function _rejected_unknown(stmt, f)
     )
 end
 
-function _analyze_call(stmt, kind, f, argtypes, registry)
-    callee = _extract_callee(stmt, kind)
+function _analyze_call(stmt, f, argtypes, registry)
+    callee = _extract_callee(stmt)
     if callee === nothing
         return (
             CovBoundary,
@@ -1325,7 +1293,7 @@ For `:call` expressions, the callee is the first argument of the expression.
 For `:invoke` expressions, the callee is the first argument of the second argument.
 Returns `nothing` if the callee cannot be determined.
 """
-function _extract_callee(stmt, ::IROpKind)
+function _extract_callee(stmt)
     if !isa(stmt, Expr)
         return nothing
     end
@@ -1346,11 +1314,8 @@ function _extract_rhs_callee(stmt)
         return nothing
     end
     rhs = stmt.args[2]
-    if isa(rhs, Expr) && rhs.head === :call
-        return _extract_callee(rhs, OpCall)
-    end
-    if isa(rhs, Expr) && rhs.head === :invoke
-        return _extract_callee(rhs, OpInvoke)
+    if isa(rhs, Expr) && (rhs.head === :call || rhs.head === :invoke)
+        return _extract_callee(rhs)
     end
     return nothing
 end
@@ -1568,45 +1533,48 @@ Returns an `AnalysisResult`:
 
 See REQ-A2, REQ-A3, REQ-A5, REQ-A11, REQ-A17.
 """
+function _ir_unavailable(f, argtypes)
+    return Rejected(
+        [
+            Diagnostic(
+                "IRProviderIncompatible",
+                "Failed to retrieve IR for ($(f), $argtypes)",
+                "derive";
+                callable = f,
+                remediation = "Check Julia/IR compatibility (Julia ≥ 1.10, IRTools 0.4.x)",
+            ),
+        ],
+        CovRejected,
+    )
+end
+
+function _derive_body(f, argtypes, provider, registry)
+    ir = retrieve_ir(provider, f, argtypes)
+    ir === nothing && return _ir_unavailable(f, argtypes)
+    s = analyze_ir(ir, f, argtypes, registry)
+    if s.coverage == CovCovered
+        a = generate_from_ir(ir, f, argtypes, s, registry)
+        a !== nothing && return Derived(
+            a,
+            argtypes,
+            CovCovered,
+            current_artifact_binding(f, argtypes, provider, registry),
+        )
+    end
+    return Rejected(s.diagnostics, s.coverage)
+end
+
 function derive(
     f,
     args::Type...;
     provider::AbstractProvider = DefaultProvider(),
     registry::Union{RuleRegistry,Nothing} = nothing,
 )
-    mutable_diag = detect_mutable_captures(f)
-    if mutable_diag !== nothing
-        return Rejected([mutable_diag], CovRejected)
-    end
-    if !available(provider)
-        diags = availability_diagnostics(provider, f)
-        return Rejected(diags, CovRejected)
-    end
-    argtypes = Tuple{args...}
-    ir = retrieve_ir(provider, f, argtypes)
-    if ir === nothing
-        return Rejected(
-            [
-                Diagnostic(
-                    "IRProviderIncompatible",
-                    "Failed to retrieve IR for ($(f), $argtypes)",
-                    "derive";
-                    callable = f,
-                    remediation = "Check Julia/IR compatibility (Julia ≥ 1.10, IRTools 0.4.x)",
-                ),
-            ],
-            CovRejected,
-        )
-    end
-    summary = analyze_ir(ir, f, argtypes, registry)
-    if summary.coverage == CovCovered
-        artifact = generate_from_ir(ir, f, argtypes, summary, registry)
-        if artifact !== nothing
-            binding = current_artifact_binding(f, argtypes, provider, registry)
-            return Derived(artifact, argtypes, CovCovered, binding)
-        end
-    end
-    return Rejected(summary.diagnostics, summary.coverage)
+    detect_mutable_captures(f) !== nothing &&
+        return Rejected([detect_mutable_captures(f)], CovRejected)
+    available(provider) ||
+        return Rejected(availability_diagnostics(provider, f), CovRejected)
+    return _derive_body(f, Tuple{args...}, provider, registry)
 end
 
 # ---------------------------------------------------------------------------

@@ -89,8 +89,7 @@ end
     id = identity(schema)
     x = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
@@ -105,8 +104,7 @@ end
     id = identity(schema)
     x = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
@@ -120,15 +118,13 @@ end
     schema = ScalarSchema{Float64}(false)
     a = ScalarSummary(
         count = 2,
-        sum = 3.0,
-        sumsq = 5.0,
+        sum_sumsq = (3.0, 5.0),
         minmax = (1.0, 2.0),
         schema = schema,
     )
     b = ScalarSummary(
         count = 3,
-        sum = 7.0,
-        sumsq = 29.0,
+        sum_sumsq = (7.0, 29.0),
         minmax = (2.0, 5.0),
         schema = schema,
     )
@@ -147,15 +143,13 @@ end
     schema = ScalarSchema{Float64}(false)
     a = ScalarSummary(
         count = 1,
-        sum = 10.0,
-        sumsq = 100.0,
+        sum_sumsq = (10.0, 100.0),
         minmax = (10.0, 10.0),
         schema = schema,
     )
     b = ScalarSummary(
         count = 1,
-        sum = 20.0,
-        sumsq = 400.0,
+        sum_sumsq = (20.0, 400.0),
         minmax = (20.0, 20.0),
         schema = schema,
     )
@@ -175,8 +169,7 @@ end
     schema = ScalarSchema{Float64}(true)
     a = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         m3 = 1.0,
         m4 = 1.0,
@@ -184,8 +177,7 @@ end
     )
     b = ScalarSummary(
         count = 1,
-        sum = 2.0,
-        sumsq = 4.0,
+        sum_sumsq = (2.0, 4.0),
         minmax = (2.0, 2.0),
         m3 = 8.0,
         m4 = 16.0,
@@ -208,15 +200,13 @@ end
 
     x = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema_a,
     )
     y = ScalarSummary(
         count = 1,
-        sum = 2.0,
-        sumsq = 4.0,
+        sum_sumsq = (2.0, 4.0),
         minmax = (2.0, 2.0),
         schema = schema_b,
     )
@@ -231,22 +221,19 @@ end
 
     @test_throws ArgumentError ScalarSummary(
         count = 1,
-        sum = NaN,
-        sumsq = 1.0,
+        sum_sumsq = (NaN, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
     @test_throws ArgumentError ScalarSummary(
         count = 1,
-        sum = Inf,
-        sumsq = 1.0,
+        sum_sumsq = (Inf, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
     @test_throws ArgumentError ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (-Inf, 1.0),
         schema = schema,
     )
@@ -258,8 +245,7 @@ end
     schema = ScalarSchema{Float64}(false)
     @test_throws ArgumentError ScalarSummary(
         count = -1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
@@ -271,8 +257,7 @@ end
     schema = ScalarSchema{Float64}(false)
     @test_throws ArgumentError ScalarSummary(
         count = 1,
-        sum = 5.0,
-        sumsq = 25.0,
+        sum_sumsq = (5.0, 25.0),
         minmax = (10.0, 1.0),
         schema = schema,
     )
@@ -284,8 +269,7 @@ end
     schema = ScalarSchema{Float64}(false)
     @test_throws ArgumentError ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         m3 = 5.0,
         m4 = 5.0,
@@ -299,22 +283,19 @@ end
     schema = ScalarSchema{Float64}(false)
     a = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
     b = ScalarSummary(
         count = 1,
-        sum = 2.0,
-        sumsq = 4.0,
+        sum_sumsq = (2.0, 4.0),
         minmax = (2.0, 2.0),
         schema = schema,
     )
     c = ScalarSummary(
         count = 1,
-        sum = 3.0,
-        sumsq = 9.0,
+        sum_sumsq = (3.0, 9.0),
         minmax = (3.0, 3.0),
         schema = schema,
     )
@@ -333,8 +314,7 @@ end
     schema = ScalarSchema{Float64}(false)
     s = ScalarSummary(
         count = 1,
-        sum = 0.0,
-        sumsq = 0.0,
+        sum_sumsq = (0.0, 0.0),
         minmax = (0.0, 0.0),
         schema = schema,
     )
@@ -1157,15 +1137,13 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 2,
-            sum = 5.0,
-            sumsq = 13.0,
+            sum_sumsq = (5.0, 13.0),
             minmax = (2.0, 3.0),
         ),
     ]
@@ -1218,8 +1196,7 @@ end
     leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
     )
     @test_throws ArgumentError Tree([leaf]; b = 1, schema)
@@ -1232,8 +1209,7 @@ end
     leaf = ScalarSummary(
         schema = schema,
         count = 5,
-        sum = 10.0,
-        sumsq = 30.0,
+        sum_sumsq = (10.0, 30.0),
         minmax = (1.0, 4.0),
     )
     t = Tree([leaf]; b = 2, schema)
@@ -1251,15 +1227,13 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
         ),
     ]
@@ -1277,36 +1251,31 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
         ),
     ]
@@ -1325,22 +1294,19 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
         ),
     ]
@@ -1362,8 +1328,7 @@ end
     leaf = ScalarSummary(
         schema = schema_b,
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         m3 = 0.0,
         m4 = 0.0,
@@ -1382,8 +1347,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1407,8 +1371,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1419,8 +1382,7 @@ end
     new_leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 99.0,
-        sumsq = 9801.0,
+        sum_sumsq = (99.0, 9801.0),
         minmax = (99.0, 99.0),
     )
     new_root = update!(t, 3, new_leaf)
@@ -1446,8 +1408,7 @@ end
     leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
     )
     t = Tree([leaf, leaf]; b = 2, schema)
@@ -1462,8 +1423,7 @@ end
     leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
     )
     t = Tree([leaf, leaf]; b = 2, schema)
@@ -1480,15 +1440,13 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
         ),
     ]
@@ -1505,22 +1463,19 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
         ),
     ]
@@ -1536,8 +1491,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:5
     ]
@@ -1548,8 +1502,7 @@ end
         new_leaf = ScalarSummary(
             schema = schema,
             count = 1,
-            sum = val,
-            sumsq = val^2,
+            sum_sumsq = (val, val^2),
             minmax = (val, val),
         )
         update!(t, idx, new_leaf)
@@ -1583,8 +1536,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1604,8 +1556,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1624,8 +1575,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1648,8 +1598,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1670,8 +1619,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1692,8 +1640,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:9
     ]
@@ -1714,8 +1661,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1732,8 +1678,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1751,8 +1696,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1770,8 +1714,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -1787,8 +1730,7 @@ end
     leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
     )
     t = Tree([leaf, leaf]; b = 2, schema)
@@ -1805,15 +1747,13 @@ end
         ScalarSummary(
             schema = schema,
             count = 3,
-            sum = 6.0,
-            sumsq = 14.0,
+            sum_sumsq = (6.0, 14.0),
             minmax = (1.0, 3.0),
         ),
         ScalarSummary(
             schema = schema,
             count = 2,
-            sum = 5.0,
-            sumsq = 13.0,
+            sum_sumsq = (5.0, 13.0),
             minmax = (2.0, 3.0),
         ),
     ]
@@ -1848,36 +1788,31 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
@@ -1915,8 +1850,7 @@ end
     # A single value has zero variance
     s = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
@@ -1931,8 +1865,7 @@ end
     leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
     )
     t = Tree([leaf, leaf]; b = 2, schema)
@@ -1955,8 +1888,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:4
     ]
@@ -1965,8 +1897,7 @@ end
     new_leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 99.0,
-        sumsq = 9801.0,
+        sum_sumsq = (99.0, 9801.0),
         minmax = (99.0, 99.0),
     )
     t2 = update(t, 3, new_leaf)
@@ -1995,8 +1926,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:4
     ]
@@ -2006,8 +1936,7 @@ end
     new_leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 99.0,
-        sumsq = 9801.0,
+        sum_sumsq = (99.0, 9801.0),
         minmax = (99.0, 99.0),
     )
     t2 = update(t, 2, new_leaf)
@@ -2029,8 +1958,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:8
     ]
@@ -2039,8 +1967,7 @@ end
     new_leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 99.0,
-        sumsq = 9801.0,
+        sum_sumsq = (99.0, 9801.0),
         minmax = (99.0, 99.0),
     )
 
@@ -2077,8 +2004,7 @@ end
     leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
     )
     t = Tree([leaf, leaf]; b = 2, schema)
@@ -2099,8 +2025,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = float(i),
-            sumsq = float(i^2),
+            sum_sumsq = (float(i), float(i^2)),
             minmax = (float(i), float(i)),
         ) for i = 1:5
     ]
@@ -2109,8 +2034,7 @@ end
     new_leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 99.0,
-        sumsq = 9801.0,
+        sum_sumsq = (99.0, 9801.0),
         minmax = (99.0, 99.0),
     )
 
@@ -2164,15 +2088,13 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
@@ -2181,8 +2103,7 @@ end
 
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 4.0,
-        sumsq = 16.0,
+        sum_sumsq = (4.0, 16.0),
         minmax = (4.0, 4.0),
         schema = schema,
     )
@@ -2201,15 +2122,13 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
@@ -2218,8 +2137,7 @@ end
 
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
@@ -2238,8 +2156,7 @@ end
     schema = ScalarSchema{Float64}(false)
     leaf = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
@@ -2267,15 +2184,13 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
@@ -2286,8 +2201,7 @@ end
 
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 3.0,
-        sumsq = 9.0,
+        sum_sumsq = (3.0, 9.0),
         minmax = (3.0, 3.0),
         schema = schema,
     )
@@ -2307,22 +2221,19 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
             schema = schema,
         ),
@@ -2345,22 +2256,19 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
             schema = schema,
         ),
@@ -2381,8 +2289,7 @@ end
     schema = ScalarSchema{Float64}(false)
     leaf = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
@@ -2399,15 +2306,13 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
@@ -2435,22 +2340,19 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
@@ -2473,15 +2375,13 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
@@ -2489,8 +2389,7 @@ end
     t = Tree(leaves; b = 2, schema)
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 4.0,
-        sumsq = 16.0,
+        sum_sumsq = (4.0, 16.0),
         minmax = (4.0, 4.0),
         schema = schema,
     )
@@ -2511,22 +2410,19 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
             schema = schema,
         ),
@@ -2558,29 +2454,25 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
@@ -2637,8 +2529,7 @@ end
     schema = ScalarSchema{Float64}(false)
     leaf = ScalarSummary(
         count = 1,
-        sum = 5.0,
-        sumsq = 25.0,
+        sum_sumsq = (5.0, 25.0),
         minmax = (5.0, 5.0),
         schema = schema,
     )
@@ -2661,8 +2552,7 @@ end
         ScalarSummary(
             schema = schema,
             count = 1,
-            sum = Float64(i),
-            sumsq = Float64(i) ^ 2,
+            sum_sumsq = (Float64(i), Float64(i) ^ 2),
             minmax = (Float64(i), Float64(i)),
         ) for i = 1:n_leaves
     ]
@@ -2674,8 +2564,7 @@ end
     new_leaf = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 999.0,
-        sumsq = 999.0 ^ 2,
+        sum_sumsq = (999.0, 999.0 ^ 2),
         minmax = (999.0, 999.0),
     )
     update!(t, 17, new_leaf)
@@ -2709,8 +2598,7 @@ end
     schema = ScalarSchema{Float64}(false)
     s = ScalarSummary(
         count = 2,
-        sum = 5.0,
-        sumsq = 13.0,
+        sum_sumsq = (5.0, 13.0),
         minmax = (2.0, 3.0),
         schema = schema,
     )
@@ -2757,8 +2645,7 @@ end
             ScalarSummary(
                 schema = schema,
                 count = 1,
-                sum = float(i),
-                sumsq = float(i^2),
+                sum_sumsq = (float(i), float(i^2)),
                 minmax = (float(i), float(i)),
             ) for i = 1:n
         ]
@@ -2781,8 +2668,7 @@ end
             ScalarSummary(
                 schema = schema,
                 count = 1,
-                sum = float(i),
-                sumsq = float(i^2),
+                sum_sumsq = (float(i), float(i^2)),
                 minmax = (float(i), float(i)),
             ) for i = 1:n
         ]
@@ -2818,8 +2704,7 @@ end
             ScalarSummary(
                 schema = schema,
                 count = 1,
-                sum = float(rand(rng1, 1:100)),
-                sumsq = 0.0,
+                sum_sumsq = (float(rand(rng1, 1:100)), 0.0),
                 minmax = (0.0, 0.0),
             ) for _ = 1:n
         ]
@@ -2827,8 +2712,7 @@ end
             ScalarSummary(
                 schema = schema,
                 count = 1,
-                sum = float(rand(rng2, 1:100)),
-                sumsq = 0.0,
+                sum_sumsq = (float(rand(rng2, 1:100)), 0.0),
                 minmax = (0.0, 0.0),
             ) for _ = 1:n
         ]
@@ -2857,8 +2741,7 @@ end
             ScalarSummary(
                 schema = schema,
                 count = 1,
-                sum = float(rand(rng, 1:100)),
-                sumsq = 0.0,
+                sum_sumsq = (float(rand(rng, 1:100)), 0.0),
                 minmax = (0.0, 0.0),
             ) for _ = 1:n
         ]
@@ -2871,8 +2754,7 @@ end
             new_leaf = ScalarSummary(
                 schema = schema,
                 count = 1,
-                sum = new_val,
-                sumsq = new_val^2,
+                sum_sumsq = (new_val, new_val^2),
                 minmax = (new_val, new_val),
             )
             t = update(t, idx, new_leaf)
@@ -3710,8 +3592,7 @@ end
     leaf = ScalarSummary(
         schema = schema,
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
     )
     @test combine(id, leaf) == leaf
@@ -3721,22 +3602,19 @@ end
     a = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
     )
     b = ScalarSummary(
         schema = schema,
         count = 2,
-        sum = 5.0,
-        sumsq = 13.0,
+        sum_sumsq = (5.0, 13.0),
         minmax = (2.0, 3.0),
     )
     c = ScalarSummary(
         schema = schema,
         count = 1,
-        sum = 10.0,
-        sumsq = 100.0,
+        sum_sumsq = (10.0, 100.0),
         minmax = (10.0, 10.0),
     )
     @test combine(combine(a, b), c) == combine(a, combine(b, c))
@@ -3822,8 +3700,7 @@ end
             ScalarSummary(
                 schema = schema,
                 count = 0,
-                sum = 0.0,
-                sumsq = 0.0,
+                sum_sumsq = (0.0, 0.0),
                 minmax = (Inf, -Inf),
             ),
         ),
@@ -3831,8 +3708,7 @@ end
             ScalarSummary(
                 schema = schema,
                 count = 1,
-                sum = 1.0,
-                sumsq = 1.0,
+                sum_sumsq = (1.0, 1.0),
                 minmax = (1.0, 1.0),
             ),
         ),
@@ -3840,8 +3716,7 @@ end
             ScalarSummary(
                 schema = schema,
                 count = 100,
-                sum = 100.0,
-                sumsq = 100.0,
+                sum_sumsq = (100.0, 100.0),
                 minmax = (1.0, 100.0),
             ),
         ),
@@ -3855,8 +3730,7 @@ end
             ScalarSummary(
                 schema = schema_hm,
                 count = 0,
-                sum = 0.0,
-                sumsq = 0.0,
+                sum_sumsq = (0.0, 0.0),
                 minmax = (Inf, -Inf),
                 m3 = 0.0,
                 m4 = 0.0,
@@ -3866,8 +3740,7 @@ end
             ScalarSummary(
                 schema = schema_hm,
                 count = 1,
-                sum = 1.0,
-                sumsq = 1.0,
+                sum_sumsq = (1.0, 1.0),
                 minmax = (1.0, 1.0),
                 m3 = 0.0,
                 m4 = 0.0,
@@ -3877,8 +3750,7 @@ end
             ScalarSummary(
                 schema = schema_hm,
                 count = 100,
-                sum = 100.0,
-                sumsq = 100.0,
+                sum_sumsq = (100.0, 100.0),
                 minmax = (1.0, 100.0),
                 m3 = 1000.0,
                 m4 = 10000.0,
@@ -4157,8 +4029,7 @@ end
     old = ScalarSummary(
         schema = schema,
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
     )
 
@@ -4176,8 +4047,7 @@ end
     old = ScalarSummary(
         schema = schema,
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
     )
 
@@ -4207,8 +4077,7 @@ end
     old = ScalarSummary(
         schema = schema,
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
     )
 
@@ -4244,8 +4113,7 @@ end
     old = ScalarSummary(
         schema = schema,
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
     )
 
@@ -4785,8 +4653,8 @@ end
     inc = Incremental
 
     schema = ScalarSchema{Float64}(false)
-    s1 = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, (1.0, 9.0))
-    s2 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, (1.0, 11.0))
+    s1 = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0), (1.0, 9.0))
+    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0), (1.0, 11.0))
 
     # change_between computes the delta from old to new
     Δ = inc.change_between(s1, s2)
@@ -4808,7 +4676,7 @@ end
     inc = Incremental
 
     schema = ScalarSchema{Float64}(false)
-    s = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, (1.0, 9.0))
+    s = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0),(1.0, 9.0))
 
     Δ1 = inc.ScalarSummaryChange{Float64}(
         count = 5,
@@ -4850,8 +4718,8 @@ end
     f(x, y) = combine(x, y)
     artifact = inc.generate_recompute_artifact(f, 2)
 
-    s1 = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, (1.0, 9.0))
-    s2 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, (1.0, 11.0))
+    s1 = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0),(1.0, 9.0))
+    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0),(1.0, 11.0))
 
     old_result = f(s1, s2)
     Δ1 = inc.change_between(s1, s1)  # zero change
@@ -4877,13 +4745,13 @@ end
     f(x, y) = combine(x, y)
     artifact = inc.generate_recompute_artifact(f, 2)
 
-    s1 = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, (1.0, 9.0))
-    s2 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, (1.0, 11.0))
+    s1 = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0),(1.0, 9.0))
+    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0),(1.0, 11.0))
 
     old_result = f(s1, s2)
 
     # s1 loses 3 observations, gains 10 in sum
-    s1_new = ScalarSummary{Float64}(schema, 7, 60.0, 300.0, (1.0, 9.0))
+    s1_new = ScalarSummary{Float64}(schema, 7, (60.0, 300.0, 0.0, 0.0),(1.0, 9.0))
     Δ1 = inc.change_between(s1, s1_new)
     Δ2 = inc.change_between(s2, s2)  # s2 unchanged
 
@@ -4952,7 +4820,7 @@ end
     # ScalarSummary round-trip
     using Tray: ScalarSummary, ScalarSchema
     schema = ScalarSchema{Float64}(false)
-    s = ScalarSummary{Float64}(schema, 10, 50.0, 250.0, (1.0, 9.0))
+    s = ScalarSummary{Float64}(schema, 10, (50.0, 250.0, 0.0, 0.0),(1.0, 9.0))
     Δ = inc.change_between(s, s)  # same value
     result = inc.apply_change(s, Δ)
     @test result.count == s.count
@@ -4962,7 +4830,7 @@ end
     # change_between produces a delta that preserves old extrema on apply_change.
     # Round-trip is guaranteed only for non-narrowing changes.
     # Widening case (max 9→11): round-trips correctly.
-    s2 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, (1.0, 11.0))
+    s2 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0),(1.0, 11.0))
     Δ2 = inc.change_between(s, s2)
     result2 = inc.apply_change(s, Δ2)
     @test result2.count == s2.count
@@ -4971,7 +4839,7 @@ end
     @test result2.maximum == s2.maximum
 
     # Narrowing case (max 11→9): apply_change keeps old max (11), not new (9).
-    s3 = ScalarSummary{Float64}(schema, 15, 80.0, 500.0, (1.0, 9.0))
+    s3 = ScalarSummary{Float64}(schema, 15, (80.0, 500.0, 0.0, 0.0),(1.0, 9.0))
     Δ3 = inc.change_between(s2, s3)
     result3 = inc.apply_change(s2, Δ3)
     @test result3.count == s3.count
@@ -5479,15 +5347,13 @@ end
     schema = ScalarSchema{Float64}(false)
     old = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
     new = ScalarSummary(
         count = 4,
-        sum = 10.0,
-        sumsq = 30.0,
+        sum_sumsq = (10.0, 30.0),
         minmax = (1.0, 4.0),
         schema = schema,
     )
@@ -5515,22 +5381,19 @@ end
     id = identity(schema)
     old = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
     new = ScalarSummary(
         count = 4,
-        sum = 10.0,
-        sumsq = 30.0,
+        sum_sumsq = (10.0, 30.0),
         minmax = (1.0, 4.0),
         schema = schema,
     )
     sibling = ScalarSummary(
         count = 2,
-        sum = 5.0,
-        sumsq = 13.0,
+        sum_sumsq = (5.0, 13.0),
         minmax = (2.0, 3.0),
         schema = schema,
     )
@@ -5564,22 +5427,19 @@ end
     id = identity(schema)
     old = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
     new = ScalarSummary(
         count = 4,
-        sum = 10.0,
-        sumsq = 30.0,
+        sum_sumsq = (10.0, 30.0),
         minmax = (1.0, 4.0),
         schema = schema,
     )
     sibling = ScalarSummary(
         count = 2,
-        sum = 5.0,
-        sumsq = 13.0,
+        sum_sumsq = (5.0, 13.0),
         minmax = (2.0, 3.0),
         schema = schema,
     )
@@ -5714,22 +5574,19 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 7.0,
-            sumsq = 49.0,
+            sum_sumsq = (7.0, 49.0),
             minmax = (7.0, 7.0),
             schema = schema,
         ),
@@ -5738,8 +5595,7 @@ end
     tree = Tree(leaves; b = 2, schema = schema)
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 9.0,
-        sumsq = 81.0,
+        sum_sumsq = (9.0, 81.0),
         minmax = (9.0, 9.0),
         schema = schema,
     )
@@ -5765,29 +5621,25 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 7.0,
-            sumsq = 49.0,
+            sum_sumsq = (7.0, 49.0),
             minmax = (7.0, 7.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
@@ -5796,8 +5648,7 @@ end
     tree = Tree(leaves; b = 2, schema = schema)
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 10.0,
-        sumsq = 100.0,
+        sum_sumsq = (10.0, 100.0),
         minmax = (10.0, 10.0),
         schema = schema,
     )
@@ -5833,15 +5684,13 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
@@ -5850,8 +5699,7 @@ end
     tree = Tree(leaves; b = 2, schema = schema)
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 9.0,
-        sumsq = 81.0,
+        sum_sumsq = (9.0, 81.0),
         minmax = (9.0, 9.0),
         schema = schema,
     )
@@ -5863,8 +5711,7 @@ end
     function wrong_df(::Any, ::Any, ::Any)
         return ScalarSummaryChange{Float64}(
             count = 999,
-            sum = 999.0,
-            sumsq = 999.0,
+            sum_sumsq = (999.0, 999.0),
             minimum = 0.0,
             maximum = 999.0,
         )
@@ -5906,22 +5753,19 @@ end
     schema = ScalarSchema{Float64}(false)
     old = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
     new = ScalarSummary(
         count = 4,
-        sum = 10.0,
-        sumsq = 30.0,
+        sum_sumsq = (10.0, 30.0),
         minmax = (1.0, 4.0),
         schema = schema,
     )
     sibling = ScalarSummary(
         count = 2,
-        sum = 5.0,
-        sumsq = 13.0,
+        sum_sumsq = (5.0, 13.0),
         minmax = (2.0, 3.0),
         schema = schema,
     )
@@ -5952,15 +5796,13 @@ end
     schema = ScalarSchema{Float64}(false)
     old = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
     new = ScalarSummary(
         count = 4,
-        sum = 10.0,
-        sumsq = 30.0,
+        sum_sumsq = (10.0, 30.0),
         minmax = (1.0, 4.0),
         schema = schema,
     )
@@ -5997,22 +5839,19 @@ end
     schema = ScalarSchema{Float64}(false)
     old = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
     new = ScalarSummary(
         count = 4,
-        sum = 10.0,
-        sumsq = 30.0,
+        sum_sumsq = (10.0, 30.0),
         minmax = (1.0, 4.0),
         schema = schema,
     )
     sibling = ScalarSummary(
         count = 2,
-        sum = 5.0,
-        sumsq = 13.0,
+        sum_sumsq = (5.0, 13.0),
         minmax = (2.0, 3.0),
         schema = schema,
     )
@@ -6044,22 +5883,19 @@ end
     schema = ScalarSchema{Float64}(false)
     old = ScalarSummary(
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
         schema = schema,
     )
     new = ScalarSummary(
         count = 4,
-        sum = 10.0,
-        sumsq = 30.0,
+        sum_sumsq = (10.0, 30.0),
         minmax = (1.0, 4.0),
         schema = schema,
     )
     sibling = ScalarSummary(
         count = 2,
-        sum = 5.0,
-        sumsq = 13.0,
+        sum_sumsq = (5.0, 13.0),
         minmax = (2.0, 3.0),
         schema = schema,
     )
@@ -6068,8 +5904,7 @@ end
     function wrong_df(::Any, ::Any, ::Any)
         return ScalarSummaryChange{Float64}(
             count = 999,
-            sum = 999.0,
-            sumsq = 999.0,
+            sum_sumsq = (999.0, 999.0),
             minimum = 0.0,
             maximum = 999.0,
         )
@@ -6100,22 +5935,19 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 7.0,
-            sumsq = 49.0,
+            sum_sumsq = (7.0, 49.0),
             minmax = (7.0, 7.0),
             schema = schema,
         ),
@@ -6124,8 +5956,7 @@ end
     tree = Tree(leaves; b = 2, schema = schema)
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 9.0,
-        sumsq = 81.0,
+        sum_sumsq = (9.0, 81.0),
         minmax = (9.0, 9.0),
         schema = schema,
     )
@@ -6150,29 +5981,25 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 7.0,
-            sumsq = 49.0,
+            sum_sumsq = (7.0, 49.0),
             minmax = (7.0, 7.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
@@ -6181,8 +6008,7 @@ end
     tree = Tree(leaves; b = 2, schema = schema)
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 10.0,
-        sumsq = 100.0,
+        sum_sumsq = (10.0, 100.0),
         minmax = (10.0, 10.0),
         schema = schema,
     )
@@ -6214,15 +6040,13 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
@@ -6231,8 +6055,7 @@ end
     tree = Tree(leaves; b = 2, schema = schema)
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 9.0,
-        sumsq = 81.0,
+        sum_sumsq = (9.0, 81.0),
         minmax = (9.0, 9.0),
         schema = schema,
     )
@@ -6244,8 +6067,7 @@ end
     function wrong_df(::Any, ::Any, ::Any)
         return ScalarSummaryChange{Float64}(
             count = 999,
-            sum = 999.0,
-            sumsq = 999.0,
+            sum_sumsq = (999.0, 999.0),
             minimum = 0.0,
             maximum = 999.0,
         )
@@ -6271,15 +6093,13 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
@@ -6288,8 +6108,7 @@ end
     tree = Tree(leaves; b = 2, schema = schema)
     new_leaf = ScalarSummary(
         count = 1,
-        sum = 9.0,
-        sumsq = 81.0,
+        sum_sumsq = (9.0, 81.0),
         minmax = (9.0, 9.0),
         schema = schema,
     )
@@ -6362,29 +6181,25 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
             schema = schema,
         ),
@@ -6416,43 +6231,37 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 5.0,
-            sumsq = 25.0,
+            sum_sumsq = (5.0, 25.0),
             minmax = (5.0, 5.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 6.0,
-            sumsq = 36.0,
+            sum_sumsq = (6.0, 36.0),
             minmax = (6.0, 6.0),
             schema = schema,
         ),
@@ -6478,8 +6287,7 @@ end
     schema = ScalarSchema{Float64}(false)
     leaf = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
@@ -6505,29 +6313,25 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 1.0,
-            sumsq = 1.0,
+            sum_sumsq = (1.0, 1.0),
             minmax = (1.0, 1.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 2.0,
-            sumsq = 4.0,
+            sum_sumsq = (2.0, 4.0),
             minmax = (2.0, 2.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 3.0,
-            sumsq = 9.0,
+            sum_sumsq = (3.0, 9.0),
             minmax = (3.0, 3.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 4.0,
-            sumsq = 16.0,
+            sum_sumsq = (4.0, 16.0),
             minmax = (4.0, 4.0),
             schema = schema,
         ),
@@ -6563,43 +6367,37 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 10.0,
-            sumsq = 100.0,
+            sum_sumsq = (10.0, 100.0),
             minmax = (10.0, 10.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 20.0,
-            sumsq = 400.0,
+            sum_sumsq = (20.0, 400.0),
             minmax = (20.0, 20.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 30.0,
-            sumsq = 900.0,
+            sum_sumsq = (30.0, 900.0),
             minmax = (30.0, 30.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 40.0,
-            sumsq = 1600.0,
+            sum_sumsq = (40.0, 1600.0),
             minmax = (40.0, 40.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 50.0,
-            sumsq = 2500.0,
+            sum_sumsq = (50.0, 2500.0),
             minmax = (50.0, 50.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 60.0,
-            sumsq = 3600.0,
+            sum_sumsq = (60.0, 3600.0),
             minmax = (60.0, 60.0),
             schema = schema,
         ),
@@ -6635,43 +6433,37 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 10.0,
-            sumsq = 100.0,
+            sum_sumsq = (10.0, 100.0),
             minmax = (10.0, 10.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 20.0,
-            sumsq = 400.0,
+            sum_sumsq = (20.0, 400.0),
             minmax = (20.0, 20.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 30.0,
-            sumsq = 900.0,
+            sum_sumsq = (30.0, 900.0),
             minmax = (30.0, 30.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 40.0,
-            sumsq = 1600.0,
+            sum_sumsq = (40.0, 1600.0),
             minmax = (40.0, 40.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 50.0,
-            sumsq = 2500.0,
+            sum_sumsq = (50.0, 2500.0),
             minmax = (50.0, 50.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 60.0,
-            sumsq = 3600.0,
+            sum_sumsq = (60.0, 3600.0),
             minmax = (60.0, 60.0),
             schema = schema,
         ),
@@ -6707,36 +6499,31 @@ end
     leaves = [
         ScalarSummary(
             count = 1,
-            sum = 10.0,
-            sumsq = 100.0,
+            sum_sumsq = (10.0, 100.0),
             minmax = (10.0, 10.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 20.0,
-            sumsq = 400.0,
+            sum_sumsq = (20.0, 400.0),
             minmax = (20.0, 20.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 30.0,
-            sumsq = 900.0,
+            sum_sumsq = (30.0, 900.0),
             minmax = (30.0, 30.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 40.0,
-            sumsq = 1600.0,
+            sum_sumsq = (40.0, 1600.0),
             minmax = (40.0, 40.0),
             schema = schema,
         ),
         ScalarSummary(
             count = 1,
-            sum = 50.0,
-            sumsq = 2500.0,
+            sum_sumsq = (50.0, 2500.0),
             minmax = (50.0, 50.0),
             schema = schema,
         ),
@@ -6773,8 +6560,7 @@ end
     schema = ScalarSchema{Float64}(false)
     leaf = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
@@ -6799,8 +6585,7 @@ end
     schema = ScalarSchema{Float64}(false)
     leaf = ScalarSummary(
         count = 1,
-        sum = 1.0,
-        sumsq = 1.0,
+        sum_sumsq = (1.0, 1.0),
         minmax = (1.0, 1.0),
         schema = schema,
     )
@@ -7363,8 +7148,7 @@ end
     s = ScalarSummary(;
         schema = schema,
         count = 5,
-        sum = 15.0,
-        sumsq = 55.0,
+        sum_sumsq = (15.0, 55.0),
         minmax = (1.0, 5.0),
         m3 = 225.0,   # sum of cubes: 1+8+27+64+125 = 225
         m4 = 979.0,   # sum of 4th powers: 1+16+81+256+625 = 979
@@ -7399,8 +7183,7 @@ end
     s = ScalarSummary(;
         schema = schema,
         count = 3,
-        sum = 6.0,
-        sumsq = 14.0,
+        sum_sumsq = (6.0, 14.0),
         minmax = (1.0, 3.0),
     )
 
@@ -7476,7 +7259,7 @@ end
     using Tray.Snapshot: leaf_count, depth
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
 
@@ -7490,7 +7273,7 @@ end
     using Tray.Snapshot: leaf_count, leaf_at, root, update, depth
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
 
@@ -7507,7 +7290,7 @@ end
     using Tray.Snapshot: range_query, update
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree(
         [leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0), leaf(5.0), leaf(6.0)];
         b = 2,
@@ -7528,7 +7311,7 @@ end
     using Tray.Snapshot: leaf_count, insert, leaf_at
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
 
@@ -7546,7 +7329,7 @@ end
     using Tray.Snapshot: leaf_count, remove, leaf_at
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
 
@@ -7562,7 +7345,7 @@ end
     using Tray.Snapshot: root, reweight_subtree
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
     original_root = root(snap)
@@ -7577,7 +7360,7 @@ end
     using Tray.Snapshot: leaf_at, update, publish!
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
     ref = Ref(snap)
@@ -7594,7 +7377,7 @@ end
     using Tray.Snapshot: leaf_at, update, publish_with_rollback
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
     ref = Ref(snap)
@@ -7620,7 +7403,7 @@ end
     using Tray.Snapshot: leaf_at, update, publish!
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
     ref = Ref(snap)
@@ -7646,7 +7429,7 @@ end
     using Tray.Snapshot: leaf_at, update, publish!
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
     ref = Ref(snap)
@@ -7670,7 +7453,7 @@ end
     using Tray.Snapshot: root, update, publish!
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
     ref = Ref(snap)
@@ -7697,7 +7480,7 @@ end
     using Tray.Snapshot: root, update, publish!
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
     snap = SnapshotEpoch(tree)
     ref = Ref(snap)
@@ -7716,7 +7499,7 @@ end
     using Tray.Snapshot: range_query, canonical_nodes, reweight_subtree, publish!
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree(
         [leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0), leaf(5.0), leaf(6.0)];
         b = 2,
@@ -7747,7 +7530,7 @@ end
     using Tray.Dashboard: get_field
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     model = DashboardModel(tree)
@@ -7766,7 +7549,7 @@ end
     using Tray.Dashboard: get_field, set_field!
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     model = DashboardModel(tree)
@@ -7786,7 +7569,7 @@ end
     using Tray.Dashboard: get_field, set_field!, subscribe!, execute_query
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
 
     model = DashboardModel(tree)
@@ -7811,7 +7594,7 @@ end
     using Tray.Dashboard: get_field, set_field!, execute_query
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree(
         [leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0), leaf(5.0), leaf(6.0)];
         b = 2,
@@ -7862,7 +7645,7 @@ end
     using Tray.Dashboard: get_field, set_field!, execute_query
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0)]; b = 2, schema)
 
     model = DashboardModel(tree)
@@ -7898,7 +7681,7 @@ end
     using Tray.Dashboard: get_field, set_field!, execute_query
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     model = DashboardModel(tree)
@@ -7926,7 +7709,7 @@ end
     using Tray.Dashboard: get_field, set_field!, execute_query
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     model = DashboardModel(tree)
@@ -8225,8 +8008,7 @@ end
     s = ScalarSummary(;
         schema = schema,
         count = 5,
-        sum = 15.0,
-        sumsq = 55.0,
+        sum_sumsq = (15.0, 55.0),
         minmax = (1.0, 5.0),
         m3 = 225.0,
         m4 = 979.0,
@@ -8248,7 +8030,7 @@ end
     using Tray: ScalarSchema, ScalarSummary
 
     schema = ScalarSchema{Float64}(false)
-    s = ScalarSummary(; schema, count = 1, sum = 1.0, sumsq = 1.0, minmax = (1.0, 1.0))
+    s = ScalarSummary(; schema, count = 1, sum_sumsq = (1.0, 1.0), minmax = (1.0, 1.0))
     @test s.sum == 1.0
 end
 
@@ -8318,7 +8100,7 @@ end
     using Tray: ScalarSchema, ScalarSummary, Tree, fractional_depth_query
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     # Integer depth 0 = root
@@ -8334,7 +8116,7 @@ end
     using Tray: ScalarSchema, ScalarSummary, Tree, fractional_depth_query
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     @test fractional_depth_query(tree, 1, 0).sum == 10.0  # root
@@ -8382,7 +8164,7 @@ end
     using Tray: leaf_count, root
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0)]; b = 2, schema)
 
     mktempdir() do dir
@@ -8410,7 +8192,7 @@ end
     using Tray: ScalarSchema, ScalarSummary, Tree, save_tree, load_tree
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0)]; b = 2, schema)
 
     mktempdir() do dir
@@ -8443,7 +8225,7 @@ end
         ScalarSchema, ScalarSummary, Tree, fractional_depth_query, FractionalDepthError
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0)]; b = 2, schema)
 
     @test_throws FractionalDepthError fractional_depth_query(tree, 1, -0.1)
@@ -8459,7 +8241,7 @@ end
         ScalarSchema, ScalarSummary, Tree, fractional_depth_query, FractionalDepthError
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     @test_throws FractionalDepthError fractional_depth_query(tree, 1, 1.5)
@@ -8475,7 +8257,7 @@ end
         AffineProjection
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     # Projection that extracts .sum, interpolates, returns scalar
@@ -8497,7 +8279,7 @@ end
     using Tray: ScalarSchema, ScalarSummary, Tree, fractional_depth_query, AffineProjection
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     proj = AffineProjection(s -> s.sum, (v, _) -> v, Float64)
@@ -8511,12 +8293,12 @@ end
     using Tray: ScalarSchema, ScalarSummary, Tree, fractional_depth_query, AffineProjection
 
     schema = ScalarSchema{Float64}(false)
-    leaf(x) = ScalarSummary(; schema, count = 1, sum = x, sumsq = x^2, minmax = (x, x))
+    leaf(x) = ScalarSummary(; schema, count = 1, sum_sumsq = (x, x^2), minmax = (x, x))
     tree = Tree([leaf(1.0), leaf(2.0), leaf(3.0), leaf(4.0)]; b = 2, schema)
 
     # Projection that extracts sum, then interpret wraps back into ScalarSummary
     interpret_fn(v, sch) =
-        ScalarSummary(; schema = sch, count = 1, sum = v, sumsq = v^2, minmax = (v, v))
+        ScalarSummary(; schema = sch, count = 1, sum_sumsq = (v, v^2), minmax = (v, v))
     proj = AffineProjection(s -> s.sum, interpret_fn, Float64)
 
     # depth 1.5: (3.0)*0.5 + (1.0)*0.5 = 2.0, interpreted as ScalarSummary

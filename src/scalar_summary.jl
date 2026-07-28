@@ -38,12 +38,10 @@ struct ScalarSummary{T}
     function ScalarSummary{T}(
         schema::ScalarSchema{T},
         count::Int,
-        sum::T,
-        sumsq::T,
+        moments::NTuple{4,T},
         minmax::Tuple{T,T},
-        m3::T = zero(T),
-        m4::T = zero(T),
     ) where {T}
+        sum, sumsq, m3, m4 = moments
         minimum, maximum = minmax
         count >= 0 || throw(ArgumentError("ScalarSummary: count must be ≥ 0, got $count"))
 
@@ -123,12 +121,13 @@ end
 Convenience keyword constructor. Delegates to the positional inner constructor.
 `m3` and `m4` default to `zero(T)` when omitted.
 """
-function ScalarSummary(; schema, count, sum, sumsq, minmax, m3 = nothing, m4 = nothing)
+function ScalarSummary(; schema, count, sum_sumsq, minmax, m3 = nothing, m4 = nothing)
     T = eltype(schema)
     _m3 = something(m3, zero(T))
     _m4 = something(m4, zero(T))
+    sum, sumsq = sum_sumsq
     minimum, maximum = minmax
-    return ScalarSummary{T}(schema, count, sum, sumsq, (minimum, maximum), _m3, _m4)
+    return ScalarSummary{T}(schema, count, (sum, sumsq, _m3, _m4), (minimum, maximum))
 end
 
 """
@@ -139,7 +138,7 @@ Return the unique identity `ScalarSummary` for the given schema.
 function TrayBase.identity(schema::ScalarSchema{T}) where {T}
     inf_pos = T(Inf)
     inf_neg = T(-Inf)
-    return ScalarSummary{T}(schema, 0, zero(T), zero(T), (inf_pos, inf_neg))
+    return ScalarSummary{T}(schema, 0, (zero(T), zero(T), zero(T), zero(T)), (inf_pos, inf_neg))
 end
 
 """
@@ -156,11 +155,8 @@ function TrayBase.combine(a::ScalarSummary{T}, b::ScalarSummary{T}) where {T}
     return ScalarSummary{T}(
         a.schema,
         a.count + b.count,
-        a.sum + b.sum,
-        a.sumsq + b.sumsq,
+        (a.sum + b.sum, a.sumsq + b.sumsq, a.m3 + b.m3, a.m4 + b.m4),
         (min(a.minimum, b.minimum), max(a.maximum, b.maximum)),
-        a.m3 + b.m3,
-        a.m4 + b.m4,
     )
 end
 
@@ -275,10 +271,7 @@ function TrayBase.reweight(s::ScalarSummary{T}, weight::Number) where {T}
     return ScalarSummary{T}(
         s.schema,
         s.count,
-        s.sum * weight,
-        s.sumsq * weight,
+        (s.sum * weight, s.sumsq * weight, s.m3, s.m4),
         (s.minimum, s.maximum),
-        s.m3,
-        s.m4,
     )
 end

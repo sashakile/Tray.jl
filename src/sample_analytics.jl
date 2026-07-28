@@ -114,8 +114,7 @@ function SamplePayload(;
     summary = ScalarSummary(;
         schema = schema,
         count = count,
-        sum = s,
-        sumsq = sq,
+        sum_sumsq = (s, sq),
         minmax = (mn, mx),
         m3 = schema.higher_moment ? sum(x -> x^3, samples) : zero(T),
         m4 = schema.higher_moment ? sum(x -> x^4, samples) : zero(T),
@@ -158,18 +157,6 @@ function _validate_moment_params(p_f, sigma2, gamma1, gamma2)
     return
 end
 
-function _cornish_fisher_expansion(mu, sigma, z, gamma1, gamma2)
-    z2 = z * z
-    z3 = z2 * z
-
-    term1 = (z2 - 1) * gamma1 / 6
-    term2 = (z3 - 3 * z) * gamma2 / 24
-    term3 = -(2 * z3 - 5 * z) * gamma1^2 / 36
-
-    w = z + term1 + term2 + term3
-    return mu + sigma * w
-end
-
 # ---------------------------------------------------------------------------
 # Dataset revision accessors
 # ---------------------------------------------------------------------------
@@ -208,8 +195,7 @@ function TrayBase.identity(schema::ScalarSchema{T}, sample_length::Int) where {T
     summary = ScalarSummary(;
         schema = schema,
         count = sample_length,
-        sum = zero(T),
-        sumsq = zero(T),
+        sum_sumsq = (zero(T), zero(T)),
         minmax = (zero(T), zero(T)),
         m3 = schema.higher_moment ? zero(T) : zero(T),
         m4 = schema.higher_moment ? zero(T) : zero(T),
@@ -234,8 +220,7 @@ function TrayBase.identity(
     summary = ScalarSummary(;
         schema = schema,
         count = sample_length,
-        sum = zero(T),
-        sumsq = zero(T),
+        sum_sumsq = (zero(T), zero(T)),
         minmax = (zero(T), zero(T)),
         m3 = schema.higher_moment ? zero(T) : zero(T),
         m4 = schema.higher_moment ? zero(T) : zero(T),
@@ -289,8 +274,7 @@ function TrayBase.combine(a::SamplePayload{T}, b::SamplePayload{T}) where {T}
     combined_summary = ScalarSummary(;
         schema = schema,
         count = n,
-        sum = s,
-        sumsq = sq,
+        sum_sumsq = (s, sq),
         minmax = (mn, mx),
         m3 = schema.higher_moment ? sum(x -> x^3, combined_samples) : zero(T),
         m4 = schema.higher_moment ? sum(x -> x^4, combined_samples) : zero(T),
@@ -463,8 +447,7 @@ function project_samples(tree::Tree{<:SamplePayload{T}}, w::Vector{T}) where {T}
     combined_summary = ScalarSummary(;
         schema = schema,
         count = S,
-        sum = sum(combined_samples),
-        sumsq = sum(x -> x^2, combined_samples),
+        sum_sumsq = (sum(combined_samples), sum(x -> x^2, combined_samples)),
         minmax = (minimum(combined_samples), maximum(combined_samples)),
         m3 = schema.higher_moment ? sum(x -> x^3, combined_samples) : zero(T),
         m4 = schema.higher_moment ? sum(x -> x^4, combined_samples) : zero(T),
@@ -739,6 +722,16 @@ Raises `DomainError` if:
 
 See REQ-30.
 """
+function _cornish_fisher_quantile(loc_scale, z, γ₁, γ₂)
+    μ, σ = loc_scale
+    z2 = z * z
+    z3 = z2 * z
+    term1 = (z2 - 1) * γ₁ / 6
+    term2 = (z3 - 3 * z) * γ₂ / 24
+    term3 = -(2 * z3 - 5 * z) * γ₁^2 / 36
+    return μ + σ * (z + term1 + term2 + term3)
+end
+
 function moment_quantile(
     p::Real,
     mean::Real,
@@ -746,27 +739,18 @@ function moment_quantile(
     skewness::Real,
     excess_kurtosis::Real,
 )
-    T_float = _coerce_moment_type(mean, variance, skewness, excess_kurtosis)
+    T = _coerce_moment_type(mean, variance, skewness, excess_kurtosis)
     p_f = float(p)
-    μ = T_float(mean)
-    σ² = T_float(variance)
-    γ₁ = T_float(skewness)
-    γ₂ = T_float(excess_kurtosis)
+    μ = T(mean)
+    σ² = T(variance)
+    γ₁ = T(skewness)
+    γ₂ = T(excess_kurtosis)
 
     _validate_moment_params(p_f, σ², γ₁, γ₂)
 
-    σ = sqrt(σ²)
-    z = _normal_quantile(p_f)
-    q = _cornish_fisher_expansion(μ, σ, z, γ₁, γ₂)
-
-    return MomentQuantileResult{T_float}(
-        q,
-        true,
-        p_f,
-        μ,
-        σ²,
-        γ₁,
-        γ₂,
+    q = _cornish_fisher_quantile((μ, sqrt(σ²)), _normal_quantile(p_f), γ₁, γ₂)
+    return MomentQuantileResult{T}(
+        q, true, p_f, μ, σ², γ₁, γ₂,
         "Cornish-Fisher expansion assuming near-Gaussian distribution; " *
         "accuracy depends on how close the true distribution is to normal",
     )

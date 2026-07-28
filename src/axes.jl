@@ -21,16 +21,7 @@ end
 
 Construct an AxisMap from node→leaf-IDs dict. Computes the reverse membership map.
 """
-function AxisMap(node_to_leaves::Dict{String,Vector{Int}}, revision::Int = 1)
-    # Validate all leaf IDs are positive and unique within a node
-    for (name, ids) in node_to_leaves
-        for id in ids
-            id >= 1 ||
-                throw(ArgumentError("AxisMap: leaf ID $id must be ≥ 1 in node '$name'"))
-        end
-    end
-
-    # Build reverse membership map
+function _build_leaf_membership(node_to_leaves)
     leaf_membership = Dict{Int,Vector{String}}()
     for (name, ids) in node_to_leaves
         for id in ids
@@ -41,8 +32,19 @@ function AxisMap(node_to_leaves::Dict{String,Vector{Int}}, revision::Int = 1)
             end
         end
     end
+    return leaf_membership
+end
 
-    return AxisMap(node_to_leaves, revision, leaf_membership)
+function AxisMap(node_to_leaves::Dict{String,Vector{Int}}, revision::Int = 1)
+    # Validate all leaf IDs are positive and unique within a node
+    for (name, ids) in node_to_leaves
+        for id in ids
+            id >= 1 ||
+                throw(ArgumentError("AxisMap: leaf ID $id must be ≥ 1 in node '$name'"))
+        end
+    end
+
+    return AxisMap(node_to_leaves, revision, _build_leaf_membership(node_to_leaves))
 end
 
 """

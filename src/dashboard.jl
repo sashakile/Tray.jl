@@ -79,21 +79,16 @@ Read a field from the dashboard model. Valid fields:
 `:aggregate`, `:effective_depth`, `:error`, `:result_revision`.
 """
 function get_field(model::DashboardModel, field::Symbol)
-    if field === :viewport_range
-        return model.viewport_range
-    elseif field === :requested_depth
-        return model.requested_depth
-    elseif field === :request_revision
-        return model.request_revision
-    elseif field === :aggregate
-        return model.aggregate
-    elseif field === :effective_depth
-        return model.effective_depth
-    elseif field === :error
-        return model.error
-    elseif field === :result_revision
-        return model.result_revision
-    else
+    fields = Dict(
+        :viewport_range => model.viewport_range,
+        :requested_depth => model.requested_depth,
+        :request_revision => model.request_revision,
+        :aggregate => model.aggregate,
+        :effective_depth => model.effective_depth,
+        :error => model.error,
+        :result_revision => model.result_revision,
+    )
+    return get(fields, field) do
         throw(ArgumentError("DashboardModel: unknown field $field"))
     end
 end
@@ -176,7 +171,7 @@ function execute_query(model::DashboardModel)
     lo, hi = model.viewport_range
     result, depth_val, error_msg = _run_query(model, lo, hi)
 
-    _publish_query_result(model, query_revision, result, depth_val, error_msg)
+    _publish_query_result(model, query_revision, (result, depth_val, error_msg))
 
     return (query_revision, model.result_revision)
 end
@@ -212,11 +207,12 @@ function _compute_range_query(model, lo, hi)
     end
 end
 
-function _publish_query_result(model, query_revision, result, depth_val, error_msg)
+function _publish_query_result(model, query_revision, query_result)
     if query_revision != model.request_revision
         return
     end
 
+    result, depth_val, error_msg = query_result
     if error_msg === nothing
         model.aggregate = result
         model.effective_depth = depth_val

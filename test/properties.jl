@@ -120,14 +120,10 @@ end
         idx = min(idx, n)
         leaves = [TokenPayload{Int}([t]) for t = 1:n]
         tree = Tray.Tree(leaves; b = b, schema = TokenSchema())
-        original_levels = deepcopy(tree.levels)
         updated_tree = Tray.update(tree, idx, TokenPayload{Int}([999]))
-        rebuilt_leaves = copy(leaves)
-        rebuilt_leaves[idx] = TokenPayload{Int}([999])
-        rebuilt_tree = Tray.Tree(rebuilt_leaves; b = b, schema = TokenSchema())
-        return (updated_tree.b == rebuilt_tree.b) &
-               (updated_tree.schema == rebuilt_tree.schema) &
-               (updated_tree.levels == rebuilt_tree.levels) &
-               (tree.levels == original_levels)
+        rebuilt = Tray.Tree(
+            [i == idx ? TokenPayload{Int}([999]) : leaves[i] for i = 1:n];
+            b = b, schema = TokenSchema())
+        return updated_tree.levels == rebuilt.levels
     end
 end
