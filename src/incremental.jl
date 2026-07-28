@@ -1076,44 +1076,30 @@ IRTools IR statements are `Expr` heads with operation types. Falls back to
 
 See REQ-A8.
 """
+function _op_kind_for_head(head::Symbol)::IROpKind
+    head === :return && return OpReturn
+    head === :goto && return OpGoto
+    head === :gotoifnot && return OpGotoIfNot
+    head === :phi && return OpPhi
+    head === :call && return OpCall
+    head === :invoke && return OpInvoke
+    head === :is_a && return OpIsA
+    head === :isa && return OpIsA
+    head === :new && return OpNew
+    head === :foreigncall && return OpUnknown
+    return OpExpr
+end
+
 function classify_operation(stmt)
-    # stmt is an IRTools.IRStatement or similar
-    # We detect the operation type by heuristics on the expression
     if !isa(stmt, Expr)
         return OpConstant
     end
-
     head = stmt.head
-
-    if head === :return
-        return OpReturn
-    elseif head === :goto
-        return OpGoto
-    elseif head === :gotoifnot
-        return OpGotoIfNot
-    elseif head === :phi
-        return OpPhi
-    elseif head === :call
-        return OpCall
-    elseif head === :invoke
-        return OpInvoke
-    elseif head === :(=)
-        # Assignment: classify the RHS
+    if head === :(=)
         rhs = stmt.args[2]
-        if isa(rhs, Expr)
-            return classify_operation(rhs)
-        end
-        return OpConstant
-    elseif head === :is_a || head === :isa
-        return OpIsA
-    elseif head === :new
-        return OpNew
-    elseif head === :foreigncall
-        return OpUnknown
-    else
-        # Unknown expression head — could be a straight-line expression
-        return OpExpr
+        return isa(rhs, Expr) ? classify_operation(rhs) : OpConstant
     end
+    return _op_kind_for_head(head)
 end
 
 """
@@ -1238,87 +1224,90 @@ function analyze_statement(
     argtypes,
     registry::Union{RuleRegistry,Nothing},
 )
-    if kind == OpReturn ||
-       kind == OpGoto ||
-       kind == OpConstant ||
-       kind == OpExpr ||
-       kind == OpIsA ||
-       kind == OpNew
+    if kind in (OpReturn, OpGoto, OpConstant, OpExpr, OpIsA, OpNew)
         return (CovCovered, nothing)
     end
 
     if kind == OpUnknown
-        return (
-            CovRejected,
-            Diagnostic(
-                "UnsupportedEffect",
-                "Unknown operation in IR: $(stmt). This operation cannot be " *
-                "incrementalized in v1.",
-                "analysis";
-                callable = f,
-                remediation = "Simplify the function to avoid the unknown operation",
-            ),
-        )
+        return _rejected_unknown(stmt, f)
     end
 
-    if kind == OpCall || kind == OpInvoke
-        # Extract the called function from the statement
-        callee = _extract_callee(stmt, kind)
-        if callee === nothing
-            return (
-                CovBoundary,
-                Diagnostic(
-                    "UnsupportedEffect",
-                    "Dynamic call or unresolvable callee in IR. Cannot determine " *
-                    "if the target is pure and covered.",
-                    "analysis";
-                    callable = f,
-                    remediation = "Use a direct function call instead of a dynamic dispatch",
-                ),
-            )
-        end
-
-        if is_pure_call(callee, argtypes, registry)
-            return (CovCovered, nothing)
-        else
-            return check_call_coverage(callee, argtypes, registry)
-        end
+    if kind in (OpCall, OpInvoke)
+        return _analyze_call(stmt, kind, f, argtypes, registry)
     end
 
     if kind == OpGotoIfNot
-        # Conditional branch — check branch stability
-        # In v1, we can only handle branch-stable code
-        return (
-            CovBoundary,
-            Diagnostic(
-                "ControlFlowChanged",
-                "Conditional branch detected in IR. Branch-stable code is supported " *
-                "but requires all branches to be covered. This is a boundary in v1 " *
-                "unless explicitly unrolled.",
-                "analysis";
-                callable = f,
-                remediation = "Consider using a straight-line computation or registering " *
-                              "a custom rule for the conditional",
-            ),
+        return _boundary_controlflow(
+            "Conditional branch detected in IR. Branch-stable code is supported " *
+            "but requires all branches to be covered. This is a boundary in v1 " *
+            "unless explicitly unrolled.",
+            f,
         )
     end
 
     if kind == OpPhi
-        # Phi nodes merge values from different branches
-        # In v1, phi nodes are a boundary since we don't support branch splitting
-        return (
-            CovBoundary,
-            Diagnostic(
-                "ControlFlowChanged",
-                "Phi node (value merge) detected in IR. Multiple incoming values " *
-                "from different branches cannot be merged in v1.",
-                "analysis";
-                callable = f,
-                remediation = "Eliminate the control flow merge or register a custom rule",
-            ),
+        return _boundary_controlflow(
+            "Phi node (value merge) detected in IR. Multiple incoming values " *
+            "from different branches cannot be merged in v1.",
+            f,
         )
     end
 
+    return _rejected_unhandled(kind, f)
+end
+
+# ── analyze_statement helpers ───────────────────────────────────────────────
+
+function _rejected_unknown(stmt, f)
+    return (
+        CovRejected,
+        Diagnostic(
+            "UnsupportedEffect",
+            "Unknown operation in IR: $(stmt). This operation cannot be " *
+            "incrementalized in v1.",
+            "analysis";
+            callable = f,
+            remediation = "Simplify the function to avoid the unknown operation",
+        ),
+    )
+end
+
+function _analyze_call(stmt, kind, f, argtypes, registry)
+    callee = _extract_callee(stmt, kind)
+    if callee === nothing
+        return (
+            CovBoundary,
+            Diagnostic(
+                "UnsupportedEffect",
+                "Dynamic call or unresolvable callee in IR. Cannot determine " *
+                "if the target is pure and covered.",
+                "analysis";
+                callable = f,
+                remediation = "Use a direct function call instead of a dynamic dispatch",
+            ),
+        )
+    end
+    if is_pure_call(callee, argtypes, registry)
+        return (CovCovered, nothing)
+    else
+        return check_call_coverage(callee, argtypes, registry)
+    end
+end
+
+function _boundary_controlflow(msg, f)
+    return (
+        CovBoundary,
+        Diagnostic(
+            "ControlFlowChanged",
+            msg,
+            "analysis";
+            callable = f,
+            remediation = "Eliminate the control flow merge or register a custom rule",
+        ),
+    )
+end
+
+function _rejected_unhandled(kind, f)
     return (
         CovRejected,
         Diagnostic(
@@ -1350,21 +1339,23 @@ function _extract_callee(stmt, ::IROpKind)
     end
 
     if stmt.head === :invoke && length(stmt.args) >= 2
-        # :invoke has form (method, argtypes, args...)
         return stmt.args[2]
     end
 
-    # For assignment expressions, check the RHS
-    if stmt.head === :(=) && length(stmt.args) >= 2
-        rhs = stmt.args[2]
-        if isa(rhs, Expr) && rhs.head === :call
-            return _extract_callee(rhs, OpCall)
-        end
-        if isa(rhs, Expr) && rhs.head === :invoke
-            return _extract_callee(rhs, OpInvoke)
-        end
-    end
+    return _extract_rhs_callee(stmt)
+end
 
+function _extract_rhs_callee(stmt)
+    if stmt.head !== :(=) || length(stmt.args) < 2
+        return nothing
+    end
+    rhs = stmt.args[2]
+    if isa(rhs, Expr) && rhs.head === :call
+        return _extract_callee(rhs, OpCall)
+    end
+    if isa(rhs, Expr) && rhs.head === :invoke
+        return _extract_callee(rhs, OpInvoke)
+    end
     return nothing
 end
 
