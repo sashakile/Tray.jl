@@ -43,7 +43,7 @@ vale:
 
 # Run pretender checks
 pretender-check:
-    pretender check .
+    pretender check src/ test/
 
 # Run mutation tests
 mutation:

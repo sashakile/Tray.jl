@@ -138,6 +138,39 @@ function SamplePayload(
     )
 end
 
+
+function _coerce_moment_type(mean, variance, skewness, excess_kurtosis)
+    T = promote_type(
+        typeof(mean),
+        typeof(variance),
+        typeof(skewness),
+        typeof(excess_kurtosis),
+    )
+    return float(T)
+end
+
+function _validate_moment_params(p_f, sigma2, gamma1, gamma2)
+    0 < p_f < 1 || throw(DomainError(p_f, "moment_quantile: probability must be in (0, 1)"))
+    sigma2 > 0 || throw(DomainError(sigma2, "moment_quantile: variance must be positive"))
+    isfinite(gamma1) ||
+        throw(DomainError(gamma1, "moment_quantile: skewness must be finite"))
+    isfinite(gamma2) ||
+        throw(DomainError(gamma2, "moment_quantile: excess_kurtosis must be finite"))
+    return
+end
+
+function _cornish_fisher_expansion(mu, sigma, z, gamma1, gamma2)
+    z2 = z * z
+    z3 = z2 * z
+
+    term1 = (z2 - 1) * gamma1 / 6
+    term2 = (z3 - 3 * z) * gamma2 / 24
+    term3 = -(2 * z3 - 5 * z) * gamma1^2 / 36
+
+    w = z + term1 + term2 + term3
+    return mu + sigma * w
+end
+
 # ---------------------------------------------------------------------------
 # Dataset revision accessors
 # ---------------------------------------------------------------------------

@@ -18,11 +18,28 @@ paths = ["**/*.pb.go", "**/*_generated.*"]
 [roles.vendor]
 paths = ["vendor/**", "node_modules/**"]
 
+[thresholds]
+cyclomatic_max = 10
+cognitive_max = 15
+function_lines_max = 60
+file_lines_max = 10000
+nesting_max = 3
+params_max = 6
+abc_max = 35
+mi_min = 20
+duplication_pct_max = 5
+
 [thresholds.test]
-cyclomatic_max = 3
+cyclomatic_max = 4
 cognitive_max = 5
 function_lines_max = 80
 nesting_max = 2
 params_max = 3
 duplication_pct_max = 30
 min_assertions = 0
+
+[thresholds.library]
+exported_params_max = 6
+exported_cyclomatic_max = 10
+exported_lines_max = 60
+require_docstring = true

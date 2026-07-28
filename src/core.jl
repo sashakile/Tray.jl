@@ -98,33 +98,31 @@ function canonical_nodes(tree::Tree, lo::Int, hi::Int)
         throw(BoundsError("canonical_nodes: [$lo, $hi] out of bounds [1, $n]"))
 
     nodes = Tuple{Int,Int}[]
-    _canonical_visit(tree, depth(tree) + 1, 1, 1, n, lo, hi, nodes)
+    _canonical_visit(tree, depth(tree) + 1, 1, lo, hi, nodes)
     return nodes
 end
 
-# Recursive helper: visit a node at (level, idx) covering [node_lo, node_hi].
-# Collects canonical nodes into `nodes`.
-function _canonical_visit(tree, level, idx, node_lo, node_hi, lo, hi, nodes)
+# Recursive helper: visit a node at (level, idx) and collect canonical nodes
+# covering [lo, hi] into `nodes`. Node bounds are computed internally.
+function _canonical_visit(tree, level, idx, lo, hi, nodes)
+    n = leaf_count(tree)
+    chunk_size = tree.b^(level - 1)
+    node_lo = (idx - 1) * chunk_size + 1
+    node_hi = min(idx * chunk_size, n)
+
     if lo <= node_lo && node_hi <= hi
-        # Fully covered by query range: emit this node
         push!(nodes, (level, idx))
         return
     end
     if hi < node_lo || lo > node_hi
-        # No overlap
         return
     end
-    # Partial overlap: recurse into children
     child_level = level - 1
     if child_level >= 1
-        n = leaf_count(tree)
-        chunk_size = tree.b^(child_level - 1)
         child_start = (idx - 1) * tree.b + 1
         child_end = min(idx * tree.b, length(tree.levels[child_level]))
         for child_idx = child_start:child_end
-            c_lo = (child_idx - 1) * chunk_size + 1
-            c_hi = min(child_idx * chunk_size, n)
-            _canonical_visit(tree, child_level, child_idx, c_lo, c_hi, lo, hi, nodes)
+            _canonical_visit(tree, child_level, child_idx, lo, hi, nodes)
         end
     end
     return
