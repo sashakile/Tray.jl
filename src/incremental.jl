@@ -164,8 +164,7 @@ function apply_change(old::ScalarSummary{T}, Δ::ScalarSummaryChange{T}) where {
             count = new_count,
             sum = new_sum,
             sumsq = new_sumsq,
-            minimum = new_min,
-            maximum = new_max,
+            minmax = (new_min, new_max),
             m3 = old.m3,
             m4 = old.m4,
         )
@@ -175,8 +174,7 @@ function apply_change(old::ScalarSummary{T}, Δ::ScalarSummaryChange{T}) where {
             count = new_count,
             sum = new_sum,
             sumsq = new_sumsq,
-            minimum = new_min,
-            maximum = new_max,
+            minmax = (new_min, new_max),
         )
     end
 end
@@ -969,39 +967,35 @@ function detect_mutable_captures(f)
     is_closure = !isempty(type_name) && first(type_name) == '#'
 
     if !is_closure
-        # Named functions and built-ins are never closures
         return nothing
     end
 
-    # Try field-level inspection (works on Julia ≤ 1.11)
     n = fieldcount(T)
-    if n > 0
-        for i = 1:n
-            ftype = fieldtype(T, i)
-            # Skip the function dispatch field itself
-            if ftype <: Function
-                continue
-            end
-            # A mutable capture is any non-isbits field that's not a function
-            if !isbits(ftype)
-                return Diagnostic(
-                    "MutableCapture",
-                    "Closure captures mutable value of type $(ftype). " *
-                    "Mutable captures cannot be incrementally derived.",
-                    "derive";
-                    callable = f,
-                    remediation = "Rewrite the function to avoid mutable captures, " *
-                                  "or use a pure function instead",
-                )
-            end
-        end
+    if n == 0
+        # Julia 1.12+: closure captures are internal. Accept the closure.
         return nothing
     end
 
-    # Julia 1.12+: closure captures are internal and not exposed via fields.
-    # We cannot distinguish mutable from immutable captures without runtime
-    # access to boxed values. Accept the closure (safe assumption that most
-    # captures are immutable).
+    return _check_closure_fields(T, f)
+end
+
+# Inspect closure fields for mutable captures (works on Julia ≤ 1.11).
+function _check_closure_fields(T::Type, f)
+    for i = 1:fieldcount(T)
+        ftype = fieldtype(T, i)
+        ftype <: Function && continue
+        if !isbits(ftype)
+            return Diagnostic(
+                "MutableCapture",
+                "Closure captures mutable value of type $(ftype). " *
+                "Mutable captures cannot be incrementally derived.",
+                "derive";
+                callable = f,
+                remediation = "Rewrite the function to avoid mutable captures, " *
+                              "or use a pure function instead",
+            )
+        end
+    end
     return nothing
 end
 
@@ -1580,28 +1574,22 @@ function derive(
     provider::AbstractProvider = DefaultProvider(),
     registry::Union{RuleRegistry,Nothing} = nothing,
 )
-    # Check for mutable captures before anything else
     mutable_diag = detect_mutable_captures(f)
     if mutable_diag !== nothing
         return Rejected([mutable_diag], CovRejected)
     end
-
     if !available(provider)
         diags = availability_diagnostics(provider, f)
         return Rejected(diags, CovRejected)
     end
-
     argtypes = Tuple{args...}
     ir = retrieve_ir(provider, f, argtypes)
-
     if ir === nothing
         return Rejected(
             [
                 Diagnostic(
                     "IRProviderIncompatible",
-                    "Failed to retrieve IR for ($(f), $argtypes). " *
-                    "The method may not be uniquely selected or the provider version " *
-                    "may be incompatible.",
+                    "Failed to retrieve IR for ($(f), $argtypes)",
                     "derive";
                     callable = f,
                     remediation = "Check Julia/IR compatibility (Julia ≥ 1.10, IRTools 0.4.x)",
@@ -1610,21 +1598,14 @@ function derive(
             CovRejected,
         )
     end
-
-    # Analyze IR for coverage
     summary = analyze_ir(ir, f, argtypes, registry)
-
-    # Generate artifact from covered IR
     if summary.coverage == CovCovered
         artifact = generate_from_ir(ir, f, argtypes, summary, registry)
         if artifact !== nothing
-            # Capture the binding for this artifact
             binding = current_artifact_binding(f, argtypes, provider, registry)
             return Derived(artifact, argtypes, CovCovered, binding)
         end
     end
-
-    # Return Rejected with diagnostics if not fully covered
     return Rejected(summary.diagnostics, summary.coverage)
 end
 

@@ -21,16 +21,16 @@ paths = ["**/*.pb.go", "**/*_generated.*"]
 paths = ["vendor/**", "node_modules/**"]
 
 [thresholds]
-cyclomatic_max = 10
-cognitive_max = 15
-function_lines_max = 60
+cyclomatic_max = 8
+cognitive_max = 10
+function_lines_max = 50
 # High threshold accommodates test/runtests.jl (ReTestItems single-file convention, ~8800 loc)
 file_lines_max = 10000
-nesting_max = 3
-params_max = 6
-abc_max = 35
-mi_min = 20
-duplication_pct_max = 5
+nesting_max = 1
+params_max = 5
+abc_max = 18
+mi_min = 25
+duplication_pct_max = 4
 
 [thresholds.test]
 cyclomatic_max = 4
@@ -38,11 +38,12 @@ cognitive_max = 5
 function_lines_max = 80
 nesting_max = 2
 params_max = 3
+abc_max = 35
 duplication_pct_max = 30
 min_assertions = 0
 
 [thresholds.library]
-exported_params_max = 6
-exported_cyclomatic_max = 10
-exported_lines_max = 60
+exported_params_max = 5
+exported_cyclomatic_max = 8
+exported_lines_max = 50
 require_docstring = true

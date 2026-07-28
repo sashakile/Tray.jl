@@ -113,7 +113,7 @@ function AlignedArrayPayload(
     sq = sum(v * v for v in values)
     mn = minimum(values)
     mx = maximum(values)
-    summary = ScalarSummary{T}(schema, n, s, sq, mn, mx)
+    summary = ScalarSummary{T}(schema, n, s, sq, (mn, mx))
 
     return AlignedArrayPayload{T}(values, dim_ids, summary)
 end

@@ -137,37 +137,37 @@
         {
           "name": "canonical_nodes",
           "kind": "Function",
-          "start_line": 95,
+          "start_line": 104,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
             "assertions": 0,
-            "function_lines": 9,
+            "function_lines": 10,
             "params": 0,
             "nesting_max": 0,
-            "abc": 6.4031242374328485
+            "abc": 7.681145747868608
           },
           "violations": []
         },
         {
           "name": "_canonical_visit",
           "kind": "Function",
-          "start_line": 107,
+          "start_line": 117,
           "metrics": {
             "cyclomatic": 7,
             "cognitive": 6,
             "assertions": 0,
-            "function_lines": 23,
-            "params": 6,
+            "function_lines": 27,
+            "params": 2,
             "nesting_max": 0,
-            "abc": 11.575836902790225
+            "abc": 14.352700094407323
           },
           "violations": []
         },
         {
           "name": "derived_sample_error",
           "kind": "Function",
-          "start_line": 244,
+          "start_line": 258,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -182,7 +182,7 @@
         {
           "name": "leaf_index_by_id",
           "kind": "Function",
-          "start_line": 277,
+          "start_line": 291,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -197,7 +197,7 @@
         {
           "name": "_leaf_ancestor_level",
           "kind": "Function",
-          "start_line": 313,
+          "start_line": 327,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -212,7 +212,7 @@
         {
           "name": "_recompute_ancestor_path!",
           "kind": "Function",
-          "start_line": 331,
+          "start_line": 345,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -227,7 +227,7 @@
         {
           "name": "_level_to_leaf_range",
           "kind": "Function",
-          "start_line": 553,
+          "start_line": 567,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -242,7 +242,7 @@
         {
           "name": "LazyTag",
           "kind": "Function",
-          "start_line": 648,
+          "start_line": 662,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -257,7 +257,7 @@
         {
           "name": "identity_lazy",
           "kind": "Function",
-          "start_line": 657,
+          "start_line": 671,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -272,7 +272,7 @@
         {
           "name": "is_identity_lazy",
           "kind": "Function",
-          "start_line": 664,
+          "start_line": 678,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -287,7 +287,7 @@
         {
           "name": "is_distributive",
           "kind": "Function",
-          "start_line": 675,
+          "start_line": 689,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -302,7 +302,7 @@
         {
           "name": "apply_lazy",
           "kind": "Function",
-          "start_line": 688,
+          "start_line": 702,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -317,7 +317,7 @@
         {
           "name": "flush_lazy!",
           "kind": "Function",
-          "start_line": 739,
+          "start_line": 753,
           "metrics": {
             "cyclomatic": 6,
             "cognitive": 5,
@@ -529,7 +529,7 @@
         {
           "name": "lookup",
           "kind": "Function",
-          "start_line": 367,
+          "start_line": 365,
           "metrics": {
             "cyclomatic": 8,
             "cognitive": 6,
@@ -544,7 +544,7 @@
         {
           "name": "lookup_classified",
           "kind": "Function",
-          "start_line": 410,
+          "start_line": 408,
           "metrics": {
             "cyclomatic": 8,
             "cognitive": 6,
@@ -559,7 +559,7 @@
         {
           "name": "isapplicable",
           "kind": "Function",
-          "start_line": 441,
+          "start_line": 439,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -574,7 +574,7 @@
         {
           "name": "type_tuple_issubset",
           "kind": "Function",
-          "start_line": 446,
+          "start_line": 444,
           "metrics": {
             "cyclomatic": 4,
             "cognitive": 3,
@@ -589,7 +589,7 @@
         {
           "name": "compare_specificity",
           "kind": "Function",
-          "start_line": 455,
+          "start_line": 453,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 4,
@@ -604,7 +604,7 @@
         {
           "name": "is_more_specific",
           "kind": "Function",
-          "start_line": 468,
+          "start_line": 466,
           "metrics": {
             "cyclomatic": 8,
             "cognitive": 7,
@@ -619,7 +619,7 @@
         {
           "name": "type_tuple_more_specific",
           "kind": "Function",
-          "start_line": 483,
+          "start_line": 481,
           "metrics": {
             "cyclomatic": 6,
             "cognitive": 5,
@@ -634,7 +634,7 @@
         {
           "name": "available",
           "kind": "Function",
-          "start_line": 542,
+          "start_line": 540,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -649,7 +649,7 @@
         {
           "name": "availability_diagnostics",
           "kind": "Function",
-          "start_line": 567,
+          "start_line": 565,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -664,7 +664,7 @@
         {
           "name": "Diagnostic",
           "kind": "Function",
-          "start_line": 687,
+          "start_line": 685,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -679,7 +679,7 @@
         {
           "name": "Diagnostic",
           "kind": "Function",
-          "start_line": 700,
+          "start_line": 698,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -694,7 +694,7 @@
         {
           "name": "current_artifact_binding",
           "kind": "Function",
-          "start_line": 885,
+          "start_line": 883,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -709,7 +709,7 @@
         {
           "name": "_closure_capture_type",
           "kind": "Function",
-          "start_line": 927,
+          "start_line": 925,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 4,
@@ -724,22 +724,37 @@
         {
           "name": "detect_mutable_captures",
           "kind": "Function",
-          "start_line": 959,
+          "start_line": 957,
           "metrics": {
-            "cyclomatic": 9,
-            "cognitive": 8,
+            "cyclomatic": 6,
+            "cognitive": 5,
             "assertions": 0,
-            "function_lines": 48,
+            "function_lines": 24,
             "params": 1,
             "nesting_max": 0,
-            "abc": 13.74772708486752
+            "abc": 10.246950765959598
+          },
+          "violations": []
+        },
+        {
+          "name": "_check_closure_fields",
+          "kind": "Function",
+          "start_line": 983,
+          "metrics": {
+            "cyclomatic": 4,
+            "cognitive": 3,
+            "assertions": 0,
+            "function_lines": 18,
+            "params": 1,
+            "nesting_max": 0,
+            "abc": 5.916079783099616
           },
           "violations": []
         },
         {
           "name": "classify_operation",
           "kind": "Function",
-          "start_line": 1095,
+          "start_line": 1089,
           "metrics": {
             "cyclomatic": 4,
             "cognitive": 3,
@@ -754,7 +769,7 @@
         {
           "name": "check_call_coverage",
           "kind": "Function",
-          "start_line": 1121,
+          "start_line": 1115,
           "metrics": {
             "cyclomatic": 7,
             "cognitive": 6,
@@ -769,7 +784,7 @@
         {
           "name": "is_pure_call",
           "kind": "Function",
-          "start_line": 1184,
+          "start_line": 1178,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 4,
@@ -784,7 +799,7 @@
         {
           "name": "analyze_statement",
           "kind": "Function",
-          "start_line": 1222,
+          "start_line": 1216,
           "metrics": {
             "cyclomatic": 6,
             "cognitive": 5,
@@ -799,7 +814,7 @@
         {
           "name": "_rejected_unknown",
           "kind": "Function",
-          "start_line": 1263,
+          "start_line": 1257,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -814,7 +829,7 @@
         {
           "name": "_analyze_call",
           "kind": "Function",
-          "start_line": 1277,
+          "start_line": 1271,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -829,7 +844,7 @@
         {
           "name": "_boundary_controlflow",
           "kind": "Function",
-          "start_line": 1299,
+          "start_line": 1293,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -844,7 +859,7 @@
         {
           "name": "_rejected_unhandled",
           "kind": "Function",
-          "start_line": 1312,
+          "start_line": 1306,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -859,7 +874,7 @@
         {
           "name": "_extract_callee",
           "kind": "Function",
-          "start_line": 1334,
+          "start_line": 1328,
           "metrics": {
             "cyclomatic": 6,
             "cognitive": 5,
@@ -874,7 +889,7 @@
         {
           "name": "_extract_rhs_callee",
           "kind": "Function",
-          "start_line": 1350,
+          "start_line": 1344,
           "metrics": {
             "cyclomatic": 7,
             "cognitive": 6,
@@ -889,7 +904,7 @@
         {
           "name": "analyze_ir",
           "kind": "Function",
-          "start_line": 1375,
+          "start_line": 1369,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -904,7 +919,7 @@
         {
           "name": "_get_ir_statements",
           "kind": "Function",
-          "start_line": 1406,
+          "start_line": 1400,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 4,
@@ -919,7 +934,7 @@
         {
           "name": "classify_ir_without_provider",
           "kind": "Function",
-          "start_line": 1439,
+          "start_line": 1433,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -934,7 +949,7 @@
         {
           "name": "generate_recompute_artifact",
           "kind": "Function",
-          "start_line": 1506,
+          "start_line": 1500,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -949,7 +964,7 @@
         {
           "name": "generate_from_ir",
           "kind": "Function",
-          "start_line": 1531,
+          "start_line": 1525,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -964,12 +979,12 @@
         {
           "name": "derive",
           "kind": "Function",
-          "start_line": 1577,
+          "start_line": 1571,
           "metrics": {
             "cyclomatic": 6,
             "cognitive": 5,
             "assertions": 0,
-            "function_lines": 53,
+            "function_lines": 37,
             "params": 1,
             "nesting_max": 0,
             "abc": 17.291616465790582
@@ -1085,7 +1100,7 @@
         {
           "name": "_coerce_moment_type",
           "kind": "Function",
-          "start_line": 142,
+          "start_line": 141,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1100,7 +1115,7 @@
         {
           "name": "_validate_moment_params",
           "kind": "Function",
-          "start_line": 152,
+          "start_line": 151,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 1,
@@ -1115,7 +1130,7 @@
         {
           "name": "_cornish_fisher_expansion",
           "kind": "Function",
-          "start_line": 162,
+          "start_line": 161,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1130,7 +1145,7 @@
         {
           "name": "moment_quantile",
           "kind": "Function",
-          "start_line": 747,
+          "start_line": 742,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1153,15 +1168,15 @@
         {
           "name": "ScalarSummary",
           "kind": "Function",
-          "start_line": 127,
+          "start_line": 126,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
             "assertions": 0,
             "function_lines": 15,
-            "params": 6,
+            "params": 5,
             "nesting_max": 0,
-            "abc": 7.615773105863909
+            "abc": 8.06225774829855
           },
           "violations": []
         }
@@ -1313,13 +1328,13 @@
           "kind": "Function",
           "start_line": 115,
           "metrics": {
-            "cyclomatic": 4,
-            "cognitive": 3,
+            "cyclomatic": 2,
+            "cognitive": 1,
             "assertions": 0,
-            "function_lines": 25,
+            "function_lines": 15,
             "params": 0,
             "nesting_max": 0,
-            "abc": 18.275666882497067
+            "abc": 17.029386365926403
           },
           "violations": []
         }
@@ -1334,7 +1349,7 @@
         {
           "name": "memoized",
           "kind": "Function",
-          "start_line": 5212,
+          "start_line": 5080,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -1349,7 +1364,7 @@
         {
           "name": "my_df",
           "kind": "Function",
-          "start_line": 5678,
+          "start_line": 5541,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1364,7 +1379,7 @@
         {
           "name": "bad_df",
           "kind": "Function",
-          "start_line": 5729,
+          "start_line": 5589,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1379,7 +1394,7 @@
         {
           "name": "add_df",
           "kind": "Function",
-          "start_line": 5772,
+          "start_line": 5632,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1394,7 +1409,7 @@
         {
           "name": "add_df",
           "kind": "Function",
-          "start_line": 5810,
+          "start_line": 5670,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1409,7 +1424,7 @@
         {
           "name": "wrong_df",
           "kind": "Function",
-          "start_line": 5839,
+          "start_line": 5699,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1424,7 +1439,7 @@
         {
           "name": "summary_df",
           "kind": "Function",
-          "start_line": 5960,
+          "start_line": 5811,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1439,7 +1454,7 @@
         {
           "name": "wrong_df",
           "kind": "Function",
-          "start_line": 6015,
+          "start_line": 5863,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1454,7 +1469,7 @@
         {
           "name": "my_df",
           "kind": "Function",
-          "start_line": 6085,
+          "start_line": 5930,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1469,7 +1484,7 @@
         {
           "name": "bad_df",
           "kind": "Function",
-          "start_line": 6126,
+          "start_line": 5969,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1484,7 +1499,7 @@
         {
           "name": "throwing_df",
           "kind": "Function",
-          "start_line": 6181,
+          "start_line": 6021,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1499,7 +1514,7 @@
         {
           "name": "wrong_df",
           "kind": "Function",
-          "start_line": 6231,
+          "start_line": 6068,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1514,7 +1529,7 @@
         {
           "name": "correct_df",
           "kind": "Function",
-          "start_line": 6366,
+          "start_line": 6194,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1529,7 +1544,7 @@
         {
           "name": "wrong_df",
           "kind": "Function",
-          "start_line": 6419,
+          "start_line": 6244,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1544,7 +1559,7 @@
         {
           "name": "throwing_df",
           "kind": "Function",
-          "start_line": 6479,
+          "start_line": 6301,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,

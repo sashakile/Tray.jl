@@ -92,19 +92,33 @@ partial overlap recurses into children.
 
 See REQ-10.
 """
+# Context struct for canonical decomposition recursion.
+# Bundles invariant params so the recursive helper takes only (ctx, level, idx).
+struct _CanonicalCtx
+    tree::Tree
+    lo::Int
+    hi::Int
+    nodes::Vector{Tuple{Int,Int}}
+end
+
 function canonical_nodes(tree::Tree, lo::Int, hi::Int)
     n = leaf_count(tree)
     1 <= lo <= hi <= n ||
         throw(BoundsError("canonical_nodes: [$lo, $hi] out of bounds [1, $n]"))
 
     nodes = Tuple{Int,Int}[]
-    _canonical_visit(tree, depth(tree) + 1, 1, lo, hi, nodes)
+    ctx = _CanonicalCtx(tree, lo, hi, nodes)
+    _canonical_visit(ctx, depth(tree) + 1, 1)
     return nodes
 end
 
 # Recursive helper: visit a node at (level, idx) and collect canonical nodes
-# covering [lo, hi] into `nodes`. Node bounds are computed internally.
-function _canonical_visit(tree, level, idx, lo, hi, nodes)
+# covering context range. Node bounds are computed internally.
+function _canonical_visit(ctx::_CanonicalCtx, level, idx)
+    tree = ctx.tree
+    lo = ctx.lo
+    hi = ctx.hi
+    nodes = ctx.nodes
     n = leaf_count(tree)
     chunk_size = tree.b^(level - 1)
     node_lo = (idx - 1) * chunk_size + 1
@@ -122,7 +136,7 @@ function _canonical_visit(tree, level, idx, lo, hi, nodes)
         child_start = (idx - 1) * tree.b + 1
         child_end = min(idx * tree.b, length(tree.levels[child_level]))
         for child_idx = child_start:child_end
-            _canonical_visit(tree, child_level, child_idx, lo, hi, nodes)
+            _canonical_visit(ctx, child_level, child_idx)
         end
     end
     return

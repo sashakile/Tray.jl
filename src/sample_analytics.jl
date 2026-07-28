@@ -116,8 +116,7 @@ function SamplePayload(;
         count = count,
         sum = s,
         sumsq = sq,
-        minimum = mn,
-        maximum = mx,
+        minmax = (mn, mx),
         m3 = schema.higher_moment ? sum(x -> x^3, samples) : zero(T),
         m4 = schema.higher_moment ? sum(x -> x^4, samples) : zero(T),
     )
@@ -211,8 +210,7 @@ function TrayBase.identity(schema::ScalarSchema{T}, sample_length::Int) where {T
         count = sample_length,
         sum = zero(T),
         sumsq = zero(T),
-        minimum = zero(T),
-        maximum = zero(T),
+        minmax = (zero(T), zero(T)),
         m3 = schema.higher_moment ? zero(T) : zero(T),
         m4 = schema.higher_moment ? zero(T) : zero(T),
     )
@@ -238,8 +236,7 @@ function TrayBase.identity(
         count = sample_length,
         sum = zero(T),
         sumsq = zero(T),
-        minimum = zero(T),
-        maximum = zero(T),
+        minmax = (zero(T), zero(T)),
         m3 = schema.higher_moment ? zero(T) : zero(T),
         m4 = schema.higher_moment ? zero(T) : zero(T),
     )
@@ -294,8 +291,7 @@ function TrayBase.combine(a::SamplePayload{T}, b::SamplePayload{T}) where {T}
         count = n,
         sum = s,
         sumsq = sq,
-        minimum = mn,
-        maximum = mx,
+        minmax = (mn, mx),
         m3 = schema.higher_moment ? sum(x -> x^3, combined_samples) : zero(T),
         m4 = schema.higher_moment ? sum(x -> x^4, combined_samples) : zero(T),
     )
@@ -469,8 +465,7 @@ function project_samples(tree::Tree{<:SamplePayload{T}}, w::Vector{T}) where {T}
         count = S,
         sum = sum(combined_samples),
         sumsq = sum(x -> x^2, combined_samples),
-        minimum = minimum(combined_samples),
-        maximum = maximum(combined_samples),
+        minmax = (minimum(combined_samples), maximum(combined_samples)),
         m3 = schema.higher_moment ? sum(x -> x^3, combined_samples) : zero(T),
         m4 = schema.higher_moment ? sum(x -> x^4, combined_samples) : zero(T),
     )

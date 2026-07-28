@@ -117,24 +117,17 @@ end
         b = Data.Integers(2, 8),
         idx = Data.Integers(1, 32),
     )
-        # Clamp idx to valid range (generator is independent of n)
         idx = min(idx, n)
-        tokens = collect(1:n)
-        leaves = [TokenPayload{Int}([t]) for t in tokens]
+        leaves = [TokenPayload{Int}([t]) for t = 1:n]
         tree = Tray.Tree(leaves; b = b, schema = TokenSchema())
         original_levels = deepcopy(tree.levels)
-        replacement = TokenPayload{Int}([999])
-
-        updated_tree = Tray.update(tree, idx, replacement)
-
-        # Rebuild independently
-        rebuilt_leaves = [TokenPayload{Int}([t]) for t in tokens]
-        rebuilt_leaves[idx] = replacement
+        updated_tree = Tray.update(tree, idx, TokenPayload{Int}([999]))
+        rebuilt_leaves = copy(leaves)
+        rebuilt_leaves[idx] = TokenPayload{Int}([999])
         rebuilt_tree = Tray.Tree(rebuilt_leaves; b = b, schema = TokenSchema())
-
-        updated_tree.b == rebuilt_tree.b &&
-            updated_tree.schema == rebuilt_tree.schema &&
-            updated_tree.levels == rebuilt_tree.levels &&
-            tree.levels == original_levels
+        return updated_tree.b == rebuilt_tree.b &&
+               updated_tree.schema == rebuilt_tree.schema &&
+               updated_tree.levels == rebuilt_tree.levels &&
+               tree.levels == original_levels
     end
 end
