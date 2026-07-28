@@ -871,14 +871,35 @@ struct SketchConfig
         vmax::Float64,
         epsilon::Float64,
     )
-        n_bins >= 2 || throw(SketchConfigError("n_bins must be ≥ 2, got $n_bins"))
-        isfinite(vmin) || throw(SketchConfigError("vmin must be finite, got $vmin"))
-        isfinite(vmax) || throw(SketchConfigError("vmax must be finite, got $vmax"))
-        vmin < vmax || throw(SketchConfigError("vmin ($vmin) must be < vmax ($vmax)"))
-        0 < epsilon <= 1 ||
-            throw(SketchConfigError("epsilon must be in (0, 1], got $epsilon"))
-        return new(config_id, n_bins, vmin, vmax, epsilon)
+        throw(
+            SketchConfigError(
+                "Sketch compression is deferred until a pairing-preserving " *
+                "compressed representation is approved (see " *
+                "defer-nonconforming-sample-compression). " *
+                "Exact aligned sample vectors are the only conforming " *
+                "REQ-21 representation in the current release.",
+            ),
+        )
     end
+end
+
+# Standalone inner constructor for internal use (binary format, etc.)
+# This bypasses the deferral error for operations that must read existing
+# sketch configurations from serialized data.
+function SketchConfig(
+    config_id::Int,
+    n_bins::Int,
+    vmin::Float64,
+    vmax::Float64,
+    epsilon::Float64,
+    ::Val{:internal},
+)
+    n_bins >= 2 || throw(SketchConfigError("n_bins must be ≥ 2, got $n_bins"))
+    isfinite(vmin) || throw(SketchConfigError("vmin must be finite, got $vmin"))
+    isfinite(vmax) || throw(SketchConfigError("vmax must be finite, got $vmax"))
+    vmin < vmax || throw(SketchConfigError("vmin ($vmin) must be < vmax ($vmax)"))
+    0 < epsilon <= 1 || throw(SketchConfigError("epsilon must be in (0, 1], got $epsilon"))
+    return new(config_id, n_bins, vmin, vmax, epsilon)
 end
 
 """
