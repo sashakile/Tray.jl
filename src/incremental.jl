@@ -1076,6 +1076,8 @@ IRTools IR statements are `Expr` heads with operation types. Falls back to
 
 See REQ-A8.
 """
+# Map an IR expression head symbol to its corresponding IROpKind.
+# Falls back to OpExpr for unrecognized heads.
 function _op_kind_for_head(head::Symbol)::IROpKind
     head === :return && return OpReturn
     head === :goto && return OpGoto

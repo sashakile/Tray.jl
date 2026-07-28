@@ -196,6 +196,8 @@ function _run_query(model, lo, hi)
 end
 
 function _compute_range_query(model, lo, hi)
+    # Returns (result_or_nothing, depth_val, nothing) on success.
+    # Raises on invalid arguments; caller handles via try/catch.
     if model.requested_depth !== nothing
         target = model.requested_depth
         max_d = depth(model.tree)
@@ -230,7 +232,6 @@ function _publish_query_result(model, query_revision, result, depth_val, error_m
     _notify(model, :effective_depth, model.effective_depth)
     _notify(model, :error, model.error)
     _notify(model, :result_revision, model.result_revision)
-    return
 end
 
 end # module Dashboard

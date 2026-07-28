@@ -435,7 +435,7 @@
             "cyclomatic": 4,
             "cognitive": 3,
             "assertions": 0,
-            "function_lines": 14,
+            "function_lines": 16,
             "params": 3,
             "nesting_max": 0,
             "abc": 8.602325267042627
@@ -445,12 +445,12 @@
         {
           "name": "_publish_query_result",
           "kind": "Function",
-          "start_line": 213,
+          "start_line": 215,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
             "assertions": 0,
-            "function_lines": 22,
+            "function_lines": 21,
             "params": 5,
             "nesting_max": 0,
             "abc": 8.831760866327848
@@ -739,7 +739,7 @@
         {
           "name": "classify_operation",
           "kind": "Function",
-          "start_line": 1093,
+          "start_line": 1095,
           "metrics": {
             "cyclomatic": 4,
             "cognitive": 3,
@@ -754,7 +754,7 @@
         {
           "name": "check_call_coverage",
           "kind": "Function",
-          "start_line": 1119,
+          "start_line": 1121,
           "metrics": {
             "cyclomatic": 7,
             "cognitive": 6,
@@ -769,7 +769,7 @@
         {
           "name": "is_pure_call",
           "kind": "Function",
-          "start_line": 1182,
+          "start_line": 1184,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 4,
@@ -784,7 +784,7 @@
         {
           "name": "analyze_statement",
           "kind": "Function",
-          "start_line": 1220,
+          "start_line": 1222,
           "metrics": {
             "cyclomatic": 6,
             "cognitive": 5,
@@ -799,7 +799,7 @@
         {
           "name": "_rejected_unknown",
           "kind": "Function",
-          "start_line": 1261,
+          "start_line": 1263,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -814,7 +814,7 @@
         {
           "name": "_analyze_call",
           "kind": "Function",
-          "start_line": 1275,
+          "start_line": 1277,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -829,7 +829,7 @@
         {
           "name": "_boundary_controlflow",
           "kind": "Function",
-          "start_line": 1297,
+          "start_line": 1299,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -844,7 +844,7 @@
         {
           "name": "_rejected_unhandled",
           "kind": "Function",
-          "start_line": 1310,
+          "start_line": 1312,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -859,7 +859,7 @@
         {
           "name": "_extract_callee",
           "kind": "Function",
-          "start_line": 1332,
+          "start_line": 1334,
           "metrics": {
             "cyclomatic": 6,
             "cognitive": 5,
@@ -874,7 +874,7 @@
         {
           "name": "_extract_rhs_callee",
           "kind": "Function",
-          "start_line": 1348,
+          "start_line": 1350,
           "metrics": {
             "cyclomatic": 7,
             "cognitive": 6,
@@ -889,7 +889,7 @@
         {
           "name": "analyze_ir",
           "kind": "Function",
-          "start_line": 1373,
+          "start_line": 1375,
           "metrics": {
             "cyclomatic": 3,
             "cognitive": 2,
@@ -904,7 +904,7 @@
         {
           "name": "_get_ir_statements",
           "kind": "Function",
-          "start_line": 1404,
+          "start_line": 1406,
           "metrics": {
             "cyclomatic": 5,
             "cognitive": 4,
@@ -919,7 +919,7 @@
         {
           "name": "classify_ir_without_provider",
           "kind": "Function",
-          "start_line": 1437,
+          "start_line": 1439,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -934,7 +934,7 @@
         {
           "name": "generate_recompute_artifact",
           "kind": "Function",
-          "start_line": 1504,
+          "start_line": 1506,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -949,7 +949,7 @@
         {
           "name": "generate_from_ir",
           "kind": "Function",
-          "start_line": 1529,
+          "start_line": 1531,
           "metrics": {
             "cyclomatic": 2,
             "cognitive": 1,
@@ -964,7 +964,7 @@
         {
           "name": "derive",
           "kind": "Function",
-          "start_line": 1575,
+          "start_line": 1577,
           "metrics": {
             "cyclomatic": 6,
             "cognitive": 5,
@@ -1105,7 +1105,7 @@
             "cyclomatic": 5,
             "cognitive": 1,
             "assertions": 0,
-            "function_lines": 7,
+            "function_lines": 9,
             "params": 4,
             "nesting_max": 0,
             "abc": 11.704699910719626
@@ -1115,7 +1115,7 @@
         {
           "name": "_cornish_fisher_expansion",
           "kind": "Function",
-          "start_line": 160,
+          "start_line": 162,
           "metrics": {
             "cyclomatic": 1,
             "cognitive": 0,
@@ -1130,15 +1130,15 @@
         {
           "name": "moment_quantile",
           "kind": "Function",
-          "start_line": 745,
+          "start_line": 747,
           "metrics": {
-            "cyclomatic": 5,
-            "cognitive": 1,
+            "cyclomatic": 1,
+            "cognitive": 0,
             "assertions": 0,
-            "function_lines": 60,
+            "function_lines": 32,
             "params": 0,
             "nesting_max": 0,
-            "abc": 30.789608636681304
+            "abc": 15.0
           },
           "violations": []
         }

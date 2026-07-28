@@ -42,6 +42,7 @@ vale:
 # ── Code Quality ────────────────────────────────────────────────────────────
 
 # Run pretender checks
+# Uses src/ test/ instead of . to avoid .git/fsmonitor--daemon.ipc socket errors
 pretender-check:
     pretender check src/ test/
 

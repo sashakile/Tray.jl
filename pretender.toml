@@ -1,6 +1,8 @@
 [pretender]
 mode = "gate"
 languages = ["auto"]
+# Exclude .git/ to avoid fsmonitor--daemon.ipc socket errors
+# Using src/ test/ paths in just pretender-check instead of root .
 exclude = ["vendor/**", "node_modules/**", "**/*_generated.*", ".git/", "target/", "docs/build/"]
 
 [roles.test]
@@ -22,6 +24,7 @@ paths = ["vendor/**", "node_modules/**"]
 cyclomatic_max = 10
 cognitive_max = 15
 function_lines_max = 60
+# High threshold accommodates test/runtests.jl (ReTestItems single-file convention, ~8800 loc)
 file_lines_max = 10000
 nesting_max = 3
 params_max = 6
