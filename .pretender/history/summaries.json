@@ -5,7 +5,7 @@
       "rule_key": "function_lines_max",
       "role": "library",
       "area": "src",
-      "count": 53,
+      "count": 57,
       "distinct_files": 5,
       "distinct_days": 1
     },
@@ -18,27 +18,27 @@
       "distinct_days": 1
     },
     {
-      "rule_key": "params_max",
-      "role": "library",
-      "area": "src",
-      "count": 40,
-      "distinct_files": 5,
-      "distinct_days": 1
-    },
-    {
       "rule_key": "cyclomatic_max",
       "role": "library",
       "area": "src",
-      "count": 30,
+      "count": 43,
       "distinct_files": 4,
+      "distinct_days": 1
+    },
+    {
+      "rule_key": "params_max",
+      "role": "library",
+      "area": "src",
+      "count": 42,
+      "distinct_files": 5,
       "distinct_days": 1
     },
     {
       "rule_key": "abc_max",
       "role": "library",
       "area": "src",
-      "count": 21,
-      "distinct_files": 4,
+      "count": 28,
+      "distinct_files": 5,
       "distinct_days": 1
     }
   ]

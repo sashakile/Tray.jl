@@ -126,20 +126,24 @@ end
 
 function _canonical_visit(ctx::_CanonicalCtx, level, idx)
     tree = ctx.tree
-    n = leaf_count(tree)
-    chunk_size = tree.b^(level - 1)
-    node_lo = (idx - 1) * chunk_size + 1
-    node_hi = min(idx * chunk_size, n)
-
+    node_lo, node_hi = _node_range(tree, level, idx)
     if ctx.lo <= node_lo && node_hi <= ctx.hi
         push!(ctx.nodes, (level, idx))
         return
     end
-    has_overlap = node_lo <= ctx.hi && node_hi >= ctx.lo
-    if level > 1 && has_overlap
-        _visit_overlapping_children(ctx, tree, level, idx)
+    if level > 1 && _node_overlaps(ctx, node_lo, node_hi)
+        _visit_overlapping_children(ctx, ctx.tree, level, idx)
     end
-    return
+end
+
+function _node_range(tree, level, idx)
+    n = leaf_count(tree)
+    chunk_size = tree.b^(level - 1)
+    return (idx - 1) * chunk_size + 1, min(idx * chunk_size, n)
+end
+
+function _node_overlaps(ctx, node_lo, node_hi)
+    return node_lo <= ctx.hi && node_hi >= ctx.lo
 end
 
 """
@@ -752,15 +756,22 @@ or schema change (REQ-29 flush barrier).
 """
 function flush_lazy!(tree, pending_tags::Vector{LazyTag})
     isempty(pending_tags) && return nothing
+    _apply_pending_tags!(tree, pending_tags)
+    _rebuild_internal_levels!(tree)
+    return nothing
+end
 
-    # Apply all pending tags to every leaf
+# Apply pending tags to all leaves
+function _apply_pending_tags!(tree, pending_tags)
     for tag in pending_tags
         for i in eachindex(tree.levels[1])
             tree.levels[1][i] = apply_lazy(tag, tree.levels[1][i])
         end
     end
+end
 
-    # Rebuild all internal levels
+# Rebuild internal levels after leaf changes
+function _rebuild_internal_levels!(tree)
     current = tree.levels[1]
     for level_idx = 2:length(tree.levels)
         next_level = tree.levels[level_idx]
@@ -772,8 +783,6 @@ function flush_lazy!(tree, pending_tags::Vector{LazyTag})
         end
         current = next_level
     end
-
-    return nothing
 end
 
 """

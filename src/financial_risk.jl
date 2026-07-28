@@ -70,17 +70,23 @@ end
 function _norminv(c::Real)
     0 < c < 1 || throw(DomainError(c, "confidence must be in (0, 1)"))
     p = Float64(c)
-
     if p < 0.02425
-        q = sqrt(-2.0 * log(p))
-        return Float64(-_norminv_tail(q, 1.0))
+        return _norminv_low_tail(p)
     elseif p < 0.97575
-        q = p - 0.5
-        return _norminv_central(q)
+        return _norminv_central(p - 0.5)
     else
-        q = sqrt(-2.0 * log(1.0 - p))
-        return Float64(_norminv_tail(q, 1.0))
+        return _norminv_high_tail(p)
     end
+end
+
+function _norminv_low_tail(p)
+    q = sqrt(-2.0 * log(p))
+    return Float64(-_norminv_tail(q, 1.0))
+end
+
+function _norminv_high_tail(p)
+    q = sqrt(-2.0 * log(1.0 - p))
+    return Float64(_norminv_tail(q, 1.0))
 end
 
 # ---------------------------------------------------------------------------

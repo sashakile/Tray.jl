@@ -446,7 +446,8 @@ function compare_specificity(rf1::Type, ra1::Type, rf2::Type, ra2::Type)
 end
 
 function _specificity_decision(rf_more, rf_equal, ra_more, ra_equal)
-    return (rf_more && (ra_equal || ra_more)) || (ra_more && (rf_equal || rf_more))
+    rf_more || return ra_more && (rf_equal || rf_more)
+    return ra_equal
 end
 
 function is_more_specific(rf_a::Type, ra_a::Type, rf_b::Type, ra_b::Type)
@@ -460,18 +461,19 @@ end
 
 function type_tuple_more_specific(ta::Type, tb::Type)
     ta == tb && return false
-
     params_a = ta.parameters
     params_b = tb.parameters
     length(params_a) == length(params_b) || return false
+    return _any_type_more_specific(params_a, params_b)
+end
 
+function _any_type_more_specific(params_a, params_b)
     any_more_specific = false
     for (a, b) in zip(params_a, params_b)
         a == b && continue
         a <: b || return false
         any_more_specific = true
     end
-
     return any_more_specific
 end
 
@@ -544,30 +546,25 @@ See REQ-A11.
 """
 function availability_diagnostics(::DefaultProvider, f)
     if VERSION >= v"1.10"
-        # Julia version OK, IRTools missing
         return [
             Diagnostic(
                 "IRProviderUnavailable",
-                "IRTools is not available in this environment. " *
-                "Install IRTools 0.4.x with Pkg.add(\"IRTools\") to enable " *
-                "IR-based derivation.",
+                "IRTools is not available. Install with Pkg.add(\"IRTools\").",
                 "derive";
                 callable = f,
-                remediation = "Install IRTools 0.4.x with Pkg.add(\"IRTools\")",
-            ),
-        ]
-    else
-        return [
-            Diagnostic(
-                "UnsupportedEnvironment",
-                "Julia version $(VERSION) does not meet the minimum " *
-                "requirement of 1.10 for the default IR provider.",
-                "derive";
-                callable = f,
-                remediation = "Upgrade to Julia ≥ 1.10",
+                remediation = "Install IRTools 0.4.x",
             ),
         ]
     end
+    return [
+        Diagnostic(
+            "UnsupportedEnvironment",
+            "Julia $(VERSION) < 1.10 for the default IR provider.",
+            "derive";
+            callable = f,
+            remediation = "Upgrade to Julia ≥ 1.10",
+        ),
+    ]
 end
 
 """
@@ -867,27 +864,16 @@ function current_artifact_binding(
     registry::Union{RuleRegistry,Nothing},
     method_instance::Union{Nothing,Core.MethodInstance} = nothing,
 )
-    # Capture closure environment type if f is a closure
-    closure_type = _closure_capture_type(f)
-
-    reg_rev = if registry !== nothing
-        registry.current.revision
-    else
-        0
-    end
-
-    provider_id = string(typeof(provider))
-    payload_schema_version = 1
-
+    reg_rev = registry !== nothing ? registry.current.revision : 0
     return ArtifactBinding(
         method_instance,
         Base.tls_world_age(),
         argtypes,
-        closure_type,
+        _closure_capture_type(f),
         reg_rev,
-        provider_id,
+        string(typeof(provider)),
         VERSION,
-        payload_schema_version,
+        1,
     )
 end
 
@@ -935,28 +921,17 @@ from immutable without runtime access to the boxed values).
 See REQ-A16.
 """
 function detect_mutable_captures(f)
-    if !isa(f, Function) || isa(f, Core.Builtin)
-        return nothing
-    end
+    isa(f, Function) || return nothing
+    isa(f, Core.Builtin) && return nothing
     T = typeof(f)
-
-    # Detect closures by checking if the type name starts with '#'
-    # (Julia's internal naming convention for closures, consistent across
-    # Julia 1.6 through 1.12)
-    type_name = string(T.name.name)
-    is_closure = !isempty(type_name) && first(type_name) == '#'
-
-    if !is_closure
-        return nothing
-    end
-
-    n = fieldcount(T)
-    if n == 0
-        # Julia 1.12+: closure captures are internal. Accept the closure.
-        return nothing
-    end
-
+    _is_closure(T) || return nothing
+    fieldcount(T) == 0 && return nothing
     return _check_closure_fields(T, f)
+end
+
+function _is_closure(T::Type)
+    type_name = string(T.name.name)
+    return !isempty(type_name) && first(type_name) == '#'
 end
 
 # Inspect closure fields for mutable captures (works on Julia ≤ 1.11).
@@ -1189,6 +1164,10 @@ boundary operations, and `(CovRejected, diag)` for rejected operations.
 
 See REQ-A3, REQ-A8, REQ-A11.
 """
+# Operations that are always covered (no side effects)
+const _COVERED_OPS = (OpReturn, OpGoto, OpConstant, OpExpr, OpIsA, OpNew)
+const _BOUNDARY_OPS = (OpGotoIfNot, OpPhi)
+
 function analyze_statement(
     kind::IROpKind,
     stmt,
@@ -1196,28 +1175,17 @@ function analyze_statement(
     argtypes,
     registry::Union{RuleRegistry,Nothing},
 )
-    if kind in (OpReturn, OpGoto, OpConstant, OpExpr, OpIsA, OpNew)
-        return (CovCovered, nothing)
-    end
-    if kind == OpUnknown
-        return _rejected_unknown(stmt, f)
-    end
-    if kind in (OpCall, OpInvoke)
-        return _analyze_call(stmt, f, argtypes, registry)
-    end
-    if kind == OpGotoIfNot
-        return _boundary_controlflow(
-            "Conditional branch detected in IR (v1 boundary unless unrolled).",
-            f,
-        )
-    end
-    if kind == OpPhi
-        return _boundary_controlflow(
-            "Phi node (value merge) detected in IR (cannot merge in v1).",
-            f,
-        )
-    end
+    kind in _COVERED_OPS && return (CovCovered, nothing)
+    kind == OpUnknown && return _rejected_unknown(stmt, f)
+    kind in (OpCall, OpInvoke) && return _analyze_call(stmt, f, argtypes, registry)
+    kind in _BOUNDARY_OPS && return _boundary_controlflow(_boundary_msg(kind), f)
     return _rejected_unhandled(kind, f)
+end
+
+function _boundary_msg(kind)
+    return kind == OpGotoIfNot ?
+           "Conditional branch detected in IR (v1 boundary unless unrolled)." :
+           "Phi node (value merge) detected in IR (cannot merge in v1)."
 end
 
 # ── analyze_statement helpers ───────────────────────────────────────────────
@@ -1294,30 +1262,32 @@ For `:invoke` expressions, the callee is the first argument of the second argume
 Returns `nothing` if the callee cannot be determined.
 """
 function _extract_callee(stmt)
-    if !isa(stmt, Expr)
-        return nothing
-    end
+    isa(stmt, Expr) || return nothing
+    callee = _callee_of(stmt)
+    return callee !== nothing ? callee : _extract_rhs_callee(stmt)
+end
 
+function _callee_of(stmt)
     if stmt.head === :call && length(stmt.args) >= 1
         return stmt.args[1]
     end
-
     if stmt.head === :invoke && length(stmt.args) >= 2
         return stmt.args[2]
     end
-
-    return _extract_rhs_callee(stmt)
+    return nothing
 end
 
 function _extract_rhs_callee(stmt)
-    if stmt.head !== :(=) || length(stmt.args) < 2
-        return nothing
-    end
+    stmt.head === :(=) || return nothing
+    length(stmt.args) >= 2 || return nothing
     rhs = stmt.args[2]
-    if isa(rhs, Expr) && (rhs.head === :call || rhs.head === :invoke)
-        return _extract_callee(rhs)
-    end
-    return nothing
+    isa(rhs, Expr) || return nothing
+    _is_call_or_invoke(rhs) || return nothing
+    return _extract_callee(rhs)
+end
+
+function _is_call_or_invoke(expr)
+    return expr.head === :call || expr.head === :invoke
 end
 
 """
@@ -1331,26 +1301,34 @@ rejected operations.
 
 See REQ-A3, REQ-A8.
 """
+mutable struct _IRState
+    stmts::Vector{AnalyzedStmt}
+    diags::Vector{Diagnostic}
+    cov::CoverageLevel
+end
+
+struct _IRAnalysisCtx
+    f::Any
+    argtypes::Any
+    registry::Union{RuleRegistry,Nothing}
+end
+
 function analyze_ir(ir, f, argtypes, registry::Union{RuleRegistry,Nothing})
-    stmts = AnalyzedStmt[]
-    diags = Diagnostic[]
-    cov = CovCovered
-
-    # IRTools IR has a `.stmts` field or similar; we iterate over statements
-    # Structure varies by IRTools version — handle both IR and Vector forms
+    state = _IRState(AnalyzedStmt[], Diagnostic[], CovCovered)
+    ctx = _IRAnalysisCtx(f, argtypes, registry)
     ir_stmts = _get_ir_statements(ir)
-
     for (i, stmt) in enumerate(ir_stmts)
-        kind = classify_operation(stmt)
-        stmt_cov, stmt_diag = analyze_statement(kind, stmt, f, argtypes, registry)
-        push!(stmts, AnalyzedStmt(i, kind, stmt_cov, stmt_diag))
-        if stmt_diag !== nothing
-            push!(diags, stmt_diag)
-        end
-        cov = coverage_join(cov, stmt_cov)
+        _analyze_ir_stmt!(state, i, stmt, ctx)
     end
+    return IRSummary(state.stmts, state.cov, state.diags)
+end
 
-    return IRSummary(stmts, cov, diags)
+function _analyze_ir_stmt!(state, i, stmt, ctx)
+    kind = classify_operation(stmt)
+    stmt_cov, stmt_diag = analyze_statement(kind, stmt, ctx.f, ctx.argtypes, ctx.registry)
+    push!(state.stmts, AnalyzedStmt(i, kind, stmt_cov, stmt_diag))
+    stmt_diag !== nothing && push!(state.diags, stmt_diag)
+    state.cov = coverage_join(state.cov, stmt_cov)
 end
 
 """

@@ -50,6 +50,12 @@ end
     end
 end
 
+# Build a token tree for property testing
+function _token_tree(n, b)
+    leaves = [TokenPayload{Int}([t]) for t = 1:n]
+    return Tray.Tree(leaves; b = b, schema = TokenSchema())
+end
+
 @testset "Range query token ordering (TRAYS-nyc.2)" begin
     # Property: for any n ∈ [1, 32], b ∈ [2, 8], and valid lo ≤ hi,
     # a range query returns the exact token slice in left-to-right order.
@@ -59,13 +65,10 @@ end
         lo = Data.Integers(1, 32),
         hi = Data.Integers(1, 32),
     )
-        # Ensure lo ≤ hi ≤ n by construction (no rejection)
         lo = min(lo, hi, n)
         hi = min(max(lo, hi), n)
-        tokens = collect(1:n)
-        leaves = [TokenPayload{Int}([t]) for t in tokens]
-        t = Tray.Tree(leaves; b = b, schema = TokenSchema())
-        Tray.range_query(t, lo, hi).tokens == tokens[lo:hi]
+        t = _token_tree(n, b)
+        Tray.range_query(t, lo, hi).tokens == collect(1:n)[lo:hi]
     end
 end
 
@@ -101,6 +104,14 @@ end
     end
 end
 
+function _replacement_tree(n, b, idx)
+    return Tray.Tree(
+        [i == idx ? TokenPayload{Int}([999]) : TokenPayload{Int}([i]) for i = 1:n];
+        b = b,
+        schema = TokenSchema(),
+    )
+end
+
 # ── Persistent-update equivalence and isolation (TRAYS-nyc.4) ───────────────
 #
 # Independent oracle: manually rebuild the tree with the replaced leaf and
@@ -118,14 +129,9 @@ end
         idx = Data.Integers(1, 32),
     )
         idx = min(idx, n)
-        leaves = [TokenPayload{Int}([t]) for t = 1:n]
-        tree = Tray.Tree(leaves; b = b, schema = TokenSchema())
+        tree = _token_tree(n, b)
         updated_tree = Tray.update(tree, idx, TokenPayload{Int}([999]))
-        rebuilt = Tray.Tree(
-            [i == idx ? TokenPayload{Int}([999]) : leaves[i] for i = 1:n];
-            b = b,
-            schema = TokenSchema(),
-        )
+        rebuilt = _replacement_tree(n, b, idx)
         return updated_tree.levels == rebuilt.levels
     end
 end

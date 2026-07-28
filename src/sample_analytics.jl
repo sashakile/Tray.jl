@@ -137,26 +137,6 @@ function SamplePayload(
 end
 
 
-function _coerce_moment_type(mean, variance, skewness, excess_kurtosis)
-    T = promote_type(
-        typeof(mean),
-        typeof(variance),
-        typeof(skewness),
-        typeof(excess_kurtosis),
-    )
-    return float(T)
-end
-
-function _validate_moment_params(p_f, sigma2, gamma1, gamma2)
-    0 < p_f < 1 || throw(DomainError(p_f, "moment_quantile: probability must be in (0, 1)"))
-    sigma2 > 0 || throw(DomainError(sigma2, "moment_quantile: variance must be positive"))
-    isfinite(gamma1) ||
-        throw(DomainError(gamma1, "moment_quantile: skewness must be finite"))
-    isfinite(gamma2) ||
-        throw(DomainError(gamma2, "moment_quantile: excess_kurtosis must be finite"))
-    return
-end
-
 # ---------------------------------------------------------------------------
 # Dataset revision accessors
 # ---------------------------------------------------------------------------
@@ -739,15 +719,8 @@ function moment_quantile(
     skewness::Real,
     excess_kurtosis::Real,
 )
-    T = _coerce_moment_type(mean, variance, skewness, excess_kurtosis)
     p_f = float(p)
-    μ = T(mean)
-    σ² = T(variance)
-    γ₁ = T(skewness)
-    γ₂ = T(excess_kurtosis)
-
-    _validate_moment_params(p_f, σ², γ₁, γ₂)
-
+    T, μ, σ², γ₁, γ₂ = _coerce_moments(p_f, (mean, variance, skewness, excess_kurtosis))
     q = _cornish_fisher_quantile((μ, sqrt(σ²)), _normal_quantile(p_f), γ₁, γ₂)
     return MomentQuantileResult{T}(
         q,
@@ -757,9 +730,23 @@ function moment_quantile(
         σ²,
         γ₁,
         γ₂,
-        "Cornish-Fisher expansion assuming near-Gaussian distribution; " *
-        "accuracy depends on how close the true distribution is to normal",
+        "Cornish-Fisher expansion: near-Gaussian distribution assumption",
     )
+end
+
+function _coerce_moments(p_f, moments::NTuple{4})
+    T = float(promote_type(typeof.(moments)...))
+    μ, σ², γ₁, γ₂ = T.(moments)
+    _check_moments(p_f, σ², γ₁, γ₂)
+    return T, μ, σ², γ₁, γ₂
+end
+
+function _check_moments(p_f, σ², γ₁, γ₂)
+    0 < p_f < 1 || throw(DomainError(p_f, "moment_quantile: probability must be in (0, 1)"))
+    σ² > 0 || throw(DomainError(σ², "moment_quantile: variance must be positive"))
+    isfinite(γ₁) || throw(DomainError(γ₁, "moment_quantile: skewness must be finite"))
+    isfinite(γ₂) ||
+        throw(DomainError(γ₂, "moment_quantile: excess_kurtosis must be finite"))
 end
 
 """

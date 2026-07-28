@@ -1,0 +1,1 @@
+Created epic TRAYS-du5 for progressive pretender threshold tightening (3 stages: moderate → aggressive → maximum). Includes 5 child issues: baseline benchmarks (TRAYS-03v), Stage 1 (TRAYS-0ds), test thresholds (TRAYS-ga8), Stage 2 (TRAYS-yck), Stage 3 (TRAYS-tun). Each stage is benchmark-gated for compilation time, test runtime, and duplication count.
