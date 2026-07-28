@@ -751,49 +751,21 @@ function moment_quantile(
     skewness::Real,
     excess_kurtosis::Real,
 )
-    # Coerce to a common float type
-    T = promote_type(
-        typeof(mean),
-        typeof(variance),
-        typeof(skewness),
-        typeof(excess_kurtosis),
-    )
-    T_float = float(T)
-
+    T_float = _coerce_moment_type(mean, variance, skewness, excess_kurtosis)
     p_f = float(p)
     μ = T_float(mean)
     σ² = T_float(variance)
     γ₁ = T_float(skewness)
     γ₂ = T_float(excess_kurtosis)
 
-    # Validate probability
-    0 < p_f < 1 || throw(DomainError(p_f, "moment_quantile: probability must be in (0, 1)"))
-
-    # Validate variance is positive
-    σ² > 0 || throw(DomainError(σ², "moment_quantile: variance must be positive"))
-
-    # Validate finite moments
-    isfinite(γ₁) || throw(DomainError(γ₁, "moment_quantile: skewness must be finite"))
-    isfinite(γ₂) ||
-        throw(DomainError(γ₂, "moment_quantile: excess_kurtosis must be finite"))
+    _validate_moment_params(p_f, σ², γ₁, γ₂)
 
     σ = sqrt(σ²)
     z = _normal_quantile(p_f)
-
-    # Cornish-Fisher expansion:
-    # q(p) ≈ μ + σ * [z + (z² - 1)γ₁/6 + (z³ - 3z)γ₂/24 - (2z³ - 5z)γ₁²/36]
-    z2 = z * z
-    z3 = z2 * z
-
-    term1 = (z2 - 1) * γ₁ / 6              # skewness correction
-    term2 = (z3 - 3 * z) * γ₂ / 24         # kurtosis correction
-    term3 = -(2 * z3 - 5 * z) * γ₁^2 / 36  # skewness² correction
-
-    w = z + term1 + term2 + term3
-    quantile = μ + σ * w
+    q = _cornish_fisher_expansion(μ, σ, z, γ₁, γ₂)
 
     return MomentQuantileResult{T_float}(
-        quantile,
+        q,
         true,
         p_f,
         μ,
