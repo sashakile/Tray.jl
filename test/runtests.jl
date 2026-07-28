@@ -7100,6 +7100,71 @@ end
     @test TrayBase.combine(x, id) == x
 end
 
+@testitem "SamplePayload: identity-with-identity coherence (TRAYS-8zs)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    id = TrayBase.identity(schema, 3)
+
+    # Identity combined with itself should equal identity
+    # Current bug: identity summary has count=0 (standalone ScalarSummary identity),
+    # but combine recomputes from the zero vector, giving count=3.
+    # This test will PASS after 3.1 fixes the identity summary to derive from its
+    # zero vector (count=S, sum=0, sumsq=0).
+    result = TrayBase.combine(id, id)
+
+    @test result.samples ≈ [0.0, 0.0, 0.0]
+    @test result.summary.count == 3  # zero vector of length 3
+    @test result.summary.sum ≈ 0.0
+    @test result.summary.sumsq ≈ 0.0
+    @test result.summary.minimum ≈ 0.0
+    @test result.summary.maximum ≈ 0.0
+
+    # After 3.1, id.summary should also derive from its zero vector (count=3),
+    # making this equality hold. Currently fails because id has count=0.
+    # @test result == id  # uncomment after 3.1
+end
+
+@testitem "SamplePayload: identity associativity (TRAYS-8zs)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    id = TrayBase.identity(schema, 2)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0])
+    b = SamplePayload(schema = schema, samples = [3.0, 4.0])
+
+    # (id + a) + b == id + (a + b)
+    r1 = TrayBase.combine(TrayBase.combine(id, a), b)
+    r2 = TrayBase.combine(id, TrayBase.combine(a, b))
+
+    @test r1 == r2
+    @test r1.samples ≈ [4.0, 6.0]
+end
+
+@testitem "SamplePayload: full-tree recomputation matches independent oracle (TRAYS-8zs)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0, 3.0])
+    b = SamplePayload(schema = schema, samples = [4.0, 5.0, 6.0])
+    c = SamplePayload(schema = schema, samples = [7.0, 8.0, 9.0])
+
+    # Combine three payloads: (a + b) + c
+    result = TrayBase.combine(TrayBase.combine(a, b), c)
+
+    # Independent oracle: elementwise sum of all three vectors
+    expected_samples = [1.0+4.0+7.0, 2.0+5.0+8.0, 3.0+6.0+9.0]  # [12, 15, 18]
+    expected_sum = 12.0 + 15.0 + 18.0  # 45
+    expected_sumsq = 12.0^2 + 15.0^2 + 18.0^2  # 144 + 225 + 324 = 693
+
+    @test result.samples ≈ expected_samples
+    @test result.summary.count == 3
+    @test result.summary.sum ≈ expected_sum
+    @test result.summary.sumsq ≈ expected_sumsq
+    @test result.summary.minimum ≈ 12.0
+    @test result.summary.maximum ≈ 18.0
+end
+
 @testitem "SamplePayload: combine adds elementwise" begin
     using Tray: ScalarSchema, SamplePayload, TrayBase
 
