@@ -7114,6 +7114,25 @@ end
     @test c.dataset_revision == 1
 end
 
+@testitem "SamplePayload: combine uses elementwise-sum statistics (TRAYS-a3q regression)" begin
+    using Tray: ScalarSchema, SamplePayload, TrayBase
+
+    schema = ScalarSchema{Float64}(false)
+    a = SamplePayload(schema = schema, samples = [1.0, 2.0])
+    b = SamplePayload(schema = schema, samples = [3.0, 4.0])
+    c = TrayBase.combine(a, b)
+
+    # Elementwise sum: [1+3, 2+4] = [4, 6]
+    # Concatenation would give count=4, sumsq=1²+2²+3²+4²=30
+    # Elementwise: count=2, sumsq=4²+6²=52 (includes cross terms 2·a·b)
+    @test c.samples ≈ [4.0, 6.0]
+    @test c.summary.count == 2      # not 4 (would be concatenation)
+    @test c.summary.sumsq ≈ 52.0    # 4²+6², not 1²+2²+3²+4²=30
+    @test c.summary.sum ≈ 10.0
+    @test c.summary.minimum ≈ 4.0
+    @test c.summary.maximum ≈ 6.0
+end
+
 @testitem "SamplePayload: combine is associative" begin
     using Tray: ScalarSchema, SamplePayload, TrayBase
 
