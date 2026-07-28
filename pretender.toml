@@ -33,13 +33,13 @@ mi_min = 25
 duplication_pct_max = 4
 
 [thresholds.test]
-cyclomatic_max = 4
-cognitive_max = 5
-function_lines_max = 80
-nesting_max = 2
+cyclomatic_max = 3
+cognitive_max = 3
+function_lines_max = 50
+nesting_max = 1
 params_max = 3
-abc_max = 35
-duplication_pct_max = 30
+abc_max = 18
+duplication_pct_max = 20
 min_assertions = 0
 
 [thresholds.library]

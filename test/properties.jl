@@ -125,9 +125,9 @@ end
         rebuilt_leaves = copy(leaves)
         rebuilt_leaves[idx] = TokenPayload{Int}([999])
         rebuilt_tree = Tray.Tree(rebuilt_leaves; b = b, schema = TokenSchema())
-        return updated_tree.b == rebuilt_tree.b &&
-               updated_tree.schema == rebuilt_tree.schema &&
-               updated_tree.levels == rebuilt_tree.levels &&
-               tree.levels == original_levels
+        return (updated_tree.b == rebuilt_tree.b) &
+               (updated_tree.schema == rebuilt_tree.schema) &
+               (updated_tree.levels == rebuilt_tree.levels) &
+               (tree.levels == original_levels)
     end
 end
