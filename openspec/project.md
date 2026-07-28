@@ -1,9 +1,10 @@
 # Project Context
 
 ## Purpose
-Tray is a Julia library proposal for an authoritative ordered leaf array paired
-with a balanced aggregation index. The current implementation is scaffold-only;
-active changes describe proposed behavior rather than deployed capabilities.
+Tray is a Julia library for an authoritative ordered leaf array paired
+with a balanced aggregation index. The implementation covers all core
+capabilities with 500+ test items, 46 Espectacular contracts, and
+property-based testing via Supposition.jl.
 
 ## Tech Stack
 - Julia 1.12+

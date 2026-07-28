@@ -2,38 +2,45 @@
 
 Tray is an ordered leaf array with a balanced aggregation index in Julia.
 
-## Current Status
+## Current repository state
 
-The `Tray` module is scaffold-only. Its only current behavior is `Tray.greet()`,
-which prints `Hello World!`. Aggregation behavior and APIs are proposals in
-OpenSpec and are not implemented.
+This is an implemented Julia library. All epics are complete, all 73 tickets
+are closed. The codebase includes:
 
-## Key Concepts
+- Core tree (balanced n-ary, range query, insert/remove/update, reweight)
+- ScalarSummary, AttributionPayload, SamplePayload, AlignedArrayPayload
+- SnapshotEpoch (MVCC snapshots), DashboardModel (reactive viewport)
+- FinancialRisk adapter (VaR, expected shortfall, Gaussian/component/marginal)
+- Compiler IR incrementalization (optional IRTools-based derive)
+- Persistence (save_tree/load_tree with binary format and checksums)
+- 46 Espectacular contracts mapping specs to tests
 
-- **Ordered leaves** — source values retain a stable array order
-- **Balanced aggregation index** — proposed internal nodes summarize leaf ranges
-- **Domain-neutral core** — payload and aggregation semantics are not tied to finance
+## Workflow and governance
 
-## Requirements
+The repository uses:
+- `wai` for research, rationale, and handoffs
+- `bd` (beads) for issue tracking
+- OpenSpec for change proposals and capability specifications
+- `pretender` for structural code quality (gate mode — violations fail CI)
+- `espectacular` for spec-test correspondence
+- `ah check` for spec validation and contract verification
+- `replyc` for inline Julia evaluation (REPLy.jl server)
 
-See [OpenSpec](openspec/) for proposed behavior and the root
-[`tray-jl-ears-spec.md`](tray-jl-ears-spec.md) for the combined requirements source.
+## Preferred commands
 
-## Tools
+Use the repo `justfile`:
+- `just test` — run all Julia tests
+- `just test-file <pattern>` — focused @testitem blocks
+- `just fmt` — format with JuliaFormatter
+- `just pretender-check` — structural code quality scan
+- `just test-select` — testaruda test selection
+- `just ci` — full CI pipeline (fmt-check, test, spell-check, doc-check)
 
-| Tool | Purpose |
-|------|---------|
-| `just` | Task runner |
-| `pretender` | Code quality (complexity, duplication, mutation) |
-| `dont` | Epistemic claim verification |
-| `espectacular` | Specification checking |
-| `testaruda` | Test selection |
-| `bd` | Issue tracking (beads, prefix `TRAYS`) |
-| `openspec` | Spec-driven development |
+## Important constraints
 
-## Links
-
-- Spec: [`tray-jl-ears-spec.md`](tray-jl-ears-spec.md)
-- Issues: `bd list`
-- OpenSpec: `openspec list`
-- Docs: `just doc` (builds via Documenter.jl)
+- Julia 1.12+ only
+- ReTestItems for testing (single-file convention in test/runtests.jl, ~8800 loc)
+- IRTools is optional (not a hard dependency — loaded lazily for incrementalization)
+- Financial risk adapter is optional (loads on demand)
+- Preserve EARS IDs REQ-1–REQ-44 and REQ-A1–REQ-A17
+- No LLVM, differential dataflow, or memoization — these are explicit non-goals
