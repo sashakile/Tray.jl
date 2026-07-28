@@ -167,64 +167,70 @@ If `viewport_range` is `nothing`, this is a no-op.
 If the range or depth is invalid, the error field is set instead of aggregate.
 """
 function execute_query(model::DashboardModel)
-    # Capture the current request revision at the start
     query_revision = model.request_revision
 
-    # If no viewport is set, nothing to do
     if model.viewport_range === nothing
         return (query_revision, model.result_revision)
     end
 
     lo, hi = model.viewport_range
+    result, depth_val, error_msg = _run_query(model, lo, hi)
+
+    _publish_query_result(model, query_revision, result, depth_val, error_msg)
+
+    return (query_revision, model.result_revision)
+end
+
+# ── execute_query helpers ───────────────────────────────────────────────────
+
+function _run_query(model, lo, hi)
     n = leaf_count(model.tree)
-
-    result = nothing
-    depth_val = nothing
-    error_msg = nothing
-
-    # Validate and execute the query
     try
         if lo < 1 || hi > n || lo > hi
             throw(BoundsError("viewport_range ($lo, $hi) out of bounds [1, $n]"))
         end
-
-        if model.requested_depth !== nothing
-            target = model.requested_depth
-            max_d = depth(model.tree)
-            if target < 0 || target > max_d
-                throw(ArgumentError("requested_depth $target out of range [0, $max_d]"))
-            end
-            result = range_query(model.tree, lo, hi; target_depth = target)
-            depth_val = target
-        else
-            result = range_query(model.tree, lo, hi)
-            depth_val = depth(model.tree)
-        end
+        return _compute_range_query(model, lo, hi)
     catch e
-        error_msg = sprint(showerror, e)
+        return (nothing, nothing, sprint(showerror, e))
     end
+end
 
-    # Latest-wins: only publish if this is still the latest request
-    if query_revision == model.request_revision
-        if error_msg === nothing
-            model.aggregate = result
-            model.effective_depth = depth_val
-            model.error = nothing
-        else
-            model.aggregate = nothing
-            model.effective_depth = nothing
-            model.error = error_msg
+function _compute_range_query(model, lo, hi)
+    if model.requested_depth !== nothing
+        target = model.requested_depth
+        max_d = depth(model.tree)
+        if target < 0 || target > max_d
+            throw(ArgumentError("requested_depth $target out of range [0, $max_d]"))
         end
-        model.result_revision = query_revision
+        result = range_query(model.tree, lo, hi; target_depth = target)
+        return (result, target, nothing)
+    else
+        result = range_query(model.tree, lo, hi)
+        return (result, depth(model.tree), nothing)
+    end
+end
 
-        # Notify listeners
-        _notify(model, :aggregate, model.aggregate)
-        _notify(model, :effective_depth, model.effective_depth)
-        _notify(model, :error, model.error)
-        _notify(model, :result_revision, model.result_revision)
+function _publish_query_result(model, query_revision, result, depth_val, error_msg)
+    if query_revision != model.request_revision
+        return
     end
 
-    return (query_revision, model.result_revision)
+    if error_msg === nothing
+        model.aggregate = result
+        model.effective_depth = depth_val
+        model.error = nothing
+    else
+        model.aggregate = nothing
+        model.effective_depth = nothing
+        model.error = error_msg
+    end
+    model.result_revision = query_revision
+
+    _notify(model, :aggregate, model.aggregate)
+    _notify(model, :effective_depth, model.effective_depth)
+    _notify(model, :error, model.error)
+    _notify(model, :result_revision, model.result_revision)
+    return
 end
 
 end # module Dashboard
