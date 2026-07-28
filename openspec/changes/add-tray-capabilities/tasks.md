@@ -23,8 +23,8 @@
 - [x] 3.2 Implement aligned dataset regeneration and rolling-sample cache invalidation.
     - Tickets: `TRAYS-t3f` (regeneration), `TRAYS-y3y` (rolling-sample advancement)
     - `advance_window!` implemented with subset leaf updates, revision, ancestor-path rebuild, sibling preservation. 42 tests.
-- [x] 3.3 Add sealed exact/compressed states; all combination/promotion and source-backed transitions; aligned-sum sketch identity/associativity metric; provenance; cumulative rank/tail-mean errors; and moment estimates.
-    - Tickets: `TRAYS-x6z` (bounded compressed samples)
+- [x] 3.3 Add sealed exact state (exact-only for current release; compression deferred to a future ADR per `defer-nonconforming-sample-compression`). All combination and source-backed transitions work with exact vectors. Aligned-sum sketch identity/associativity metric, cumulative rank/tail-mean errors, and moment estimates deferred.
+    - Tickets: `TRAYS-x6z` (bounded compressed samples — superseded by `defer-nonconforming-sample-compression`)
 - [x] 3.4 Implement fractional-depth behavior, including quantile-function interpolation for sample payloads.
     - Tickets: `TRAYS-e7k` (fractional level-of-detail queries)
     - 39 tests in `test/runtests.jl`

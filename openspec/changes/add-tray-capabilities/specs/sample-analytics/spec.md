@@ -25,18 +25,20 @@ When the leaf-level aligned sample matrix is regenerated, the library SHALL crea
 - **WHEN** a new aligned sample matrix replaces the current matrix
 - **THEN** affected nodes reflect only the new revision and prior derived caches are unavailable
 
-### Requirement: REQ-21 Optional sketch compression
-Sample nodes SHALL use exactly `Exact(values, sample_ids, dataset_revision)` or `Compressed(sketch, sample_ids, dataset_revision, config_id)`. A positive threshold SHALL select exact versus compressed storage. Every operand pairing SHALL preserve ordered sample alignment, revision, configuration, and deterministic combination. A sketch MUST approximate `sketch(a+b)`, preserve sample pairing, provide identity and declared associativity bounds, and be reconstructible from retained or immutable reloadable revision-matched source. Transitions and failures SHALL publish atomically; distribution-union merging is non-conforming.
+### Requirement: REQ-21 Exact-only aligned sample aggregation
+Sample nodes SHALL use exact aligned sample vectors as the only conforming representation. A positive threshold that would select compressed storage SHALL cause configuration to fail explicitly with a message indicating that compression is deferred until a pairing-preserving representation is approved (see `defer-nonconforming-sample-compression`). Every operand pairing SHALL preserve ordered sample alignment, revision, configuration, and deterministic combination. Reconstruction SHALL use retained or immutable reloadable revision-matched source; distribution-union merging is non-conforming.
 
-#### Scenario: Combine every representation pairing
-- **WHEN** children are exact/exact, exact/compressed, compressed/exact, or compressed/compressed
-- **THEN** the declared promotion path preserves provenance and rejects incompatible revisions or configurations without mutation
+#### Scenario: Preserve exact operation
+- **WHEN** children are exact/exact
+- **THEN** the result preserves provenance and rejects incompatible revisions or configurations without mutation
 
 #### Scenario: Reject a distribution-union sketch
 - **WHEN** a sketch discards sample pairing
-- **THEN** configuration fails the aligned-sum conformance contract
+- **THEN** configuration fails with a message indicating compression is deferred
 
 ### Requirement: REQ-22 Approximation error reporting
+The project SHALL defer compressed quantile and tail-mean approximation until a pairing-preserving compressed representation is approved (see `defer-nonconforming-sample-compression`).
+
 Every compressed quantile or tail-mean result SHALL include its value, `approximate=true`, configuration provenance, and cumulative absolute rank-error bound composed as `min(1, Σ ε_promotions + Σ ε_merges + ε_query)`. A tail mean SHALL include its rank-uncertainty envelope and integrate finite value envelopes when available; otherwise value error SHALL be explicitly unavailable.
 
 #### Scenario: Query a compressed sample
@@ -62,6 +64,8 @@ Where moment-based quantile estimation is selected, the library SHALL use first-
 - **THEN** the result uses Cornish-Fisher, is approximate, and reports its assumption
 
 ### Requirement: REQ-32 Compressed-distribution disclosure
+The project SHALL defer compressed-distribution disclosure until a pairing-preserving compressed representation is approved (see `defer-nonconforming-sample-compression`).
+
 If a statistic requiring the full sample distribution is requested from a compressed node, the library SHALL return the sketch approximation with its error bound and SHALL NOT represent it as exact.
 
 #### Scenario: Request a median from a sketch
@@ -90,8 +94,8 @@ Where fractional-depth interpolation is enabled, a valid focus leaf, finite dept
 - **THEN** matching ancestor quantiles are interpolated and approximation is disclosed
 
 ### Requirement: REQ-44 Bounded sample-node storage
-Each sample node SHALL use one REQ-21 representation with storage bounded by fixed sample count `S` or configured sketch size, independent of subtree leaf count. Reconstruction source location and dataset revision SHALL be accounted separately in provenance.
+Each sample node SHALL use one REQ-21 representation with storage bounded by fixed sample count `S`, independent of subtree leaf count. Reconstruction source location and dataset revision SHALL be accounted separately in provenance.
 
 #### Scenario: Grow a summarized subtree
-- **WHEN** leaf count grows without changing sample count or sketch configuration
+- **WHEN** leaf count grows without changing sample count
 - **THEN** sample-node storage remains within the configured bound
