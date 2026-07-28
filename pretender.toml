@@ -1,13 +1,13 @@
 [pretender]
 mode = "tiered"
 languages = ["auto"]
-exclude = ["vendor/**", "node_modules/**", "**/*_generated.*"]
+exclude = ["vendor/**", "node_modules/**", "**/*_generated.*", ".git/", "target/", "docs/build/"]
 
 [roles.test]
-paths = ["tests/**", "**/*_test.*", "spec/**"]
+paths = ["test/**", "**/*_test.*", "spec/**"]
 
 [roles.library]
-paths = ["pkg/**", "lib/**"]
+paths = ["src/**", "lib/**"]
 
 [roles.script]
 paths = ["scripts/**", "examples/**"]
@@ -17,3 +17,12 @@ paths = ["**/*.pb.go", "**/*_generated.*"]
 
 [roles.vendor]
 paths = ["vendor/**", "node_modules/**"]
+
+[thresholds.test]
+cyclomatic_max = 3
+cognitive_max = 5
+function_lines_max = 80
+nesting_max = 2
+params_max = 3
+duplication_pct_max = 30
+min_assertions = 0
