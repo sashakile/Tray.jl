@@ -25,6 +25,15 @@ Every positive-length exact sample payload, including the additive identity's ze
 ### Requirement: Future compressed aligned-sum conformance
 Any future proposal that re-enables compressed sample nodes MUST define a pairing-preserving representation and promotion map and MUST demonstrate `compress(a + b)` equivalence to combining compressed aligned operands under its declared error metric. Conformance SHALL cover identity, every supported exact/compressed operand pairing, mixed parenthesizations, and adversarial inputs with identical marginal distributions but different pairings. Associativity of marginal sketch union alone SHALL NOT establish conformance.
 
+#### Acceptance Oracle
+Any future proposal SHALL pass the following oracle tests. The oracle compares the result of `compress(exact_combine(a, b))` against `combine(compress(a), compress(b))` under the proposal's declared error metric. Each test SHALL pass for every supported operand pairing (exact/exact, exact/compressed, compressed/exact, compressed/compressed).
+
+1. **Identity oracle:** `compress(identity) == identity(compressed_type)` and `combine(compress(id), compress(x)) == compress(combine(id, x))` for any `x`.
+2. **Associativity oracle:** `compress(combine(combine(a, b), c)) == combine(combine(compress(a), compress(b)), compress(c))` within error bounds.
+3. **Adversarial re-pairing oracle:** For `a = [0, 2]`, inputs `b₁ = [0, 2]` and `b₂ = [2, 0]` have identical marginal histograms but produce different elementwise sums. The oracle SHALL distinguish `compress(a + b₁)` from `compress(a + b₂)` within the declared error contract.
+4. **Mixed parenthesization oracle:** For three aligned vectors `a, b, c`, `compress((a + b) + c)` and `compress(a + (b + c))` SHALL produce equivalent results within error bounds.
+5. **Cross-term oracle:** For `a = [1, 2]` and `b = [3, 4]`, `compress(a + b)` SHALL produce a result whose sum of squares includes the cross terms `2·a·b` (i.e., `(1+3)² + (2+4)² = 52`, not `1²+2²+3²+4² = 30`).
+
 #### Scenario: Distinguish equal marginals with different pairings
 - **WHEN** two candidate right operands have equal marginal summaries but produce different exact elementwise sums with the same left operand
 - **THEN** a proposed compressed design either distinguishes the required outputs within its declared error contract or is rejected as non-conforming
