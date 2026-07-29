@@ -8,7 +8,7 @@ category: Reference
 
 > **Note:** This page is populated by Documenter.jl's `@autodocs` block during the HTML build.
 > The raw markdown shows only the directive below. For a quick offline reference, see
-> [`llm.txt`](../../llm.txt) or the [Examples page](examples.md).
+> `llm.txt` (repo root) or the [Examples page](examples.md).
 
 ## Exported Names Overview
 
