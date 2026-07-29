@@ -48,6 +48,13 @@ The library's core data structure is therefore a tree (an n-ary segment tree / h
 
 This document specifies the required behavior of a Julia library, `Tray.jl`, implementing this structure, using the EARS (Easy Approach to Requirements Syntax) notation: Ubiquitous, Event-driven, State-driven, Optional-feature, Unwanted-behavior, and Complex requirement patterns. Each requirement is independently testable and is tagged with a stable ID (`REQ-n`) for traceability.
 
+### Falsifiable Value Proposition
+
+> Tray.jl will enable Julia developers processing ordered time-series data
+> to compute range queries 5× faster than naive O(n) recomputation within 6
+> months of the 1.0.0 release, as measured by the benchmark suite compared
+> to the 1.0.0 baseline.
+
 ---
 
 ## 1. Scope & Definitions

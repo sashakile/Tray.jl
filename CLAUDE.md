@@ -1,3 +1,21 @@
+<!-- GOAL:MANAGED v1 — Do not edit outside the value-alignment workflow. Protected by charter prohibition and lefthook pre-commit check. -->
+# PRIMARY OBJECTIVE
+
+> **Falsifiable value proposition:** Tray.jl will enable Julia developers
+> processing ordered time-series data to compute range queries 5× faster than
+> naive O(n) recomputation within 6 months of the 1.0.0 release, as measured
+> by the benchmark suite compared to the 1.0.0 baseline.
+
+> Tray.jl — an ordered leaf array with a balanced aggregation index in Julia.
+> **Domain-neutral core for incrementally maintainable aggregated views over ordered data.**
+
+Every action taken by this agent must serve this objective: improve Tray.jl's
+correctness, performance, documentation, or developer experience within the
+scope defined by OpenSpec proposals and beads issues. If the next action does
+not obviously advance this objective, stop and reassess.
+
+<!-- /GOAL:MANAGED v1 -->
+
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
 
@@ -141,3 +159,45 @@ bd close <id>         # Complete work
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
+
+<!-- GOAL:MANAGED v1 -- corresponds to value-proposition-proposal.md:APPROVED -->
+
+## Alignment & Self-Check
+
+> **Primary Objective (restated):** Tray.jl will enable Julia developers
+> processing ordered time-series data to compute range queries 5× faster than
+> naive O(n) recomputation within 6 months of the 1.0.0 release, as measured
+> by the benchmark suite compared to the 1.0.0 baseline.
+>
+> Tray.jl — an ordered leaf array with a balanced aggregation index in Julia.
+> Domain-neutral core for incrementally maintainable aggregated views over
+> ordered data.
+
+### Minimal Footprint
+Before any action, prefer the simplest approach. Do not create files, modify code,
+or run expensive operations unless the task explicitly requires it. Favor reading
+over writing, and small targeted edits over large rewrites.
+
+### Pre-Action Alignment Check
+Before each major action (edit, write, bash command), briefly verify:
+- **OBJECTIVE** — does this action serve the PRIMARY OBJECTIVE?
+- **SCOPE** — is this in scope? (Spec/design changes need OpenSpec proposals;
+  code changes need beads issues)
+- **PROGRESS** — am I still solving the original task, or have I wandered?
+
+### Escalation (in addition to WAI Autonomous Work Policy)
+Stop and ask when any of these arise:
+- **Scope boundary reached** — task extends beyond the current charter
+- **Unexpected state** — environment, dependency, or assumption changed
+- **Confidence below threshold** — unsure whether a change is correct
+- **Conflicting requirements** — do not proceed until the conflict is resolved
+
+### Drift Check
+If the conversation has diverged from the original task for more than 3 exchanges
+without explicit user direction, stop and call it out before proceeding further.
+
+### Known Limitation
+Alignment constraints rely on the model's instruction-hierarchy compliance.
+See Anthropic's model spec (constitutional AI) for the state of the art.
+
+<!-- /GOAL:MANAGED v1 -->

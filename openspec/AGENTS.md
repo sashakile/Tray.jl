@@ -172,6 +172,11 @@ New request?
 ## Impact
 - Affected specs: [list capabilities]
 - Affected code: [key files/systems]
+- Behavioral impact: [agent prompt changes, escalation trigger changes, behavioral spec updates]
+
+> **BADR required** if this change alters authorized/prohibited behavior,
+> escalation triggers, or success criteria. File a Behavioral ADR recording
+> the behavioral decision, rationale, and rejected alternatives.
 ```
 
 3. **Create spec deltas:** `specs/[capability]/spec.md`

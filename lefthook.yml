@@ -8,6 +8,27 @@ pre-commit:
     ah-check:
       run: ah check
 # ah:managed:end
+    goal-blocks:
+      # Reject edits to MANAGED blocks unless SKIP_GOAL_CHECK=1
+      # Checks all staged files for any added/modified lines containing MANAGED markers.
+      run: >-
+        bash -c '
+        if [ -z "${SKIP_GOAL_CHECK:-}" ]; then
+          for f in $(git diff --cached --name-only 2>/dev/null); do
+            if [ -f "$f" ]; then
+              # Only check added/modified lines (starting with +), not context lines
+              ADDED=$(git diff --cached -- "$f" 2>/dev/null | grep -E "^\+.*MANAGED" | grep -v "^\+\+\+" || true)
+              if [ -n "$ADDED" ]; then
+                echo "ERROR: $f: MANAGED blocks may not be modified without SKIP_GOAL_CHECK=1"
+                echo "       To override: SKIP_GOAL_CHECK=1 git commit ..."
+                echo "       Modified MANAGED lines:"
+                echo "$ADDED"
+                exit 1
+              fi
+            fi
+          done
+        fi
+        '
     julia-format:
       glob: "*.jl"
       run: >-

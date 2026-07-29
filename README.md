@@ -7,6 +7,8 @@
 > The project has **not** had a professional security audit or human line-by-line
 > review of the entire codebase.
 
+**🔗 Alignment status:** [`traceability-matrix.md` → 11 links (3 🟢, 8 🔴)](.wai/resources/alignment/traceability-matrix.md) · [Vocabulary bridge](.wai/resources/alignment/vocabulary-bridge.md) · [Agent Charter draft](.wai/resources/alignment/charter-draft.md)
+
 **Tray.jl** is an ordered leaf array with a balanced aggregation index in Julia —
 a domain-neutral core for incrementally maintainable aggregated views over
 ordered data.

@@ -1,6 +1,6 @@
 # ── Tray.jl – common tasks ──────────────────────────────────────────────────
-project  := "Tray"
-julia    := "julia"
+project := "Tray"
+julia := "julia"
 
 # ── Test ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,16 @@ test-select:
 coverage:
     {{ julia }} --project=. -e 'using Pkg; ENV["JULIA_COVERAGE"] = "user"; Pkg.test(; coverage=true)'
 
+# ── Benchmarks ───────────────────────────────────────────────────────────────
+
+# Run performance benchmarks
+bench:
+    {{ julia }} --project=. bench/benchmarks.jl
+
+# Bench range query at various scales
+bench-query n_leaves='100000' b='32' range='5000':
+    {{ julia }} --project=. -e 'include("bench/benchmarks.jl"); println(bench_range_query({{ n_leaves }}, {{ b }}, {{ range }}))'
+
 # ── Docs ────────────────────────────────────────────────────────────────────
 
 # Build docs (Documenter.jl)
@@ -90,10 +100,19 @@ dont-check:
 dont-list:
     dont list --plain
 
+# ── Alignment Check ─────────────────────────────────────────────────────────
+
+# Run value-focused eval cases (documented in .wai/resources/alignment/value-eval-cases.md)
+align-check:
+    @printf 'Alignment check: see .wai/resources/alignment/ for evaluation criteria\n'
+    @printf '  - Traceability matrix: .wai/resources/alignment/traceability-matrix.md\n'
+    @printf '  - Value eval cases: .wai/resources/alignment/value-eval-cases.md\n'
+    @printf '  - Vocabulary bridge: .wai/resources/alignment/vocabulary-bridge.md\n'
+
 # ── CI-like full check ──────────────────────────────────────────────────────
 
 # Run the full CI pipeline locally
-ci: fmt-check test spell-check doc-check dont-check
+ci: fmt-check test spell-check doc-check dont-check align-check
 
 # ── Project Status ──────────────────────────────────────────────────────────
 
