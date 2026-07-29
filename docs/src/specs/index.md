@@ -1,3 +1,9 @@
+---
+title: OpenSpec Specifications
+description: OpenSpec change proposals and capability specifications for Tray.jl — mirror of the openspec/ directory.
+category: Reference
+---
+
 # OpenSpec Specifications
 
 The documentation build mirrors the complete repository `openspec/` directory. The

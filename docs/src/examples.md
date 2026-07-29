@@ -1,4 +1,27 @@
+---
+title: Examples
+description: Walkthroughs for all major Tray.jl features — ScalarSummary, AttributionPayload, immutable updates, custom payloads, property tests, and error handling.
+category: Tutorial
+---
+
 # Examples
+
+This page walks through Tray's payload types and tree operations with runnable Julia examples.
+Each example is self-contained — just copy the block into a Julia REPL or script.
+
+## Quick Reference
+
+| # | Topic | Key APIs Demonstrated |
+|---|-------|----------------------|
+| 1 | ScalarSummary — numeric statistics | `Tree`, `range_query`, `derived_mean`, higher moments |
+| 2 | AttributionPayload — waterfall / contribution analysis | `AttributionPayload`, `AttributionSchema`, `derive_ratio`, residual buckets, allocated conventions |
+| 3 | Immutable update (snapshot isolation) | `update`, snapshot semantics |
+| 4 | Custom payload | `TrayBase.combine`, `TrayBase.identity`, custom schema |
+| 5 | Property: root fold oracle | `root`, `reduce(combine, ...)`, associativity |
+| 6 | Depth-targeted range query | `range_query` with `target_depth` |
+| 7 | Error handling | `ArgumentError`, `BoundsError`, `DomainError` |
+
+---
 
 ## 1. ScalarSummary — Numeric Statistics
 

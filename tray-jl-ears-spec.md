@@ -1,6 +1,34 @@
+---
+title: EARS Specification — Tray.jl
+description: Full EARS requirements specification for Tray.jl — 44 core requirements (REQ-1–48) plus addenda for compiler incrementalization (REQ-A1–A17), bucketed attribution (REQ-45–48), and financial risk (FIN-1–6).
+category: Specification
+version: 0.2.0
+---
+
 # EARS Specification: Tray.jl
 
+> **Authoritative source.** This is the canonical spec. It is copied to `docs/src/generated/`
+> during the documentation build. Edit this file; the generated copy is a build artifact.
+
 Tray (tree + array) is a domain-neutral Julia library that pairs authoritative ordered leaf storage with a balanced aggregation index. It supports efficient recomputation of summaries at multiple levels of detail over changing data.
+
+## Table of Contents
+
+- [1. Scope & Definitions](#1-scope--definitions)
+- [2. Ubiquitous Requirements](#2-ubiquitous-requirements)
+- [3. Event-Driven Requirements](#3-event-driven-requirements)
+- [4. State-Driven Requirements](#4-state-driven-requirements)
+- [5. Optional Feature Requirements](#5-optional-feature-requirements)
+- [6. Unwanted Behavior Requirements](#6-unwanted-behavior-requirements)
+- [7. Complex Requirements](#7-complex-requirements)
+- [8. Non-Functional Requirements](#8-non-functional-requirements)
+- [9. Traceability Notes (Core)](#9-traceability-notes-core)
+- [Addendum A: Compiler-IR-Based Automatic Incrementalization](#addendum-a-compiler-ir-based-automatic-incrementalization)
+  - [REQ-A1–A17](#a2-ubiquitous-requirements)
+- [Addendum B: Bucketed Attribution and Waterfalls](#addendum-b-bucketed-attribution-and-waterfalls)
+  - [REQ-45–48](#b1-traceability-notes)
+- [Addendum F: Optional Financial-Risk Interpretation](#addendum-f-optional-financial-risk-interpretation)
+  - [FIN-1–6](#f6-traceability-notes)
 
 ## 0. Background & Motivation
 

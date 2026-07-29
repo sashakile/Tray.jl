@@ -1,10 +1,19 @@
-# Tray.jl
+---
+title: Documentation — Tray.jl
+description: Landing page for Tray.jl documentation — key concepts, architecture overview, and quick links to all reference pages.
+category: Reference
+---
 
-Tray is an ordered leaf array with a balanced aggregation index in Julia —
-a domain-neutral core for incrementally maintainable aggregated views over
-ordered data.
+# Tray.jl Documentation
 
-## What's Built
+Welcome to the Tray.jl documentation. Use this site to learn about the library's
+concepts, explore examples, browse the API reference, and track implementation status.
+
+> **New to Tray?** Start with the [Examples](examples.md) for hands-on walkthroughs,
+> or read the [Architecture Overview](dev/architecture.md) for the design rationale.
+> The [EARS Specification](generated/tray-jl-ears-spec.md) contains the full requirements.
+
+## Concepts at a Glance
 
 The current Tray implementation provides:
 
@@ -31,7 +40,7 @@ The current Tray implementation provides:
 - **Schema-bound identity** — every payload provides a schema-aware identity
   satisfying left and right identity laws
 
-## Getting Started
+## Quick Start: Tree Construction
 
 ```julia
 using Tray
@@ -58,6 +67,12 @@ tray2 = update(tray, 2, new_leaf)
 
 See the [Examples page](examples.md#2-attributionpayload--waterfall--contribution-analysis)
 for a full walkthrough with reconciliation, residual buckets, and allocation conventions.
+
+## Next Steps
+
+- [Examples](examples.md) — full walkthroughs for every payload type
+- [Testing Strategy](dev/testing.md) — how tests are organized
+- [Architecture](dev/architecture.md) — design rationale and extension patterns
 
 ## Quick Links
 

@@ -1,3 +1,10 @@
+---
+title: Implementation Status
+description: What's built and what's planned for Tray.jl — status of every behavior and requirement area with requirement ID traceability.
+category: Reference
+last_updated: 2026-07-27
+---
+
 # Implementation Status
 
 > Last updated: 2026-07-27

@@ -1,3 +1,9 @@
+---
+title: Architecture
+description: Design and architecture of Tray.jl — tree structure, payload system, query semantics, derived metrics, and the custom payload extension pattern.
+category: Explanation
+---
+
 # Architecture
 
 Tray pairs an ordered leaf array with a balanced aggregation index. The
@@ -5,7 +11,7 @@ architecture follows the algebraic pattern of monoidal reduction: every payload
 type implements `combine` (associative binary operation) and `identity` (unit),
 giving the tree a well-defined root value for any collection of leaves.
 
-## Tree Structure
+## Tree Structure: Mipmap-Style Hierarchical Rollup
 
 The core data structure is an n-ary segment tree / hierarchical rollup, similar
 to image mipmaps or OLAP rollup cubes:

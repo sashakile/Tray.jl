@@ -1,3 +1,9 @@
+---
+title: Changelog
+description: Version history for Tray.jl — all notable changes organized by release.
+category: Reference
+---
+
 # Changelog
 
 All notable changes to Tray.jl will be documented in this file.

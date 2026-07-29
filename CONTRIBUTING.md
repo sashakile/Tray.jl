@@ -1,3 +1,9 @@
+---
+title: Contributing to Tray.jl
+description: How to contribute to Tray.jl — development workflow, code quality gates, project conventions, and spec-driven development.
+category: How-to
+---
+
 # Contributing to Tray.jl
 
 Thank you for considering contributing to Tray.jl!

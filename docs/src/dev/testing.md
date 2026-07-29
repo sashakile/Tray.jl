@@ -1,4 +1,13 @@
+---
+title: Testing Strategy
+description: How Tray.jl tests are organized — ReTestItems unit tests, Supposition.jl property tests, CI integration, and known limitations.
+category: Reference
+---
+
 # Testing Strategy
+
+This document describes Tray's testing strategy, including unit test organization,
+property-based testing setup, CI coverage configuration, and known limitations.
 
 ## Frameworks
 
@@ -31,16 +40,20 @@ Tray uses [Supposition.jl](https://github.com/Seelengrab/Supposition.jl) 0.3.x
   inside the same outer `Test.@testset`. Keep shared generator types in
   `test/helpers/`.
 
-### Why not inside @testitem?
+### Why property tests must stay outside @testitem
 
 ReTestItems 1.35.2 converts test results through its own machinery and does
 not honor Supposition's custom `Test.@testset` type. Running `@check` inside
-`@testitem`:
+`@testitem` produces these failure modes:
 
-| `record` value | Behavior in @testitem |
-|---|---|
-| `record=true` (default) | ReTestItems raises `FieldError` on missing `SuppositionReport.results` — infrastructure error obscures property result
-| `record=false` | Failure is invisible to the parent test — passes despite violations
+- `record=true` (default) → ReTestItems raises `FieldError` on missing
+  `SuppositionReport.results` — an infrastructure error that obscures the
+  property result.
+- `record=false` → Failure is invisible to the parent test — the suite
+  passes despite property violations.
+
+**Conclusion:** property `@check` invocations must live in ordinary `Test.@testset`
+blocks outside `@testitem`.
 
 ### Running property tests
 

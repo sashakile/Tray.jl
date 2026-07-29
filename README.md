@@ -66,16 +66,11 @@ new_leaf = ScalarSummary(; schema, count=1, sum=99.0, sumsq=9801.0, minimum=99.0
 tray2 = update(tray, 2, new_leaf)
 ```
 
+> **Error handling:** See the [Examples](docs/src/examples.md#7-error-handling) page for
+> invalid operations (empty trees, out-of-bounds indices, non-reconciling attribution,
+> zero-denominator ratios).
+
 ## Installation
-
-```julia
-using Pkg
-Pkg.add(url="https://github.com/sashakile/Tray.jl")
-```
-
-Tray is not yet registered in Julia's General registry.
-
-## Documentation
 
 Full documentation is built with Documenter.jl and available in the
 [`docs/`](docs/) directory. Key pages:
